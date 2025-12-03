@@ -26,9 +26,40 @@ export const translations: TranslationMap = {
     "report.findings": "Findings",
     "report.results": "Results",
     "report.impression": "Impression",
+    "report.caseInfo": "Case Info",
+    "report.caseId": "Case ID",
+    "report.date": "Date",
+    "report.transcription": "Transcription",
+    "report.transcriptionEmpty": "No transcription available.",
     "report.empty": "The generated report will appear here.",
     "report.copy": "Copy to clipboard",
     "report.copied": "Report copied",
+    "report.generatedTitle": "Generated Radiology Report",
+
+    "reports.title": "Reports",
+    "reports.generate": "Generate report",
+    "reports.empty": "No reports generated yet.",
+
+    "recording.title": "Record Your Analysis",
+    "recording.description":
+      "Click the microphone to start recording your verbal findings. Speak naturally as you would during a case review.",
+    "recording.placeholder": "Dictate or paste your transcription...",
+    "recording.label": "Dictation",
+    "recording.upload": "Upload transcription",
+
+    "upload.title": "Processing transcription",
+    "upload.subtitle": "Generating structured findings and impression",
+    "upload.status1": "Analyzing study context",
+    "upload.status2": "Structuring findings",
+    "upload.status3": "Preparing impression",
+    "upload.complete": "Ready!",
+
+    "welcome.tagline": "AI Radiology Assistant",
+    "welcome.title": "Record, review, and share structured reports",
+    "welcome.subtitle":
+      "Transcribe your studies, edit the structured output, and collaborate with your care team in seconds.",
+    "welcome.generate": "Generate report",
+    "welcome.viewReports": "View history",
 
     "errors.generic": "We could not generate the report. Please try again.",
     "errors.requestFailed": "Unable to contact the report service.",
@@ -58,9 +89,40 @@ export const translations: TranslationMap = {
     "report.findings": "Hallazgos",
     "report.results": "Resultados",
     "report.impression": "Impresión",
+    "report.caseInfo": "Información del Caso",
+    "report.caseId": "ID del Caso",
+    "report.date": "Fecha",
+    "report.transcription": "Transcripción",
+    "report.transcriptionEmpty": "No hay transcripción disponible.",
     "report.empty": "El informe generado aparecerá aquí.",
     "report.copy": "Copiar al portapapeles",
     "report.copied": "Informe copiado",
+    "report.generatedTitle": "Informe Radiológico Generado",
+
+    "reports.title": "Informes",
+    "reports.generate": "Generar informe",
+    "reports.empty": "Todavía no se han generado informes.",
+
+    "recording.title": "Graba tu Análisis",
+    "recording.description":
+      "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
+    "recording.placeholder": "Dicta o pega tu transcripción...",
+    "recording.label": "Dictado",
+    "recording.upload": "Subir transcripción",
+
+    "upload.title": "Procesando transcripción",
+    "upload.subtitle": "Generando hallazgos e impresión estructurados",
+    "upload.status1": "Analizando el contexto del estudio",
+    "upload.status2": "Organizando los hallazgos",
+    "upload.status3": "Preparando la impresión",
+    "upload.complete": "¡Listo!",
+
+    "welcome.tagline": "Asistente de Radiología con IA",
+    "welcome.title": "Graba, revisa y comparte informes estructurados",
+    "welcome.subtitle":
+      "Transcribe tus estudios, edita el resultado estructurado y colabora con tu equipo clínico en segundos.",
+    "welcome.generate": "Generar informe",
+    "welcome.viewReports": "Ver historial",
 
     "errors.generic": "No pudimos generar el informe. Intenta nuevamente.",
     "errors.requestFailed": "No pudimos contactar el servicio de informes.",

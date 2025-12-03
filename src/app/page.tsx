@@ -1,28 +1,123 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Loader2, Sparkles } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ReportsSubmenu } from "@/components/ReportsSubmenu";
+import { SidebarMenu } from "@/components/SidebarMenu";
+import { RecordingInterface } from "@/components/RecordingInterface";
+import { UploadingInterface } from "@/components/UploadingInterface";
 import { ReportView } from "@/components/ReportView";
-import { TranscriptionInput } from "@/components/TranscriptionInput";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { generateReport } from "@/lib/api";
 import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
+import type { ReportHistoryItem } from "@/utils/reportHistory";
+import { createReportHistoryItem } from "@/utils/reportHistory";
+
+type DemoState = "main" | "recording" | "uploading" | "report";
+type SidebarView = "home" | "reports";
 
 export default function HomePage() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
 
+  const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
+  const [sidebarView, setSidebarView] = useState<SidebarView>("home");
+  const [isReportsOpen, setIsReportsOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
-  const [report, setReport] = useState<GenerateReportResponse | null>(null);
+  const [pendingTranscription, setPendingTranscription] = useState("");
+  const [pendingReport, setPendingReport] = useState<GenerateReportResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const handleGenerate = async () => {
-    if (!transcription.trim()) {
+  const uploadSteps = useMemo(
+    () => [
+      t("upload.status1"),
+      t("upload.status2"),
+      t("upload.status3"),
+    ],
+    [t],
+  );
+
+  const selectedReport = useMemo(
+    () => reportHistory.find((item) => item.id === selectedReportId) ?? null,
+    [reportHistory, selectedReportId],
+  );
+
+  const reportLabels = useMemo(
+    () => ({
+      empty: t("report.empty"),
+      loading: t("app.generateBusy"),
+      caseInfo: t("report.caseInfo"),
+      caseId: t("report.caseId"),
+      date: t("report.date"),
+      transcription: t("report.transcription"),
+      findings: t("report.findings"),
+      results: t("report.results"),
+      impression: t("report.impression"),
+      copy: t("report.copy"),
+      copied: t("report.copied"),
+      transcriptionEmpty: t("report.transcriptionEmpty"),
+      generatedTitle: t("report.generatedTitle"),
+    }),
+    [t],
+  );
+
+  const updateSelectedReport = (updater: (report: ReportHistoryItem) => ReportHistoryItem) => {
+    setReportHistory((prev) =>
+      prev.map((item) => (item.id === selectedReportId ? updater(item) : item)),
+    );
+  };
+
+  const showWelcome = sidebarView === "home" && demoState === "main" && !selectedReport;
+
+  useEffect(() => {
+    if (demoState !== "uploading") return;
+
+    setUploadProgress(0);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => {
+        const next = Math.min(prev + 4, 100);
+        return next;
+      });
+    }, 120);
+
+    return () => {
+      clearInterval(progressInterval);
+    };
+  }, [demoState]);
+
+  useEffect(() => {
+    if (demoState !== "uploading") return;
+    if (uploadProgress < 100) return;
+    if (!pendingReport) return;
+    finalizeReport(pendingReport);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoState, pendingReport, uploadProgress]);
+
+  const handleGenerateReport = () => {
+    setSidebarView("reports");
+    setIsReportsOpen(true);
+    setDemoState("recording");
+  };
+
+  const handleCancelRecording = () => {
+    setDemoState(reportHistory.length > 0 ? "report" : "main");
+  };
+
+  const handleStartUpload = async () => {
+    const trimmed = transcription.trim();
+    if (!trimmed) {
       toast({
         title: t("errors.validation.transcriptionRequired"),
         variant: "destructive",
@@ -30,99 +125,266 @@ export default function HomePage() {
       return;
     }
 
+    setPendingTranscription(trimmed);
+    setDemoState("uploading");
     setIsGenerating(true);
     try {
       const response = await generateReport({
-        transcription: transcription.trim(),
+        transcription: trimmed,
         language,
       });
-      setReport(response);
-      toast({ title: t("app.generatedToast") });
+      setPendingReport(response);
     } catch (error) {
-      const message =
-        (error as ApiError)?.message ?? t("errors.requestFailed");
+      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
       toast({
         title: t("errors.generic"),
         description: message,
         variant: "destructive",
       });
+      setDemoState("recording");
+      setPendingReport(null);
     } finally {
       setIsGenerating(false);
     }
   };
 
+  const finalizeReport = (response: GenerateReportResponse) => {
+    const newReport = createReportHistoryItem({
+      response,
+      transcription: pendingTranscription,
+      language,
+    });
+    setReportHistory((prev) => [newReport, ...prev]);
+    setSelectedReportId(newReport.id);
+    setSidebarView("reports");
+    setIsReportsOpen(true);
+    setDemoState("report");
+    setTranscription("");
+    setPendingTranscription("");
+    setPendingReport(null);
+    toast({ title: t("app.generatedToast") });
+  };
+
+  const handleCopyReportCard = async (report: ReportHistoryItem) => {
+    try {
+      await navigator.clipboard.writeText(
+        `${report.title}\n\n${report.findings}\n\n${report.impression}`,
+      );
+      setCopiedReportId(report.id);
+      setTimeout(() => setCopiedReportId(null), 2000);
+    } catch (error) {
+      toast({
+        title: t("errors.generic"),
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSidebarHome = () => {
+    setSidebarView("home");
+    setDemoState(reportHistory.length > 0 ? "report" : "main");
+  };
+
+  const handleSidebarReports = () => {
+    setSidebarView("reports");
+    setIsReportsOpen((prev) => !prev);
+  };
+
+  const renderMainContent = () => {
+    if (demoState === "recording") {
+      return (
+        <RecordingInterface
+          title={t("recording.title")}
+          description={t("recording.description")}
+          transcription={transcription}
+          placeholder={t("recording.placeholder")}
+          label={t("recording.label")}
+          uploadLabel={t("recording.upload")}
+          onChange={setTranscription}
+          onUpload={handleStartUpload}
+          onCancel={handleCancelRecording}
+          disabled={isGenerating}
+        />
+      );
+    }
+
+    if (demoState === "uploading") {
+      return (
+        <UploadingInterface
+          progress={uploadProgress}
+          steps={uploadSteps}
+          title={t("upload.title")}
+          subtitle={t("upload.subtitle")}
+          completeLabel={t("upload.complete")}
+        />
+      );
+    }
+
+    if (selectedReport && demoState === "report") {
+      return (
+        <ReportView
+          report={selectedReport}
+          isLoading={false}
+          labels={reportLabels}
+          onUpdateTitle={(value) =>
+            updateSelectedReport((report) => ({ ...report, title: value }))
+          }
+          onUpdateFindings={(value) =>
+            updateSelectedReport((report) => ({ ...report, findings: value }))
+          }
+          onUpdateResults={(value) =>
+            updateSelectedReport((report) => ({ ...report, results: value }))
+          }
+          onUpdateImpression={(value) =>
+            updateSelectedReport((report) => ({ ...report, impression: value }))
+          }
+        />
+      );
+    }
+
+    if (showWelcome) {
+      return (
+        <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center space-y-4 bg-muted/10">
+          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("welcome.tagline")}
+          </p>
+          <h2 className="text-3xl font-bold text-foreground">{t("welcome.title")}</h2>
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+            {t("welcome.subtitle")}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              type="button"
+              className="gap-2"
+              onClick={handleGenerateReport}
+            >
+              {t("welcome.generate")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDemoState(selectedReport ? "report" : "main")}
+            >
+              {t("welcome.viewReports")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-2xl border border-border p-6 text-center text-muted-foreground">
+        {t("report.empty")}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-2 sm:px-4">
+        <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14 sm:h-16">
-            <div className="flex items-center gap-1 sm:gap-1.5 sm:gap-2">
-              <Image 
-                src="/logo.svg" 
-                alt="RadiaCopilot" 
+            <div className="flex items-center gap-2">
+              <Image
+                src="/logo.svg"
+                alt="RadiaCopilot"
                 width={200}
                 height={96}
-                className="h-12 sm:h-16 md:h-20 lg:h-24 w-auto"
+                className="h-12 sm:h-16 w-auto"
                 priority
               />
             </div>
-            <div className="flex items-center gap-0.5 sm:gap-2 md:gap-4">
-              <div className="scale-75 sm:scale-100">
-                <LanguageSwitcher />
-              </div>
-            </div>
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
-      
-      <main className="pt-14 sm:pt-16">
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-12 md:px-8">
-          <div className="space-y-3">
-            <h1 className="text-3xl font-bold leading-tight text-foreground md:text-4xl">
-              {t("app.title")}
-            </h1>
-            <p className="text-base text-muted-foreground md:text-lg">
-              {t("app.subtitle")}
-            </p>
-          </div>
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <TranscriptionInput
-              value={transcription}
-              label={t("input.label")}
-              placeholder={t("input.placeholder")}
-              hint={t("input.hint")}
-              disabled={isGenerating}
-              onChange={setTranscription}
+      {/* Mobile hamburger button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="lg:hidden fixed top-14 sm:top-16 left-1 sm:left-2 z-40 bg-background/80 backdrop-blur-sm border border-border shadow-sm w-8 h-8 sm:w-10 sm:h-10"
+      >
+        <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+      </Button>
+
+      {/* Mobile menu Sheet */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetContent side="left" className="w-[90vw] max-w-[90vw] sm:w-[400px] sm:max-w-[400px] p-0">
+          <div className="flex h-full">
+            <SidebarMenu
+              activeView={sidebarView}
+              isReportsOpen={isReportsOpen}
+              onSelectHome={() => {
+                handleSidebarHome();
+                setIsMobileMenuOpen(false);
+              }}
+              onToggleReports={() => {
+                handleSidebarReports();
+              }}
+              className="flex border-r border-border pr-3"
             />
-            <Button
-              type="button"
-              className="h-12 gap-2 text-base font-semibold"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  {t("app.generateBusy")}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  {t("app.generate")}
-                </>
-              )}
-            </Button>
+            <div className="flex-1 h-full flex flex-col overflow-hidden border-l border-border">
+              <ReportsSubmenu
+                isOpen={true}
+                reports={reportHistory}
+                selectedReportId={selectedReportId}
+                copiedReportId={copiedReportId}
+                onSelectReport={(id) => {
+                  setSelectedReportId(id);
+                  setDemoState("report");
+                  setIsMobileMenuOpen(false);
+                }}
+                onCopyReport={handleCopyReportCard}
+                onGenerateReport={() => {
+                  handleGenerateReport();
+                  setIsMobileMenuOpen(false);
+                }}
+                title={t("reports.title")}
+                generateLabel={t("reports.generate")}
+                emptyLabel={t("reports.empty")}
+                copyLabel={t("report.copy")}
+                copiedLabel={t("report.copied")}
+                className="flex"
+              />
+            </div>
           </div>
+        </SheetContent>
+      </Sheet>
 
-          <ReportView
-            report={report}
-            onReportChange={setReport}
-            isLoading={isGenerating}
-          />
+      <main className="pt-16 flex min-h-[calc(100vh-4rem)]">
+        <SidebarMenu
+          activeView={sidebarView}
+          isReportsOpen={isReportsOpen}
+          onSelectHome={handleSidebarHome}
+          onToggleReports={handleSidebarReports}
+        />
+
+        <ReportsSubmenu
+          isOpen={isReportsOpen}
+          reports={reportHistory}
+          selectedReportId={selectedReportId}
+          copiedReportId={copiedReportId}
+          onSelectReport={(id) => {
+            setSelectedReportId(id);
+            setDemoState("report");
+          }}
+          onCopyReport={handleCopyReportCard}
+          onGenerateReport={handleGenerateReport}
+          title={t("reports.title")}
+          generateLabel={t("reports.generate")}
+          emptyLabel={t("reports.empty")}
+          copyLabel={t("report.copy")}
+          copiedLabel={t("report.copied")}
+        />
+
+        <section className="flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100vh - 4rem)" }}>
+          <div className="mx-auto max-w-6xl px-4 py-10 md:py-12 lg:px-6">
+            <div className="space-y-6">{renderMainContent()}</div>
+          </div>
         </section>
-        </div>
       </main>
     </div>
   );

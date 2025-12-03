@@ -1,151 +1,95 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from "react";
-import { Copy } from "lucide-react";
+import React, { useMemo, useRef, useEffect } from "react";
+import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { TextEditorToolbar } from "@/components/TextEditorToolbar";
 import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
-import type { GenerateReportResponse } from "@/types/frontend/api";
+import type { ReportHistoryItem } from "@/utils/reportHistory";
 
-interface ReportViewProps {
-  report: GenerateReportResponse | null;
-  onReportChange: (report: GenerateReportResponse) => void;
-  isLoading: boolean;
+interface ReportViewLabels {
+  empty: string;
+  loading: string;
+  caseInfo: string;
+  caseId: string;
+  date: string;
+  transcription: string;
+  findings: string;
+  results: string;
+  impression: string;
+  copy: string;
+  copied: string;
+  transcriptionEmpty: string;
+  generatedTitle: string;
 }
 
-const parseReportText = (
-  text: string,
-  studyTitleLabel: string,
-  findingsLabel: string,
-  resultsLabel: string,
-  impressionLabel: string,
-): GenerateReportResponse => {
-  const lines = text.split("\n");
-  let studyTitle = "";
-  let findings = "";
-  let results = "";
-  let impression = "";
+interface ReportViewProps {
+  report: ReportHistoryItem | null;
+  isLoading: boolean;
+  labels: ReportViewLabels;
+  onUpdateTitle: (value: string) => void;
+  onUpdateFindings: (value: string) => void;
+  onUpdateResults: (value: string) => void;
+  onUpdateImpression: (value: string) => void;
+}
 
-  let currentSection: "studyTitle" | "findings" | "results" | "impression" | null = "studyTitle";
-  const currentContent: string[] = [];
-
-  const normalizeLabel = (label: string) => label.toUpperCase().trim();
-
-  const saveCurrentSection = () => {
-    if (currentSection === "studyTitle" && currentContent.length > 0) {
-      studyTitle = currentContent.join("\n").trim();
-    } else if (currentSection === "findings" && currentContent.length > 0) {
-      findings = currentContent.join("\n").trim();
-    } else if (currentSection === "results" && currentContent.length > 0) {
-      results = currentContent.join("\n").trim();
-    } else if (currentSection === "impression" && currentContent.length > 0) {
-      impression = currentContent.join("\n").trim();
-    }
-  };
-
-  for (const line of lines) {
-    const normalizedLine = normalizeLabel(line);
-    const normalizedFindings = normalizeLabel(findingsLabel);
-    const normalizedResults = normalizeLabel(resultsLabel);
-    const normalizedImpression = normalizeLabel(impressionLabel);
-
-    // Check if this line is a section header (findings, results, or impression)
-    if (normalizedLine === normalizedFindings || normalizedLine.includes("FINDINGS") || normalizedLine.includes("HALLAZGOS")) {
-      saveCurrentSection();
-      currentSection = "findings";
-      currentContent.length = 0;
-    } else if (normalizedLine === normalizedResults || normalizedLine.includes("RESULTS") || normalizedLine.includes("RESULTADOS")) {
-      saveCurrentSection();
-      currentSection = "results";
-      currentContent.length = 0;
-    } else if (normalizedLine === normalizedImpression || normalizedLine.includes("IMPRESSION") || normalizedLine.includes("IMPRESIÓN")) {
-      saveCurrentSection();
-      currentSection = "impression";
-      currentContent.length = 0;
-    } else {
-      currentContent.push(line);
-    }
-  }
-
-  // Save the last section
-  saveCurrentSection();
-
-  // Fallback: if no sections found, treat entire text as findings
-  if (!studyTitle && !findings && !results && !impression && text.trim()) {
-    findings = text.trim();
-  }
-
-  return {
-    studyTitle: studyTitle || "",
-    findings: findings || "",
-    results: results || "",
-    impression: impression || "",
-  };
-};
-
-export function ReportView({ report, onReportChange, isLoading }: ReportViewProps) {
-  const { t } = useLanguage();
+export function ReportView({
+  report,
+  isLoading,
+  labels,
+  onUpdateTitle,
+  onUpdateFindings,
+  onUpdateResults,
+  onUpdateImpression,
+}: ReportViewProps) {
   const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
+  const [isCopied, setIsCopied] = React.useState(false);
 
-  const combinedText = useMemo(() => {
+  const combinedContent = useMemo(() => {
     if (!report) return "";
-    const findingsLabel = t("report.findings");
-    const resultsLabel = t("report.results");
-    const impressionLabel = t("report.impression");
-
     const parts: string[] = [];
-    if (report.studyTitle) {
-      parts.push(String(report.studyTitle));
+    if (report.title) {
+      parts.push(report.title);
     }
     if (report.findings) {
-      parts.push(`${findingsLabel}\n${String(report.findings)}`);
+      parts.push(`${labels.findings}:\n${report.findings}`);
     }
     if (report.results) {
-      parts.push(`${resultsLabel}\n${String(report.results)}`);
+      parts.push(`${labels.results}:\n${report.results}`);
     }
     if (report.impression) {
-      parts.push(`${impressionLabel}\n${String(report.impression)}`);
+      parts.push(`${labels.impression}:\n${report.impression}`);
     }
     return parts.join("\n\n");
-  }, [report, t]);
+  }, [report, labels]);
 
-  // Update editor content when report changes (only if not focused)
   useEffect(() => {
     if (editorRef.current && report) {
       const currentText = editorRef.current.textContent || "";
-      // Only update if content changed and editor is not focused
-      if (currentText !== combinedText && document.activeElement !== editorRef.current) {
-        editorRef.current.textContent = combinedText;
+      if (currentText !== combinedContent && document.activeElement !== editorRef.current) {
+        editorRef.current.textContent = combinedContent;
       }
     }
-  }, [combinedText, report]);
+  }, [combinedContent, report]);
 
   const handleCopy = async () => {
-    if (!report) return;
+    if (!report || !editorRef.current) return;
     try {
-      await navigator.clipboard.writeText(combinedText);
-      toast({ title: t("report.copied") });
+      const content = editorRef.current.innerText || editorRef.current.textContent || "";
+      await navigator.clipboard.writeText(content);
+      setIsCopied(true);
+      toast({ title: labels.copied });
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
       toast({
-        title: t("errors.generic"),
+        title: labels.copy,
         description: error instanceof Error ? error.message : undefined,
         variant: "destructive",
       });
     }
-  };
-
-  const handleTextChange = (value: string) => {
-    if (!report) return;
-    const studyTitleLabel = t("report.studyTitle");
-    const findingsLabel = t("report.findings");
-    const resultsLabel = t("report.results");
-    const impressionLabel = t("report.impression");
-    const parsed = parseReportText(value, studyTitleLabel, findingsLabel, resultsLabel, impressionLabel);
-    onReportChange(parsed);
   };
 
   const handleCommand = (command: string) => {
@@ -153,67 +97,144 @@ export function ReportView({ report, onReportChange, isLoading }: ReportViewProp
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-    // Get plain text content (strips HTML formatting for parsing)
-    const textContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
-    handleTextChange(textContent);
+    if (!report) return;
+    const fullContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
+    
+    // Parse the content to extract sections
+    const findingsLabel = labels.findings.toUpperCase();
+    const resultsLabel = labels.results.toUpperCase();
+    const impressionLabel = labels.impression.toUpperCase();
+    
+    const lines = fullContent.split("\n");
+    let currentSection: "title" | "findings" | "results" | "impression" | null = "title";
+    const sections: Record<string, string[]> = {
+      title: [],
+      findings: [],
+      results: [],
+      impression: [],
+    };
+
+    for (const line of lines) {
+      const upperLine = line.toUpperCase().trim();
+      if (upperLine === findingsLabel || upperLine.startsWith(findingsLabel + ":")) {
+        currentSection = "findings";
+        continue;
+      } else if (upperLine === resultsLabel || upperLine.startsWith(resultsLabel + ":")) {
+        currentSection = "results";
+        continue;
+      } else if (upperLine === impressionLabel || upperLine.startsWith(impressionLabel + ":")) {
+        currentSection = "impression";
+        continue;
+      } else if (currentSection) {
+        sections[currentSection].push(line);
+      }
+    }
+
+    // Title is everything before the first section label
+    const newTitle = sections.title.join("\n").trim();
+    const newFindings = sections.findings.join("\n").trim();
+    const newResults = sections.results.join("\n").trim();
+    const newImpression = sections.impression.join("\n").trim();
+
+    // Only update if changed to avoid infinite loops
+    if (newTitle !== report.title && newTitle) {
+      onUpdateTitle(newTitle);
+    }
+    if (newFindings !== report.findings) {
+      onUpdateFindings(newFindings);
+    }
+    if (newResults !== report.results) {
+      onUpdateResults(newResults);
+    }
+    if (newImpression !== report.impression) {
+      onUpdateImpression(newImpression);
+    }
   };
 
-  const handleInput = () => {
-    // Allow real-time editing - content is saved on blur
-    // This preserves formatting while editing
-  };
+  if (isLoading) {
+    return (
+      <Card className="p-6">
+        <div className="animate-pulse rounded-lg border border-dashed border-muted p-6 text-sm text-muted-foreground">
+          {labels.loading}
+        </div>
+      </Card>
+    );
+  }
+
+  if (!report) {
+    return (
+      <Card className="p-6 text-sm text-muted-foreground">
+        {labels.empty}
+      </Card>
+    );
+  }
 
   return (
-    <Card className="h-full">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0">
-        <div>
-          <CardTitle>{t("report.title")}</CardTitle>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCopy}
-            disabled={!report}
-            className="gap-2"
-            aria-label={t("report.copy")}
-            title={t("report.copy")}
-          >
-            <Copy className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          {report && (
-            <TextEditorToolbar onCommand={handleCommand} editorRef={editorRef} />
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="p-6">
-        {isLoading && (
-          <div className="animate-pulse rounded-lg border border-dashed border-muted p-6 text-sm text-muted-foreground">
-            {t("app.generateBusy")}
+    <div className="space-y-6">
+      <Card className="p-4 sm:p-6 space-y-4">
+        <h3 className="text-lg font-semibold">{labels.caseInfo}</h3>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase">{labels.caseId}</p>
+            <p className="text-sm font-medium">{report.metadata.caseId}</p>
           </div>
-        )}
-
-        {!report && !isLoading && (
-          <p className="text-sm text-muted-foreground">{t("report.empty")}</p>
-        )}
-
-        {report && (
-          <div className="bg-muted/50 rounded-lg p-4">
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onBlur={handleBlur}
-              onInput={handleInput}
-              className="min-h-[300px] resize-none bg-background text-sm leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded p-4"
-              style={{
-                wordBreak: "break-word",
-              }}
-            />
+          <div>
+            <p className="text-xs text-muted-foreground uppercase">{labels.date}</p>
+            <p className="text-sm font-medium">
+              {report.createdAt.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      </Card>
+
+      <Card className="p-4 sm:p-6 space-y-3">
+        <h3 className="text-lg font-semibold">{labels.transcription}</h3>
+        <p className="text-sm text-muted-foreground whitespace-pre-line">
+          {report.transcription || labels.transcriptionEmpty}
+        </p>
+      </Card>
+
+      <Card className="p-4 sm:p-6 xl:p-8 2xl:p-10 3xl:p-12 border-2">
+        <div className="bg-muted/50 rounded-lg p-3 sm:p-4 xl:p-6 2xl:p-8 3xl:p-10">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 xl:mb-6 2xl:mb-8 3xl:mb-10">
+            <h3 className="text-lg sm:text-xl xl:text-xl 2xl:text-xl 3xl:text-xl font-semibold text-foreground">
+              {labels.generatedTitle}
+            </h3>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button
+                onClick={handleCopy}
+                variant="outline"
+                size="sm"
+                className="gap-1 sm:gap-2 p-1.5 sm:p-2"
+                aria-label={isCopied ? labels.copied : labels.copy}
+              >
+                {isCopied ? (
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                )}
+              </Button>
+              <TextEditorToolbar onCommand={handleCommand} editorRef={editorRef} />
+            </div>
+          </div>
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            className="text-sm sm:text-base xl:text-base 2xl:text-base 3xl:text-base text-foreground leading-relaxed whitespace-pre-wrap min-h-[200px] sm:min-h-[300px] xl:min-h-[400px] 2xl:min-h-[500px] 3xl:min-h-[600px] p-2 sm:p-3 xl:p-4 2xl:p-6 3xl:p-8 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            onBlur={handleBlur}
+            style={{
+              wordBreak: "break-word",
+            }}
+          />
+        </div>
+      </Card>
+    </div>
   );
 }
+
 
