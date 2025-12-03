@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { Copy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TextEditorToolbar } from "@/components/TextEditorToolbar";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { GenerateReportResponse } from "@/types/frontend/api";
@@ -89,6 +89,7 @@ const parseReportText = (
 export function ReportView({ report, onReportChange, isLoading }: ReportViewProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const combinedText = useMemo(() => {
     if (!report) return "";
@@ -111,6 +112,17 @@ export function ReportView({ report, onReportChange, isLoading }: ReportViewProp
     }
     return parts.join("\n\n");
   }, [report, t]);
+
+  // Update editor content when report changes (only if not focused)
+  useEffect(() => {
+    if (editorRef.current && report) {
+      const currentText = editorRef.current.textContent || "";
+      // Only update if content changed and editor is not focused
+      if (currentText !== combinedText && document.activeElement !== editorRef.current) {
+        editorRef.current.textContent = combinedText;
+      }
+    }
+  }, [combinedText, report]);
 
   const handleCopy = async () => {
     if (!report) return;
@@ -136,28 +148,43 @@ export function ReportView({ report, onReportChange, isLoading }: ReportViewProp
     onReportChange(parsed);
   };
 
-  const lineCount = useMemo(() => {
-    if (!combinedText) return 4;
-    return Math.max(4, Math.min(20, combinedText.split("\n").length));
-  }, [combinedText]);
+  const handleCommand = (command: string) => {
+    document.execCommand(command, false);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    // Get plain text content (strips HTML formatting for parsing)
+    const textContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
+    handleTextChange(textContent);
+  };
+
+  const handleInput = () => {
+    // Allow real-time editing - content is saved on blur
+    // This preserves formatting while editing
+  };
 
   return (
     <Card className="h-full">
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle>{t("report.title")}</CardTitle>
-          <CardDescription>{t("report.copy")}</CardDescription>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleCopy}
-          disabled={!report}
-          className="gap-2"
-        >
-          <Copy className="h-4 w-4" aria-hidden="true" />
-          {t("report.copy")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCopy}
+            disabled={!report}
+            className="gap-2"
+            aria-label={t("report.copy")}
+            title={t("report.copy")}
+          >
+            <Copy className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          {report && (
+            <TextEditorToolbar onCommand={handleCommand} editorRef={editorRef} />
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-6">
         {isLoading && (
@@ -172,12 +199,16 @@ export function ReportView({ report, onReportChange, isLoading }: ReportViewProp
 
         {report && (
           <div className="bg-muted/50 rounded-lg p-4">
-            <Textarea
-              value={combinedText}
-              onChange={(event) => handleTextChange(event.target.value)}
-              rows={lineCount}
-              className="min-h-[300px] resize-none bg-background font-mono text-sm leading-relaxed"
-              placeholder={t("report.empty")}
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={handleBlur}
+              onInput={handleInput}
+              className="min-h-[300px] resize-none bg-background text-sm leading-relaxed whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded p-4"
+              style={{
+                wordBreak: "break-word",
+              }}
             />
           </div>
         )}
