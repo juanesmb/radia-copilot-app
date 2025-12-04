@@ -62,7 +62,6 @@ export default function HomePage() {
       date: t("report.date"),
       transcription: t("report.transcription"),
       findings: t("report.findings"),
-      results: t("report.results"),
       impression: t("report.impression"),
       copy: t("report.copy"),
       copied: t("report.copied"),
@@ -232,9 +231,6 @@ export default function HomePage() {
           }
           onUpdateFindings={(value) =>
             updateSelectedReport((report) => ({ ...report, findings: value }))
-          }
-          onUpdateResults={(value) =>
-            updateSelectedReport((report) => ({ ...report, results: value }))
           }
           onUpdateImpression={(value) =>
             updateSelectedReport((report) => ({ ...report, impression: value }))

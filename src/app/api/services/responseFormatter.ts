@@ -18,7 +18,6 @@ export const createResponseFormatter = (): ResponseFormatter => ({
     const base: GenerateReportResult = {
       studyTitle: "",
       findings: "",
-      results: "",
       impression: "",
     };
 
@@ -28,10 +27,11 @@ export const createResponseFormatter = (): ResponseFormatter => ({
 
     try {
       const parsed = JSON.parse(sanitizeJsonString(content));
+      const mergedFindings = [parsed.findings, parsed.results].filter(Boolean).join("\n\n").trim();
+
       return {
         studyTitle: parsed.studyTitle ?? base.studyTitle,
-        findings: parsed.findings ?? base.findings,
-        results: parsed.results ?? base.results,
+        findings: mergedFindings || base.findings,
         impression: parsed.impression ?? base.impression,
       };
     } catch {
@@ -42,11 +42,10 @@ export const createResponseFormatter = (): ResponseFormatter => ({
 
       // Fallback: try to extract sections from plain text
       const lines = cleaned.split("\n");
-      let currentSection: "studyTitle" | "findings" | "results" | "impression" | null = null;
+      let currentSection: "studyTitle" | "findings" | "impression" | null = null;
       const sections: Record<string, string[]> = {
         studyTitle: [],
         findings: [],
-        results: [],
         impression: [],
       };
 
@@ -57,8 +56,8 @@ export const createResponseFormatter = (): ResponseFormatter => ({
         } else if (upperLine.includes("FINDINGS") || upperLine.includes("HALLAZGOS")) {
           currentSection = "findings";
         } else if (upperLine.includes("RESULTS") || upperLine.includes("RESULTADOS")) {
-          currentSection = "results";
-        } else if (upperLine.includes("IMPRESSION") || upperLine.includes("IMPRESIÓN")) {
+          currentSection = "findings";
+        } else if (upperLine.includes("IMPRESSION") || upperLine.includes("IMPRESIÓN") || upperLine.includes("CONCLUSIÓN")) {
           currentSection = "impression";
         } else if (currentSection) {
           sections[currentSection].push(line);
@@ -71,7 +70,6 @@ export const createResponseFormatter = (): ResponseFormatter => ({
       return {
         studyTitle: sections.studyTitle.join("\n").trim() || "",
         findings: sections.findings.join("\n").trim() || cleaned,
-        results: sections.results.join("\n").trim() || "",
         impression: sections.impression.join("\n").trim() || "",
       };
     }

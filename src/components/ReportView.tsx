@@ -17,7 +17,6 @@ interface ReportViewLabels {
   date: string;
   transcription: string;
   findings: string;
-  results: string;
   impression: string;
   copy: string;
   copied: string;
@@ -31,7 +30,6 @@ interface ReportViewProps {
   labels: ReportViewLabels;
   onUpdateTitle: (value: string) => void;
   onUpdateFindings: (value: string) => void;
-  onUpdateResults: (value: string) => void;
   onUpdateImpression: (value: string) => void;
 }
 
@@ -41,7 +39,6 @@ export function ReportView({
   labels,
   onUpdateTitle,
   onUpdateFindings,
-  onUpdateResults,
   onUpdateImpression,
 }: ReportViewProps) {
   const { toast } = useToast();
@@ -56,9 +53,6 @@ export function ReportView({
     }
     if (report.findings) {
       parts.push(`${labels.findings}:\n${report.findings}`);
-    }
-    if (report.results) {
-      parts.push(`${labels.results}:\n${report.results}`);
     }
     if (report.impression) {
       parts.push(`${labels.impression}:\n${report.impression}`);
@@ -102,15 +96,14 @@ export function ReportView({
     
     // Parse the content to extract sections
     const findingsLabel = labels.findings.toUpperCase();
-    const resultsLabel = labels.results.toUpperCase();
     const impressionLabel = labels.impression.toUpperCase();
+    const legacyResultsLabels = ["RESULTS", "RESULTADOS"];
     
     const lines = fullContent.split("\n");
-    let currentSection: "title" | "findings" | "results" | "impression" | null = "title";
+    let currentSection: "title" | "findings" | "impression" | null = "title";
     const sections: Record<string, string[]> = {
       title: [],
       findings: [],
-      results: [],
       impression: [],
     };
 
@@ -119,8 +112,12 @@ export function ReportView({
       if (upperLine === findingsLabel || upperLine.startsWith(findingsLabel + ":")) {
         currentSection = "findings";
         continue;
-      } else if (upperLine === resultsLabel || upperLine.startsWith(resultsLabel + ":")) {
-        currentSection = "results";
+      } else if (
+        legacyResultsLabels.some(
+          (label) => upperLine === label || upperLine.startsWith(label + ":"),
+        )
+      ) {
+        currentSection = "findings";
         continue;
       } else if (upperLine === impressionLabel || upperLine.startsWith(impressionLabel + ":")) {
         currentSection = "impression";
@@ -133,7 +130,6 @@ export function ReportView({
     // Title is everything before the first section label
     const newTitle = sections.title.join("\n").trim();
     const newFindings = sections.findings.join("\n").trim();
-    const newResults = sections.results.join("\n").trim();
     const newImpression = sections.impression.join("\n").trim();
 
     // Only update if changed to avoid infinite loops
@@ -142,9 +138,6 @@ export function ReportView({
     }
     if (newFindings !== report.findings) {
       onUpdateFindings(newFindings);
-    }
-    if (newResults !== report.results) {
-      onUpdateResults(newResults);
     }
     if (newImpression !== report.impression) {
       onUpdateImpression(newImpression);

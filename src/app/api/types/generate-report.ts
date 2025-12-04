@@ -8,7 +8,6 @@ export interface GenerateReportRequest {
 export interface GenerateReportResult {
   studyTitle: string;
   findings: string;
-  results: string;
   impression: string;
 }
 

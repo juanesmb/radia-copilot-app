@@ -15,7 +15,7 @@ const buildUserPrompt = (transcription: string, language: Language) => {
   const instructions =
     language === "en"
       ? "Summarize the dictation, draft organized findings, and finish with an actionable impression."
-      : "Resume la dictación, redacta hallazgos organizados y finaliza con una impresión accionable.";
+      : "Resume la dictación, redacta hallazgos organizados y finaliza con una conclusión accionable.";
 
   return `
 ${instructions}
