@@ -1,0 +1,17 @@
+{
+  "studyType": "ultrasound-abdominal",
+  "modality": "ultrasound",
+  "region": "abdomen",
+  "keywords": [
+    "abdominal ultrasound",
+    "ultrasound abdomen",
+    "liver",
+    "gallbladder",
+    "pancreas",
+    "spleen",
+    "kidneys",
+    "abdominal aorta"
+  ],
+  "requiredKeywords": ["abdomen", "abdominal"]
+}
+

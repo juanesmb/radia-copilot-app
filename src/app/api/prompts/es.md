@@ -27,7 +27,6 @@ Debes responder **únicamente** con JSON válido, sin texto adicional antes o de
 1. **Identifica la plantilla correspondiente** al tipo de estudio de la transcripción
 2. **Estructura de "findings" (en este orden):**
    - **Limitaciones del estudio** (si se mencionan en la transcripción): meteorismo, hábito corporal, estado clínico, etc.
-   - **Técnica utilizada**: tipo de estudio realizado
    - **Estructuras evaluadas**: sigue el orden exacto de la plantilla, separando cada estructura con 1 salto de línea (`\n`)
 3. **Para cada órgano/estructura en la plantilla:**
    - Si la transcripción menciona hallazgos sobre ese órgano → Reemplaza el texto normal de la plantilla con los hallazgos específicos de la transcripción
@@ -41,28 +40,20 @@ Debes responder **únicamente** con JSON válido, sin texto adicional antes o de
 
 ## Expectativas del informe
 - **Título del estudio:** Determina el tipo de estudio según la transcripción.
-- **Hallazgos:** Sigue la estructura de la plantilla correspondiente. Incluye limitaciones (si las hay), técnica, y todas las estructuras evaluadas según la plantilla.
+- **Hallazgos:** Sigue la estructura de la plantilla correspondiente. Incluye limitaciones (si las hay) y todas las estructuras evaluadas según la plantilla.
 - **Conclusión:** Genera un **Diagnóstico Final** si los hallazgos proporcionados son lo suficientemente certeros. Si los hallazgos proporcionados no son lo suficientemente certeros, entonces genera **3 impresiones diagnósticas** organizadas por probabilidad de mayor a menor. Organiza las conclusiones por severidad de mayor a menor.
 
 **IMPORTANTE:** En la sección de conclusión, abstente completamente de mencionar, sugerir o recomendar tratamientos. Solo incluye hallazgos diagnósticos, correlaciones clínicas, seguimiento o estudios complementarios.
 
-## Plantilla de referencia: Ecografía completa de abdomen
+## Plantilla de referencia: [Se reemplazará dinámicamente según el tipo de estudio detectado]
 
 **ESTRUCTURA OBLIGATORIA A SEGUIR (modifica solo lo mencionado en la transcripción):**
 
 ```
-ECOGRAFÍA COMPLETA DE ABDOMEN
-
-Hígado: de forma, tamaño y ecogenicidad conservados. La estructura del parénquima hepático es homogénea en los segmentos explorados.
-Vesícula biliar: de paredes finas. Sin evidencia ecográfica de litiasis.
-Vía biliar: intrahepática y extrahepática de calibre conservado.
-Páncreas: de forma, tamaño y ecogenicidad conservados.
-Riñones: ambos de forma, tamaño, posición y ecogenicidad conservados. Relación corticomedular conservada. Sin evidencia ecográfica de uronefrosis ni macrolitiasis.
-Bazo: de forma, tamaño y ecogenicidad conservados.
-Aorta abdominal de diámetro conservado en los tramos explorados.
-
-No se observa líquido libre en cavidad abdominal al momento del estudio.
+[La plantilla correspondiente al tipo de estudio se inyectará aquí automáticamente]
 ```
+
+**NOTA:** Esta sección será reemplazada automáticamente con la plantilla específica del tipo de estudio detectado en la transcripción. La plantilla define la estructura completa del reporte que debes seguir.
 
 ## Ejemplo completo
 

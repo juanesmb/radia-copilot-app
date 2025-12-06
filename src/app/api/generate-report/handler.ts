@@ -7,14 +7,16 @@ import { createPromptBuilder } from "../services/promptBuilder";
 import { createResponseFormatter } from "../services/responseFormatter";
 import { createGenerateReportUseCase } from "./usecase";
 
+const openAIClient = createOpenAIClient({
+  apiKey: process.env.OPENAI_API_KEY,
+  model: process.env.OPENAI_MODEL,
+  temperature: 0.2,
+});
+
 const useCase = createGenerateReportUseCase({
-  promptBuilder: createPromptBuilder(),
+  promptBuilder: createPromptBuilder(openAIClient),
   responseFormatter: createResponseFormatter(),
-  openAIClient: createOpenAIClient({
-    apiKey: process.env.OPENAI_API_KEY,
-    model: process.env.OPENAI_MODEL,
-    temperature: 0.2,
-  }),
+  openAIClient,
 });
 
 export const generateReportHandler = async (request: NextRequest) => {

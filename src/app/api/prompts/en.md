@@ -27,7 +27,6 @@ You must respond **only** with valid JSON, without any text before or after.
 1. **Identify the corresponding template** for the study type in the transcription
 2. **Structure of "findings" (in this order):**
    - **Study limitations** (if mentioned in the transcription): meteorism, body habitus, clinical status, etc.
-   - **Technique used**: type of study performed
    - **Structures evaluated**: follow the exact order of the template, separating each structure with 1 line break (`\n`)
 3. **For each organ/structure in the template:**
    - If the transcription mentions findings about that organ → Replace the normal text in the template with the specific findings from the transcription
@@ -41,28 +40,20 @@ You must respond **only** with valid JSON, without any text before or after.
 
 ## Report expectations
 - **Study title:** Determine the study type according to the transcription.
-- **Findings:** Follow the structure of the corresponding template. Include limitations (if any), technique, and all structures evaluated according to the template.
+- **Findings:** Follow the structure of the corresponding template. Include limitations (if any) and all structures evaluated according to the template.
 - **Conclusion:** Generate a **Final Diagnosis** if the provided findings are sufficiently certain. If the provided findings are not sufficiently certain, then generate **3 diagnostic impressions** organized by probability from highest to lowest. Organize conclusions by severity from highest to lowest.
 
 **IMPORTANT:** In the conclusion section, completely refrain from mentioning, suggesting, or recommending treatments. Only include diagnostic findings, clinical correlations, follow-up, or complementary studies.
 
-## Reference template: Complete abdominal ultrasound
+## Reference template: [Will be dynamically replaced based on detected study type]
 
 **MANDATORY STRUCTURE TO FOLLOW (modify only what is mentioned in the transcription):**
 
 ```
-COMPLETE ABDOMINAL ULTRASOUND
-
-Liver: shape, size and echogenicity preserved. The hepatic parenchymal structure is homogeneous in the explored segments.
-Gallbladder: thin walls. No sonographic evidence of lithiasis.
-Bile duct: intrahepatic and extrahepatic of preserved caliber.
-Pancreas: shape, size and echogenicity preserved.
-Kidneys: both with preserved shape, size, position and echogenicity. Preserved corticomedullary relationship. No sonographic evidence of hydronephrosis or macrolithiasis.
-Spleen: shape, size and echogenicity preserved.
-Abdominal aorta with preserved diameter in the explored segments.
-
-No free fluid observed in the abdominal cavity at the time of the study.
+[The corresponding template for the detected study type will be automatically injected here]
 ```
+
+**NOTE:** This section will be automatically replaced with the specific template for the study type detected in the transcription. The template defines the complete structure of the report you must follow.
 
 ## Complete example
 

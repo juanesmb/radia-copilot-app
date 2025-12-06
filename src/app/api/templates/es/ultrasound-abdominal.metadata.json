@@ -1,0 +1,17 @@
+{
+  "studyType": "ultrasound-abdominal",
+  "modality": "ultrasound",
+  "region": "abdomen",
+  "keywords": [
+    "ecografía abdominal",
+    "ultrasonido abdomen",
+    "hígado",
+    "vesícula",
+    "páncreas",
+    "bazo",
+    "riñones",
+    "aorta abdominal"
+  ],
+  "requiredKeywords": ["abdomen", "abdominal"]
+}
+

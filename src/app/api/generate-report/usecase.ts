@@ -12,7 +12,7 @@ type Dependencies = {
 export const createGenerateReportUseCase = (deps: Dependencies) => {
   return {
     async execute(input: GenerateReportRequest): Promise<GenerateReportResult> {
-      const prompt = deps.promptBuilder.build(input);
+      const prompt = await deps.promptBuilder.build(input);
       const rawContent = await deps.openAIClient.generateReport(prompt);
       return deps.responseFormatter.format(rawContent);
     },

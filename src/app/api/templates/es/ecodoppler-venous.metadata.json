@@ -1,0 +1,19 @@
+{
+  "studyType": "ecodoppler-venous",
+  "modality": "ecodoppler",
+  "region": "lower limbs",
+  "keywords": [
+    "doppler venoso",
+    "venoso",
+    "miembros inferiores",
+    "várices",
+    "varicocele",
+    "plexo pampiniforme",
+    "safena",
+    "perforantes",
+    "TVP",
+    "trombosis venosa"
+  ],
+  "requiredKeywords": ["doppler", "venoso"]
+}
+

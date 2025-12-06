@@ -1,0 +1,25 @@
+{
+  "studyType": "ct-abdomen-withoutContrast",
+  "modality": "ct",
+  "region": "abdomen",
+  "keywords": [
+    "ct abdomen",
+    "computed tomography abdomen",
+    "abdomen without contrast",
+    "abdomen without iv contrast",
+    "liver",
+    "spleen",
+    "pancreas",
+    "gallbladder",
+    "kidneys",
+    "adrenal glands",
+    "retroperitoneum",
+    "pelvis",
+    "bladder",
+    "uterus",
+    "prostate"
+  ],
+  "requiredKeywords": ["ct", "tomography", "abdomen"],
+  "excludeKeywords": ["iv contrast", "with contrast", "with iv contrast"]
+}
+

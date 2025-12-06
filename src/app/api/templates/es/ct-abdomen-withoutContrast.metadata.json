@@ -1,0 +1,27 @@
+{
+  "studyType": "ct-abdomen-withoutContrast",
+  "modality": "ct",
+  "region": "abdomen",
+  "keywords": [
+    "tc abdomen",
+    "tomografía abdomen",
+    "ct abdomen",
+    "tomografía computarizada abdomen",
+    "abdomen sin contraste",
+    "abdomen sin contraste intravenoso",
+    "hígado",
+    "bazo",
+    "páncreas",
+    "vesícula biliar",
+    "riñones",
+    "glándulas adrenales",
+    "retroperitoneo",
+    "pelvis",
+    "vejiga",
+    "útero",
+    "próstata"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "abdomen"],
+  "excludeKeywords": ["contraste intravenoso", "con contraste iv", "with contrast"]
+}
+
