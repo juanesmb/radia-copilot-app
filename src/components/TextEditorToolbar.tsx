@@ -4,7 +4,7 @@ import { Bold, Italic, Underline, List } from "lucide-react";
 
 interface TextEditorToolbarProps {
   onCommand: (command: string, value?: string) => void;
-  editorRef?: React.RefObject<HTMLElement>;
+  editorRef?: React.RefObject<HTMLElement | null>;
   className?: string;
 }
 
