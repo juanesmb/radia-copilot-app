@@ -13,26 +13,16 @@ import { findBestMatchByKeywords } from "./templateSearcher";
 interface PromptResult {
   systemPrompt: string;
   userPrompt: string;
+  selectedTemplate: string;
 }
 
 export interface PromptBuilder {
   build(input: GenerateReportRequest): Promise<PromptResult>;
 }
 
-const buildUserPrompt = (transcription: string, language: Language): string => {
-  const instructions =
-    language === "en"
-      ? "Summarize the dictation, draft organized findings, and finish with an actionable impression."
-      : "Resume la dictación, redacta hallazgos organizados y finaliza con una conclusión accionable.";
-
-  return `
-${instructions}
-
-Transcription:
-"""
-${transcription}
-"""
-`.trim();
+const buildUserPrompt = (transcription: string, _language: Language): string => {
+  // Only return the transcription, nothing else
+  return transcription.trim();
 };
 
 const replaceTemplateInPrompt = (
@@ -51,12 +41,42 @@ const replaceTemplateInPrompt = (
 
   const replacement = `${title}\n\n${instruction}\n\n\`\`\`\n${template}\n\`\`\``;
 
-  const regex = /## Plantilla de referencia:[\s\S]*?```/;
-  const englishRegex = /## Reference template:[\s\S]*?```/;
-
   if (language === "es") {
-    return basePrompt.replace(regex, replacement);
+    // Spanish: Replace the section from "PLANTILLA:" through the closing code block
+    // Find the index of "PLANTILLA:" and then find the closing ``` of the code block
+    const plantillaIndex = basePrompt.indexOf("PLANTILLA:");
+    if (plantillaIndex === -1) {
+      console.error("❌ Could not find 'PLANTILLA:' in prompt");
+      return basePrompt;
+    }
+    
+    // Find the code block that starts after PLANTILLA:
+    const afterPlantilla = basePrompt.substring(plantillaIndex);
+    const codeBlockStart = afterPlantilla.indexOf("```");
+    if (codeBlockStart === -1) {
+      console.error("❌ Could not find code block start after 'PLANTILLA:'");
+      return basePrompt;
+    }
+    
+    // Find the closing ``` of the code block
+    const codeBlockContent = afterPlantilla.substring(codeBlockStart + 3);
+    const codeBlockEnd = codeBlockContent.indexOf("```");
+    if (codeBlockEnd === -1) {
+      console.error("❌ Could not find code block end");
+      return basePrompt;
+    }
+    
+    // Calculate the end position (plantillaIndex + codeBlockStart + 3 + codeBlockEnd + 3)
+    const endIndex = plantillaIndex + codeBlockStart + 3 + codeBlockEnd + 3;
+    
+    // Replace the section
+    const before = basePrompt.substring(0, plantillaIndex);
+    const after = basePrompt.substring(endIndex);
+    return before + replacement + after;
   }
+  
+  // English regex: matches "## Reference template:" section
+  const englishRegex = /## Reference template:[\s\S]*?```/;
   return basePrompt.replace(englishRegex, replacement);
 };
 
@@ -140,6 +160,7 @@ export const createPromptBuilder = (
       return {
         systemPrompt: enrichedPrompt,
         userPrompt: buildUserPrompt(input.transcription, input.language),
+        selectedTemplate: studyType,
       };
     } catch (error) {
       console.error(
@@ -156,6 +177,7 @@ export const createPromptBuilder = (
       return {
         systemPrompt: enrichedPrompt,
         userPrompt: buildUserPrompt(input.transcription, input.language),
+        selectedTemplate: "default",
       };
     }
   },

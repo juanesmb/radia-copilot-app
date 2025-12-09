@@ -43,14 +43,8 @@ export function ReportView({
 
   const combinedContent = useMemo(() => {
     if (!report) return "";
-    const parts: string[] = [];
-    if (report.title) {
-      parts.push(report.title);
-    }
-    if (report.report) {
-      parts.push(report.report);
-    }
-    return parts.join("\n\n");
+    // Only show the report field, not the title
+    return report.report || "";
   }, [report]);
 
   useEffect(() => {
@@ -87,15 +81,8 @@ export function ReportView({
     if (!report) return;
     const fullContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
     
-    // Split content by first double newline to separate title from report
-    const parts = fullContent.split("\n\n");
-    const newTitle = parts[0]?.trim() || "";
-    const newReport = parts.slice(1).join("\n\n").trim() || fullContent.trim();
-
-    // Only update if changed to avoid infinite loops
-    if (newTitle !== report.title && newTitle) {
-      onUpdateTitle(newTitle);
-    }
+    // Only update the report field, not the title
+    const newReport = fullContent.trim();
     if (newReport !== report.report) {
       onUpdateReport(newReport);
     }
