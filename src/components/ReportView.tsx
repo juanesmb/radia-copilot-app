@@ -16,8 +16,6 @@ interface ReportViewLabels {
   caseId: string;
   date: string;
   transcription: string;
-  findings: string;
-  impression: string;
   copy: string;
   copied: string;
   transcriptionEmpty: string;
@@ -29,8 +27,7 @@ interface ReportViewProps {
   isLoading: boolean;
   labels: ReportViewLabels;
   onUpdateTitle: (value: string) => void;
-  onUpdateFindings: (value: string) => void;
-  onUpdateImpression: (value: string) => void;
+  onUpdateReport: (value: string) => void;
 }
 
 export function ReportView({
@@ -38,8 +35,7 @@ export function ReportView({
   isLoading,
   labels,
   onUpdateTitle,
-  onUpdateFindings,
-  onUpdateImpression,
+  onUpdateReport,
 }: ReportViewProps) {
   const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -51,14 +47,11 @@ export function ReportView({
     if (report.title) {
       parts.push(report.title);
     }
-    if (report.findings) {
-      parts.push(`${labels.findings}:\n${report.findings}`);
-    }
-    if (report.impression) {
-      parts.push(`${labels.impression}:\n${report.impression}`);
+    if (report.report) {
+      parts.push(report.report);
     }
     return parts.join("\n\n");
-  }, [report, labels]);
+  }, [report]);
 
   useEffect(() => {
     if (editorRef.current && report) {
@@ -94,53 +87,17 @@ export function ReportView({
     if (!report) return;
     const fullContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
     
-    // Parse the content to extract sections
-    const findingsLabel = labels.findings.toUpperCase();
-    const impressionLabel = labels.impression.toUpperCase();
-    const legacyResultsLabels = ["RESULTS", "RESULTADOS"];
-    
-    const lines = fullContent.split("\n");
-    let currentSection: "title" | "findings" | "impression" | null = "title";
-    const sections: Record<string, string[]> = {
-      title: [],
-      findings: [],
-      impression: [],
-    };
-
-    for (const line of lines) {
-      const upperLine = line.toUpperCase().trim();
-      if (upperLine === findingsLabel || upperLine.startsWith(findingsLabel + ":")) {
-        currentSection = "findings";
-        continue;
-      } else if (
-        legacyResultsLabels.some(
-          (label) => upperLine === label || upperLine.startsWith(label + ":"),
-        )
-      ) {
-        currentSection = "findings";
-        continue;
-      } else if (upperLine === impressionLabel || upperLine.startsWith(impressionLabel + ":")) {
-        currentSection = "impression";
-        continue;
-      } else if (currentSection) {
-        sections[currentSection].push(line);
-      }
-    }
-
-    // Title is everything before the first section label
-    const newTitle = sections.title.join("\n").trim();
-    const newFindings = sections.findings.join("\n").trim();
-    const newImpression = sections.impression.join("\n").trim();
+    // Split content by first double newline to separate title from report
+    const parts = fullContent.split("\n\n");
+    const newTitle = parts[0]?.trim() || "";
+    const newReport = parts.slice(1).join("\n\n").trim() || fullContent.trim();
 
     // Only update if changed to avoid infinite loops
     if (newTitle !== report.title && newTitle) {
       onUpdateTitle(newTitle);
     }
-    if (newFindings !== report.findings) {
-      onUpdateFindings(newFindings);
-    }
-    if (newImpression !== report.impression) {
-      onUpdateImpression(newImpression);
+    if (newReport !== report.report) {
+      onUpdateReport(newReport);
     }
   };
 
@@ -229,5 +186,4 @@ export function ReportView({
     </div>
   );
 }
-
 

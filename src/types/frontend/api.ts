@@ -6,9 +6,8 @@ export interface GenerateReportRequest {
 }
 
 export interface GenerateReportResponse {
-  studyTitle: string;
-  findings: string;
-  impression: string;
+  title: string;
+  report: string;
 }
 
 export interface ApiError {

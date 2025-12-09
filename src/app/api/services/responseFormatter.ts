@@ -16,9 +16,8 @@ const sanitizeJsonString = (raw: string) => {
 export const createResponseFormatter = (): ResponseFormatter => ({
   format: (content) => {
     const base: GenerateReportResult = {
-      studyTitle: "",
-      findings: "",
-      impression: "",
+      title: "",
+      report: "",
     };
 
     if (!content) {
@@ -27,12 +26,9 @@ export const createResponseFormatter = (): ResponseFormatter => ({
 
     try {
       const parsed = JSON.parse(sanitizeJsonString(content));
-      const mergedFindings = [parsed.findings, parsed.results].filter(Boolean).join("\n\n").trim();
-
       return {
-        studyTitle: parsed.studyTitle ?? base.studyTitle,
-        findings: mergedFindings || base.findings,
-        impression: parsed.impression ?? base.impression,
+        title: parsed.title ?? base.title,
+        report: parsed.report ?? base.report,
       };
     } catch {
       const cleaned = sanitizeJsonString(content);
@@ -40,37 +36,10 @@ export const createResponseFormatter = (): ResponseFormatter => ({
         return base;
       }
 
-      // Fallback: try to extract sections from plain text
-      const lines = cleaned.split("\n");
-      let currentSection: "studyTitle" | "findings" | "impression" | null = null;
-      const sections: Record<string, string[]> = {
-        studyTitle: [],
-        findings: [],
-        impression: [],
-      };
-
-      for (const line of lines) {
-        const upperLine = line.toUpperCase().trim();
-        if (upperLine.includes("TITLE") || upperLine.includes("TÍTULO") || upperLine.includes("ESTUDIO")) {
-          currentSection = "studyTitle";
-        } else if (upperLine.includes("FINDINGS") || upperLine.includes("HALLAZGOS")) {
-          currentSection = "findings";
-        } else if (upperLine.includes("RESULTS") || upperLine.includes("RESULTADOS")) {
-          currentSection = "findings";
-        } else if (upperLine.includes("IMPRESSION") || upperLine.includes("IMPRESIÓN") || upperLine.includes("CONCLUSIÓN")) {
-          currentSection = "impression";
-        } else if (currentSection) {
-          sections[currentSection].push(line);
-        } else {
-          // If no section identified, add to findings as default
-          sections.findings.push(line);
-        }
-      }
-
+      // Fallback: return the raw content as the report
       return {
-        studyTitle: sections.studyTitle.join("\n").trim() || "",
-        findings: sections.findings.join("\n").trim() || cleaned,
-        impression: sections.impression.join("\n").trim() || "",
+        title: base.title,
+        report: cleaned,
       };
     }
   },

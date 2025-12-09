@@ -11,8 +11,7 @@ export interface ReportHistoryItem {
   id: string;
   title: string;
   transcription: string;
-  findings: string;
-  impression: string;
+  report: string;
   createdAt: Date;
   metadata: ReportMetadata;
 }
@@ -68,10 +67,9 @@ export const createReportHistoryItem = ({
 
   return {
     id: createId(),
-    title: response.studyTitle?.trim() || defaultTitle,
+    title: response.title?.trim() || defaultTitle,
     transcription,
-    findings: response.findings?.trim() || "",
-    impression: response.impression?.trim() || "",
+    report: response.report?.trim() || "",
     createdAt: now,
     metadata: {
       caseId,
@@ -79,5 +77,4 @@ export const createReportHistoryItem = ({
     },
   };
 };
-
 

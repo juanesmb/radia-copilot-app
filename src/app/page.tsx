@@ -61,8 +61,6 @@ export default function HomePage() {
       caseId: t("report.caseId"),
       date: t("report.date"),
       transcription: t("report.transcription"),
-      findings: t("report.findings"),
-      impression: t("report.impression"),
       copy: t("report.copy"),
       copied: t("report.copied"),
       transcriptionEmpty: t("report.transcriptionEmpty"),
@@ -167,7 +165,7 @@ export default function HomePage() {
   const handleCopyReportCard = async (report: ReportHistoryItem) => {
     try {
       await navigator.clipboard.writeText(
-        `${report.title}\n\n${report.findings}\n\n${report.impression}`,
+        `${report.title}\n\n${report.report}`,
       );
       setCopiedReportId(report.id);
       setTimeout(() => setCopiedReportId(null), 2000);
@@ -229,11 +227,8 @@ export default function HomePage() {
           onUpdateTitle={(value) =>
             updateSelectedReport((report) => ({ ...report, title: value }))
           }
-          onUpdateFindings={(value) =>
-            updateSelectedReport((report) => ({ ...report, findings: value }))
-          }
-          onUpdateImpression={(value) =>
-            updateSelectedReport((report) => ({ ...report, impression: value }))
+          onUpdateReport={(value) =>
+            updateSelectedReport((report) => ({ ...report, report: value }))
           }
         />
       );

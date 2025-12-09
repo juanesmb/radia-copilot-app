@@ -6,8 +6,7 @@ export interface GenerateReportRequest {
 }
 
 export interface GenerateReportResult {
-  studyTitle: string;
-  findings: string;
-  impression: string;
+  title: string;
+  report: string;
 }
 

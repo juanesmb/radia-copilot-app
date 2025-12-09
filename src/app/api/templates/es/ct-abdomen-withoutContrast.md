@@ -1,21 +1,29 @@
 TC DE ABDOMEN SIN CONTRASTE
 
-Se efectúa tomografía de abdomen y pelvis, en equipo Multicorte, guiado mediante escanograma previo, luego de la administración de contraste oral para teñir las estructuras del tubo digestivo.
+COMPARACIÓN: si, no
+ 
+Calidad de imagen: satisfactoria, no satisfactoria
 
-Hígado: de forma, tamaño y densidad conservados.
-Bazo: de forma, tamaño y densidad conservados.
-Páncreas: de forma, tamaño y densidad conservados.
-Vesícula Biliar: presente. Vía biliar intra y extrahepática no dilatadas.
-Glándulas Adrenales: de tamaño conservado sin evidencia de imágenes ocupantes.
-Riñones: ambos de forma, tamaño y posición conservados.
+Hígado: dentro de límites normales.
+Bazo: dentro de límites normales.
+Páncreas: dentro de límites normales.
+Vesícula Biliar: dentro de límites normales.
+Vía biliar intra y extrahepática: no dilatadas.
+Glándulas Adrenales: dentro de límites normales.
+Riñones: dentro de límites normales.
 Ganglios Linfáticos Retroperitoneales, Pelvianos e Inguinales: sin adenomegalias.
-Asas Intestinales: normodistendidas con adecuada progresión del medio de contraste hasta __.
-Grandes Vasos Retroperitoneales: diámetros conservados.
+Asas Intestinales: normodistendidas.
+Grandes Vasos: diámetros conservados.
 Imágenes Ocupantes Pelvianas: no se evidencian.
 Útero (si mujer): de tamaño conservado para la edad.
 Próstata (si hombre): de tamaño conservado.
 Vejiga: sin evidencia de imágenes endoluminales.
 Cavidad Peritoneal: no se observó líquido libre.
 Fosas Isquiorectales: libres.
-Tórax Inferior: sin alteraciones.
-Músculo Esquelético: sin alteraciones.
+
+Tórax Inferior: dentro de límites normales.
+
+Músculo Esquelético: dentro de límites normales.
+
+CONCLUSIONES
+- Estudio dentro de los límites normales.
