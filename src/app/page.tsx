@@ -87,7 +87,7 @@ export default function HomePage() {
         const next = Math.min(prev + 4, 100);
         return next;
       });
-    }, 120);
+    }, 1200);
 
     return () => {
       clearInterval(progressInterval);
