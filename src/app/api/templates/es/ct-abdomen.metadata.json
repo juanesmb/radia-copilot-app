@@ -1,5 +1,5 @@
 {
-  "studyType": "ct-abdomen-withoutContrast",
+  "studyType": "ct-abdomen",
   "modality": "ct",
   "region": "abdomen",
   "keywords": [
@@ -8,6 +8,7 @@
     "ct abdomen",
     "tomografía computarizada abdomen",
     "abdomen sin contraste",
+    "abdomen con contraste",
     "abdomen sin contraste intravenoso",
     "hígado",
     "bazo",
@@ -22,6 +23,6 @@
     "próstata"
   ],
   "requiredKeywords": ["tc", "tomografía", "ct", "abdomen"],
-  "excludeKeywords": ["contraste intravenoso", "con contraste iv", "with contrast"]
+  "excludeKeywords": []
 }
 

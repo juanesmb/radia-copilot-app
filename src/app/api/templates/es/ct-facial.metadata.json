@@ -1,0 +1,35 @@
+{
+  "studyType": "ct-facial",
+  "modality": "ct",
+  "region": "facial",
+  "keywords": [
+    "tc macizo facial",
+    "tomografía macizo facial",
+    "ct macizo facial",
+    "tomografía computarizada macizo facial",
+    "macizo facial sin contraste",
+    "macizo facial con contraste",
+    "macizo facial sin contraste intravenoso",
+    "senos frontales",
+    "senos maxilares",
+    "celdillas etmoidales",
+    "seno esfenoidal",
+    "complejos osteomeatales",
+    "complejos ostiomeatales",
+    "fosas nasales",
+    "tabique nasal",
+    "septum nasal",
+    "cavum",
+    "cavum faríngeo",
+    "regiones orbitarias",
+    "estructuras óseas faciales",
+    "huesos propios nasales",
+    "senos paranasales",
+    "paranasales",
+    "macizo facial",
+    "facial"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "macizo facial", "facial"],
+  "excludeKeywords": []
+}
+

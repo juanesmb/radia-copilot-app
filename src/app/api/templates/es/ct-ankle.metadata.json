@@ -1,0 +1,33 @@
+{
+  "studyType": "ct-ankle",
+  "modality": "ct",
+  "region": "ankle",
+  "keywords": [
+    "tc tobillo",
+    "tomografía tobillo",
+    "ct tobillo",
+    "tomografía computarizada tobillo",
+    "tobillo sin contraste",
+    "tobillo con contraste",
+    "tobillo sin contraste intravenoso",
+    "estructuras óseas tobillo",
+    "espacios articulares tobillo",
+    "articulación tibioperoneoastragalina",
+    "articulación tibioperonea distal",
+    "articulación subastragalina",
+    "líquido intra-articular",
+    "partes blandas tobillo",
+    "tobillo",
+    "tobillos",
+    "tibia distal",
+    "peroné distal",
+    "astrágalo",
+    "calcáneo",
+    "escafoides",
+    "cuboides",
+    "articulación del tobillo"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "tobillo", "ankle"],
+  "excludeKeywords": []
+}
+

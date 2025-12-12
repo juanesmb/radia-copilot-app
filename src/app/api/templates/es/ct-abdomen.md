@@ -1,8 +1,8 @@
-TC DE ABDOMEN SIN CONTRASTE
+TC DE ABDOMEN [CON CONTRASTE, SIN CONTRASTE]
 
-COMPARACIÓN: si, no
+COMPARACIÓN: [si, no]
  
-Calidad de imagen: satisfactoria, no satisfactoria
+Calidad de imagen: [satisfactoria, no satisfactoria]
 
 Hígado: dentro de límites normales.
 Bazo: dentro de límites normales.
@@ -24,6 +24,9 @@ Fosas Isquiorectales: libres.
 Tórax Inferior: dentro de límites normales.
 
 Músculo Esquelético: dentro de límites normales.
+
+// Agregar esta línea si el estudio es con contraste
+No se observan realces patológicos luego de la administración del contraste endovenoso. 
 
 CONCLUSIONES
 - Estudio dentro de los límites normales.

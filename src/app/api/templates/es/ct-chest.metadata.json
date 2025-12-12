@@ -1,5 +1,5 @@
 {
-  "studyType": "ct-chest-withoutContrast",
+  "studyType": "ct-chest",
   "modality": "ct",
   "region": "chest",
   "keywords": [
@@ -9,6 +9,7 @@
     "ct chest",
     "tomografía computarizada tórax",
     "tórax sin contraste",
+    "tórax con contraste",
     "tórax sin contraste intravenoso",
     "vía aérea",
     "parénquima pulmonar",
@@ -21,6 +22,6 @@
     "pulmones"
   ],
   "requiredKeywords": ["tc", "tomografía", "ct", "tórax", "chest"],
-  "excludeKeywords": ["contraste intravenoso", "con contraste iv", "with contrast", "with iv contrast"]
+  "excludeKeywords": []
 }
 

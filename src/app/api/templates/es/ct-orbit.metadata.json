@@ -1,0 +1,35 @@
+{
+  "studyType": "ct-orbit",
+  "modality": "ct",
+  "region": "orbit",
+  "keywords": [
+    "tc órbitas",
+    "tomografía órbitas",
+    "ct órbitas",
+    "tomografía computarizada órbitas",
+    "órbitas sin contraste",
+    "órbitas con contraste",
+    "órbitas sin contraste intravenoso",
+    "globo ocular",
+    "globos oculares",
+    "partes blandas preseptales",
+    "nervios ópticos",
+    "nervio óptico",
+    "musculatura extrínseca ocular",
+    "músculos extraoculares",
+    "glándula lagrimal",
+    "glándulas lagrimales",
+    "estructuras óseas orbitarias",
+    "órbita",
+    "órbitas",
+    "orbitaria",
+    "orbitarias",
+    "senos paranasales",
+    "silla turca",
+    "senos cavernosos",
+    "columna cervical"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "órbitas", "órbita", "orbit", "orbitaria"],
+  "excludeKeywords": []
+}
+

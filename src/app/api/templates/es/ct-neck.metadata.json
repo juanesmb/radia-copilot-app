@@ -1,0 +1,30 @@
+{
+  "studyType": "ct-neck",
+  "modality": "ct",
+  "region": "neck",
+  "keywords": [
+    "tc cuello",
+    "tomografía cuello",
+    "ct cuello",
+    "tomografía computarizada cuello",
+    "cuello sin contraste",
+    "cuello con contraste",
+    "cuello sin contraste intravenoso",
+    "laringofaringe",
+    "glándulas salivales",
+    "glándulas salivares",
+    "estructuras vasculares",
+    "adenomegalias cervicales",
+    "ganglios cervicales",
+    "ganglios laterocervicales",
+    "glándula tiroides",
+    "tiroides",
+    "tórax superior",
+    "cuello",
+    "cervical",
+    "región cervical"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "cuello", "neck"],
+  "excludeKeywords": []
+}
+

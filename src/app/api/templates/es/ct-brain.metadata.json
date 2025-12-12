@@ -1,0 +1,31 @@
+{
+  "studyType": "ct-brain",
+  "modality": "ct",
+  "region": "brain",
+  "keywords": [
+    "tc cerebro",
+    "tomografía cerebro",
+    "ct cerebro",
+    "ct brain",
+    "tomografía computarizada cerebro",
+    "cerebro sin contraste",
+    "cerebro con contraste",
+    "cerebro sin contraste intravenoso",
+    "sistema ventricular",
+    "línea media",
+    "espacios subaracnoideos",
+    "parénquima cerebral",
+    "cerebelo",
+    "tronco encefálico",
+    "calota",
+    "senos paranasales",
+    "estructuras orbitarias",
+    "silla turca",
+    "base de cráneo",
+    "cráneo",
+    "craneal"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "cerebro", "brain", "craneal", "cráneo"],
+  "excludeKeywords": []
+}
+

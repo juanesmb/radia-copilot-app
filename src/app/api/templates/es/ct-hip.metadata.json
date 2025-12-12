@@ -1,0 +1,33 @@
+{
+  "studyType": "ct-hip",
+  "modality": "ct",
+  "region": "hip",
+  "keywords": [
+    "tc cadera",
+    "tomografía cadera",
+    "ct cadera",
+    "tomografía computarizada cadera",
+    "cadera sin contraste",
+    "cadera con contraste",
+    "cadera sin contraste intravenoso",
+    "estructuras óseas cadera",
+    "espacios articulares cadera",
+    "articulación coxofemoral",
+    "coxofemoral",
+    "cabeza femoral",
+    "cuello femoral",
+    "acetábulo",
+    "líquido intra-articular",
+    "partes blandas cadera",
+    "cadera",
+    "caderas",
+    "pelvis",
+    "pelvis ósea",
+    "fémur proximal",
+    "trocanter mayor",
+    "trocanter menor"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "cadera", "hip"],
+  "excludeKeywords": []
+}
+

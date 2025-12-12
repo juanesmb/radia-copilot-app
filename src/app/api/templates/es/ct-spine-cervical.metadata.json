@@ -1,0 +1,36 @@
+{
+  "studyType": "ct-spine-cervical",
+  "modality": "ct",
+  "region": "spine",
+  "keywords": [
+    "tc columna cervical",
+    "tomografía columna cervical",
+    "ct columna cervical",
+    "tomografía computarizada columna cervical",
+    "columna cervical",
+    "cervical",
+    "cervicales",
+    "cuerpos vertebrales",
+    "discos cervicales",
+    "espacios discales",
+    "articulaciones interapofisarias",
+    "articulaciones uncovertebrales",
+    "conducto raquídeo",
+    "neuroforámenes",
+    "forámenes",
+    "lordosis cervical",
+    "arcos posteriores",
+    "plataformas articulares",
+    "vértebras cervicales",
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5",
+    "c6",
+    "c7"
+  ],
+  "requiredKeywords": ["tc", "tomografía", "ct", "columna cervical", "cervical"],
+  "excludeKeywords": []
+}
+
