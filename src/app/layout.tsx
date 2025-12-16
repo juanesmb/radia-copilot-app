@@ -22,11 +22,18 @@ export const metadata: Metadata = {
   description: "Generate structured radiology reports with a bilingual UI.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
+  searchParams,
 }: Readonly<{
   children: React.ReactNode;
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[]>>;
 }>) {
+  // Unwrap params and searchParams if they exist (Next.js 15+ makes them Promises)
+  if (params) await params;
+  if (searchParams) await searchParams;
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
