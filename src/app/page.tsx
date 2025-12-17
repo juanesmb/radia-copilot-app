@@ -15,10 +15,10 @@ import { UploadingInterface } from "@/components/UploadingInterface";
 import { ReportView } from "@/components/ReportView";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { generateReport } from "@/lib/api";
+import { generateReport, getReports, updateReport } from "@/lib/api";
 import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
-import { createReportHistoryItem } from "@/utils/reportHistory";
+import { createReportHistoryItem, mapReportToHistoryItem } from "@/utils/reportHistory";
 
 type DemoState = "main" | "recording" | "uploading" | "report";
 type SidebarView = "home" | "reports";
@@ -39,6 +39,7 @@ export default function HomePage() {
   const [pendingReport, setPendingReport] = useState<GenerateReportResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
 
   const uploadSteps = useMemo(
     () => [
@@ -59,7 +60,6 @@ export default function HomePage() {
       empty: t("report.empty"),
       loading: t("app.generateBusy"),
       caseInfo: t("report.caseInfo"),
-      caseId: t("report.caseId"),
       date: t("report.date"),
       transcription: t("report.transcription"),
       copy: t("report.copy"),
@@ -70,13 +70,71 @@ export default function HomePage() {
     [t],
   );
 
-  const updateSelectedReport = (updater: (report: ReportHistoryItem) => ReportHistoryItem) => {
+  const updateSelectedReport = async (
+    updater: (report: ReportHistoryItem) => ReportHistoryItem
+  ) => {
+    if (!selectedReportId) return;
+
+    const currentReport = reportHistory.find((item) => item.id === selectedReportId);
+    if (!currentReport) return;
+
+    const previousReport = { ...currentReport };
+    const updatedReport = updater(currentReport);
+
+    // Optimistically update UI
     setReportHistory((prev) =>
-      prev.map((item) => (item.id === selectedReportId ? updater(item) : item)),
+      prev.map((item) => (item.id === selectedReportId ? updatedReport : item)),
     );
+
+    // Save to database
+    try {
+      await updateReport(selectedReportId, {
+        report_title: updatedReport.title,
+        updated_report: updatedReport.report,
+      });
+    } catch (error) {
+      // Revert on error
+      setReportHistory((prev) =>
+        prev.map((item) => (item.id === selectedReportId ? previousReport : item)),
+      );
+      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
+      toast({
+        title: t("errors.generic"),
+        description: message,
+        variant: "destructive",
+      });
+    }
   };
 
   const showWelcome = sidebarView === "home" && demoState === "main" && !selectedReport;
+
+  // Load reports on mount
+  useEffect(() => {
+    const loadReports = async () => {
+      setIsLoadingReports(true);
+      try {
+        const reports = await getReports();
+        const historyItems = reports.map(mapReportToHistoryItem);
+        setReportHistory(historyItems);
+        if (historyItems.length > 0 && !selectedReportId) {
+          setSelectedReportId(historyItems[0].id);
+          setDemoState("report");
+        }
+      } catch (error) {
+        const message = (error as ApiError)?.message ?? t("errors.requestFailed");
+        toast({
+          title: t("errors.generic"),
+          description: message,
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingReports(false);
+      }
+    };
+
+    loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (demoState !== "uploading") return;

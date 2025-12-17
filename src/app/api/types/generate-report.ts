@@ -8,5 +8,8 @@ export interface GenerateReportRequest {
 export interface GenerateReportResult {
   title: string;
   report: string;
+  studyType?: string;
+  detectionConfidence?: number;
+  modelUsed: string;
 }
 

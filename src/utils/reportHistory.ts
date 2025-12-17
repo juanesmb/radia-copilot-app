@@ -1,14 +1,14 @@
 import type { GenerateReportResponse } from "@/types/frontend/api";
+import type { Report } from "@/lib/api";
 import type { Language } from "@/lib/translations";
 
 export interface ReportMetadata {
   caseId: string;
   patientName?: string;
-  templatePath?: string;
 }
 
 export interface ReportHistoryItem {
-  id: string;
+  id: string; // report_id from database
   title: string;
   transcription: string;
   report: string;
@@ -48,13 +48,6 @@ interface CreateReportParams {
   language: Language;
 }
 
-const createId = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
-
 export const createReportHistoryItem = ({
   response,
   transcription,
@@ -66,7 +59,7 @@ export const createReportHistoryItem = ({
     language === "es" ? "Estudio sin título" : "Untitled study";
 
   return {
-    id: createId(),
+    id: response.report_id, // Use database ID
     title: response.title?.trim() || defaultTitle,
     transcription,
     report: response.report?.trim() || "",
@@ -74,6 +67,22 @@ export const createReportHistoryItem = ({
     metadata: {
       caseId,
       patientName: extractPatientName(transcription),
+    },
+  };
+};
+
+export const mapReportToHistoryItem = (report: Report): ReportHistoryItem => {
+  const caseId = generateCaseId();
+  
+  return {
+    id: report.report_id,
+    title: report.report_title || "",
+    transcription: report.transcription,
+    report: report.updated_report,
+    createdAt: new Date(report.created_at),
+    metadata: {
+      caseId,
+      patientName: extractPatientName(report.transcription),
     },
   };
 };

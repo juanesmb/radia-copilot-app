@@ -14,6 +14,11 @@ interface PromptResult {
   systemPrompt: string;
   userPrompt: string;
   selectedTemplate: string;
+  detection?: {
+    studyType: string;
+    confidence: number;
+    keywords?: string[];
+  };
 }
 
 export interface PromptBuilder {
@@ -161,6 +166,11 @@ export const createPromptBuilder = (
         systemPrompt: enrichedPrompt,
         userPrompt: buildUserPrompt(input.transcription, input.language),
         selectedTemplate: studyType,
+        detection: {
+          studyType: detection.studyType,
+          confidence: detection.confidence,
+          keywords: detection.keywords,
+        },
       };
     } catch (error) {
       console.error(
@@ -178,6 +188,7 @@ export const createPromptBuilder = (
         systemPrompt: enrichedPrompt,
         userPrompt: buildUserPrompt(input.transcription, input.language),
         selectedTemplate: "default",
+        detection: undefined,
       };
     }
   },

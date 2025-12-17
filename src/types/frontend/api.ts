@@ -6,8 +6,12 @@ export interface GenerateReportRequest {
 }
 
 export interface GenerateReportResponse {
+  report_id: string;
   title: string;
   report: string;
+  studyType?: string;
+  detectionConfidence?: number;
+  modelUsed: string;
 }
 
 export interface ApiError {
