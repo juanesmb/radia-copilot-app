@@ -10,6 +10,6 @@ export interface GenerateReportResult {
   report: string;
   studyType?: string;
   detectionConfidence?: number;
-  modelUsed: string;
+  modelUsed?: string;
 }
 
