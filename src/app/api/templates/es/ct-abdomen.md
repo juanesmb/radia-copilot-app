@@ -15,8 +15,10 @@ Ganglios Linfáticos Retroperitoneales, Pelvianos e Inguinales: sin adenomegalia
 Asas Intestinales: normodistendidas.
 Grandes Vasos: diámetros conservados.
 Imágenes Ocupantes Pelvianas: no se evidencian.
-Útero (si mujer): de tamaño conservado para la edad.
-Próstata (si hombre): de tamaño conservado.
+//Selecciona útero o Próstata dependiendo del sexo. Si no se menciona, deja ambos.
+//Si la transcripción menciona "anexos", significa que es mujer.
+Útero: de tamaño conservado para la edad.
+Próstata: de tamaño conservado.
 Vejiga: sin evidencia de imágenes endoluminales.
 Cavidad Peritoneal: no se observó líquido libre.
 Fosas Isquiorectales: libres.
