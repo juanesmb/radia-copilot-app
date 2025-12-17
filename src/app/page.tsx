@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Menu } from "lucide-react";
 
+import { UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -286,7 +287,10 @@ export default function HomePage() {
                 priority
               />
             </div>
-            <LanguageSwitcher />
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
+              <UserButton />
+            </div>
           </div>
         </div>
       </header>
