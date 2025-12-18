@@ -12,8 +12,6 @@ import type { ReportHistoryItem } from "@/utils/reportHistory";
 interface ReportViewLabels {
   empty: string;
   loading: string;
-  caseInfo: string;
-  caseId: string;
   date: string;
   transcription: string;
   copy: string;
@@ -187,12 +185,12 @@ export function ReportView({
 
   return (
     <div className="space-y-6">
-      <Card className="p-4 sm:p-6 space-y-4">
-        <h3 className="text-lg font-semibold">{labels.caseInfo}</h3>
+      <Card className="space-y-4 border-0 shadow-none">
+        <h3 className="text-lg font-semibold">{report.title}</h3>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <p className="text-xs text-muted-foreground uppercase">{labels.caseId}</p>
-            <p className="text-sm font-medium">{report.metadata.caseId}</p>
+            <p className="text-xs text-muted-foreground uppercase">Report ID</p>
+            <p className="text-sm font-medium">{report.id}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase">{labels.date}</p>
@@ -207,7 +205,7 @@ export function ReportView({
         </div>
       </Card>
 
-      <Card className="p-4 sm:p-6 space-y-3">
+      <Card className="space-y-3 border-0 shadow-none">
         <h3 className="text-lg font-semibold">{labels.transcription}</h3>
         <div
           ref={transcriptionRef}
@@ -220,9 +218,9 @@ export function ReportView({
         />
       </Card>
 
-      <Card className="p-4 sm:p-6 xl:p-8 2xl:p-10 3xl:p-12 border-2">
-        <div className="bg-muted/50 rounded-lg p-3 sm:p-4 xl:p-6 2xl:p-8 3xl:p-10">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 xl:mb-6 2xl:mb-8 3xl:mb-10">
+      <Card className="border-0 shadow-none">
+        <div className="bg-muted/50 rounded-lg p-1.5 sm:p-2 xl:p-3 2xl:p-4 3xl:p-5">
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2 xl:mb-3 2xl:mb-4 3xl:mb-5">
             <h3 className="text-lg sm:text-xl xl:text-xl 2xl:text-xl 3xl:text-xl font-semibold text-foreground">
               {labels.generatedTitle}
             </h3>

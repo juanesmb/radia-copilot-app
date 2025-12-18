@@ -59,7 +59,6 @@ export default function HomePage() {
     () => ({
       empty: t("report.empty"),
       loading: t("app.generateBusy"),
-      caseInfo: t("report.caseInfo"),
       date: t("report.date"),
       transcription: t("report.transcription"),
       copy: t("report.copy"),
@@ -444,7 +443,7 @@ export default function HomePage() {
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100vh - 4rem)" }}>
-          <div className="mx-auto max-w-6xl px-4 py-10 md:py-12 lg:px-6">
+          <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3">
             <div className="space-y-6">{renderMainContent()}</div>
           </div>
         </section>
