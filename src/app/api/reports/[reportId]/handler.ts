@@ -42,12 +42,15 @@ export const updateReportHandler = async (
       return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
     }
 
-    const updates: { report_title?: string; updated_report?: string } = {};
+    const updates: { report_title?: string; updated_report?: string; updated_transcription?: string } = {};
     if ("report_title" in payload && typeof payload.report_title === "string") {
       updates.report_title = payload.report_title;
     }
     if ("updated_report" in payload && typeof payload.updated_report === "string") {
       updates.updated_report = payload.updated_report;
+    }
+    if ("updated_transcription" in payload && typeof payload.updated_transcription === "string") {
+      updates.updated_transcription = payload.updated_transcription;
     }
 
     if (Object.keys(updates).length === 0) {

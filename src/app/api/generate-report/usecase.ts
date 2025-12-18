@@ -48,7 +48,8 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
 
       const savedReport = await deps.reportRepository.createReport({
         user_id: userId,
-        transcription: input.transcription,
+        generated_transcription: input.transcription,
+        updated_transcription: input.transcription,
         report_title: reportData.title || null,
         generated_report: reportData.report,
         updated_report: reportData.report,

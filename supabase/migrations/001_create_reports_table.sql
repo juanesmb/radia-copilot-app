@@ -1,7 +1,8 @@
 CREATE TABLE reports (
   report_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id VARCHAR(255) NOT NULL, -- Clerk JWT sub claim
-  transcription TEXT NOT NULL,
+  generated_transcription TEXT NOT NULL,
+  updated_transcription TEXT NOT NULL,
   report_title VARCHAR(500),
   generated_report TEXT NOT NULL,
   updated_report TEXT NOT NULL,

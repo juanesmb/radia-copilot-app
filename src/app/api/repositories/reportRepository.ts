@@ -4,7 +4,8 @@ import { HttpError } from "../lib/errorHandler";
 
 export interface ReportData {
   user_id: string;
-  transcription: string;
+  generated_transcription: string;
+  updated_transcription: string;
   report_title: string | null;
   generated_report: string;
   updated_report: string;
@@ -18,7 +19,8 @@ export interface ReportData {
 export interface Report {
   report_id: string;
   user_id: string;
-  transcription: string;
+  generated_transcription: string;
+  updated_transcription: string;
   report_title: string | null;
   generated_report: string;
   updated_report: string;
@@ -34,6 +36,7 @@ export interface Report {
 export interface UpdateReportData {
   report_title?: string;
   updated_report?: string;
+  updated_transcription?: string;
 }
 
 export interface ReportRepository {

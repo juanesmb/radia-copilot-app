@@ -71,7 +71,8 @@ export default function HomePage() {
   );
 
   const updateSelectedReport = async (
-    updater: (report: ReportHistoryItem) => ReportHistoryItem
+    updater: (report: ReportHistoryItem) => ReportHistoryItem,
+    fieldsToUpdate: Partial<{ report_title: string; updated_report: string; updated_transcription: string }>
   ) => {
     if (!selectedReportId) return;
 
@@ -88,10 +89,7 @@ export default function HomePage() {
 
     // Save to database
     try {
-      await updateReport(selectedReportId, {
-        report_title: updatedReport.title,
-        updated_report: updatedReport.report,
-      });
+      await updateReport(selectedReportId, fieldsToUpdate);
     } catch (error) {
       // Revert on error
       setReportHistory((prev) =>
@@ -284,10 +282,22 @@ export default function HomePage() {
           isLoading={false}
           labels={reportLabels}
           onUpdateTitle={(value) =>
-            updateSelectedReport((report) => ({ ...report, title: value }))
+            updateSelectedReport(
+              (report) => ({ ...report, title: value }),
+              { report_title: value }
+            )
           }
           onUpdateReport={(value) =>
-            updateSelectedReport((report) => ({ ...report, report: value }))
+            updateSelectedReport(
+              (report) => ({ ...report, report: value }),
+              { updated_report: value }
+            )
+          }
+          onUpdateTranscription={(value) =>
+            updateSelectedReport(
+              (report) => ({ ...report, transcription: value }),
+              { updated_transcription: value }
+            )
           }
         />
       );

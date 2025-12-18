@@ -13,6 +13,7 @@ interface ReportViewLabels {
   empty: string;
   loading: string;
   caseInfo: string;
+  caseId: string;
   date: string;
   transcription: string;
   copy: string;
@@ -27,6 +28,7 @@ interface ReportViewProps {
   labels: ReportViewLabels;
   onUpdateTitle: (value: string) => void;
   onUpdateReport: (value: string) => void;
+  onUpdateTranscription: (value: string) => void;
 }
 
 export function ReportView({
@@ -35,9 +37,11 @@ export function ReportView({
   labels,
   onUpdateTitle,
   onUpdateReport,
+  onUpdateTranscription,
 }: ReportViewProps) {
   const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
+  const transcriptionRef = useRef<HTMLDivElement>(null);
   const [isCopied, setIsCopied] = React.useState(false);
 
   const combinedContent = useMemo(() => {
@@ -48,11 +52,9 @@ export function ReportView({
 
   useEffect(() => {
     if (editorRef.current && report) {
-      const currentText = editorRef.current.innerText || "";
+      const currentText = editorRef.current.textContent || "";
       if (currentText !== combinedContent && document.activeElement !== editorRef.current) {
-        // Preserve line breaks by converting \n to <br> tags
-        const contentWithBreaks = combinedContent.replace(/\n/g, '<br>');
-        editorRef.current.innerHTML = contentWithBreaks;
+        editorRef.current.textContent = combinedContent;
       }
     }
   }, [combinedContent, report]);
@@ -79,11 +81,49 @@ export function ReportView({
   };
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriptionDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync transcription content when report changes (only if not focused)
+  useEffect(() => {
+    if (transcriptionRef.current && report) {
+      const transcriptionContent = report.transcription || "";
+      // Only update DOM if element is not focused (prevents cursor reset)
+      if (document.activeElement !== transcriptionRef.current) {
+        transcriptionRef.current.textContent = transcriptionContent;
+      }
+    }
+  }, [report?.id, report?.transcription]);
+
+  const handleTranscriptionBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    if (!report) return;
+    const newTranscription = (e.currentTarget.textContent || "").trim();
+    if (newTranscription !== report.transcription) {
+      if (transcriptionDebounceRef.current) {
+        clearTimeout(transcriptionDebounceRef.current);
+      }
+      onUpdateTranscription(newTranscription);
+    }
+  }, [report, onUpdateTranscription]);
+
+  const handleTranscriptionInput = useCallback(() => {
+    if (!report || !transcriptionRef.current) return;
+    
+    if (transcriptionDebounceRef.current) {
+      clearTimeout(transcriptionDebounceRef.current);
+    }
+    
+    transcriptionDebounceRef.current = setTimeout(() => {
+      if (!transcriptionRef.current) return;
+      const newTranscription = (transcriptionRef.current.textContent || "").trim();
+      if (newTranscription !== report.transcription) {
+        onUpdateTranscription(newTranscription);
+      }
+    }, 1000);
+  }, [report, onUpdateTranscription]);
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
     if (!report) return;
-    // Use innerText to preserve line breaks from contentEditable
-    const fullContent = e.currentTarget.innerText || "";
+    const fullContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
     
     // Only update the report field, not the title
     const newReport = fullContent.trim();
@@ -108,8 +148,7 @@ export function ReportView({
     // Debounce the update
     debounceTimeoutRef.current = setTimeout(() => {
       if (!editorRef.current) return;
-      // Use innerText to preserve line breaks from contentEditable
-      const fullContent = editorRef.current.innerText || "";
+      const fullContent = editorRef.current.textContent || editorRef.current.innerText || "";
       const newReport = fullContent.trim();
       if (newReport !== report.report) {
         onUpdateReport(newReport);
@@ -121,6 +160,9 @@ export function ReportView({
     return () => {
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
+      }
+      if (transcriptionDebounceRef.current) {
+        clearTimeout(transcriptionDebounceRef.current);
       }
     };
   }, []);
@@ -149,8 +191,8 @@ export function ReportView({
         <h3 className="text-lg font-semibold">{labels.caseInfo}</h3>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <p className="text-xs text-muted-foreground uppercase">Report ID</p>
-            <p className="text-sm font-medium font-mono text-xs break-all">{report.id}</p>
+            <p className="text-xs text-muted-foreground uppercase">{labels.caseId}</p>
+            <p className="text-sm font-medium">{report.metadata.caseId}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase">{labels.date}</p>
@@ -167,9 +209,15 @@ export function ReportView({
 
       <Card className="p-4 sm:p-6 space-y-3">
         <h3 className="text-lg font-semibold">{labels.transcription}</h3>
-        <p className="text-sm text-muted-foreground whitespace-pre-line">
-          {report.transcription || labels.transcriptionEmpty}
-        </p>
+        <div
+          ref={transcriptionRef}
+          contentEditable
+          suppressContentEditableWarning
+          className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[100px] p-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          onBlur={handleTranscriptionBlur}
+          onInput={handleTranscriptionInput}
+          style={{ wordBreak: "break-word" }}
+        />
       </Card>
 
       <Card className="p-4 sm:p-6 xl:p-8 2xl:p-10 3xl:p-12 border-2">

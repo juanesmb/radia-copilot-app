@@ -77,12 +77,12 @@ export const mapReportToHistoryItem = (report: Report): ReportHistoryItem => {
   return {
     id: report.report_id,
     title: report.report_title || "",
-    transcription: report.transcription,
+    transcription: report.updated_transcription,
     report: report.updated_report,
     createdAt: new Date(report.created_at),
     metadata: {
       caseId,
-      patientName: extractPatientName(report.transcription),
+      patientName: extractPatientName(report.updated_transcription),
     },
   };
 };
