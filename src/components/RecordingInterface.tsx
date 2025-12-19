@@ -166,13 +166,13 @@ export function RecordingInterface({
             value={transcription}
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
-            className="flex-1 text-base leading-relaxed resize-none"
+            className="flex-1 text-base leading-relaxed resize-none overflow-y-auto min-h-0"
             readOnly={isRecording || isConnecting}
             disabled={disabled && !isActive}
           />
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center shrink-0">
           <Button
             type="button"
             className="gap-2 text-base h-12 px-6"

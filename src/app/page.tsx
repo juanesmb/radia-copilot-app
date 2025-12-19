@@ -571,7 +571,7 @@ export default function HomePage() {
           copiedLabel={t("report.copied")}
         />
 
-        <section className="flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100vh - 4rem)" }}>
+        <section className="flex-1 min-w-0 overflow-hidden" style={{ height: "calc(100vh - 4rem)" }}>
           <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col">
             <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
