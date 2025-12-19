@@ -188,3 +188,48 @@ export async function detectStudyType(
   }
 }
 
+// Get available templates
+const GET_TEMPLATES_PATH = "/api/templates";
+
+export interface GetTemplatesRequest {
+  language: "en" | "es";
+}
+
+export interface GetTemplatesResponse {
+  templates: string[];
+}
+
+export async function getAvailableTemplates(
+  payload: GetTemplatesRequest
+): Promise<GetTemplatesResponse> {
+  try {
+    const response = await fetch(GET_TEMPLATES_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to get templates",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as GetTemplatesResponse;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+

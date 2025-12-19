@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { X, Upload, Mic, Square } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -72,8 +72,8 @@ export function RecordingInterface({
   const isStopping = sttState === 'stopping';
   const isActive = isRecording || isConnecting || isStopping;
   
-  // Debounce to prevent double-clicks
   const isProcessingRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const statusLabel = useMemo(() => {
     if (isConnecting) return labels.connecting;
@@ -101,10 +101,16 @@ export function RecordingInterface({
     }
   };
 
-  const showStudyTypeSelector = !isActive && transcription.trim() && availableStudyTypes && availableStudyTypes.length > 0;
+  useEffect(() => {
+    if (isActive && textareaRef.current) {
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+    }
+  }, [transcription, isActive]);
+
+  const hasAvailableStudyTypes = availableStudyTypes && availableStudyTypes.length > 0;
 
   return (
-    <Card className="rounded-lg border-2 shadow-2xl bg-card relative p-4 sm:p-6 lg:p-8">
+    <Card className="rounded-lg border-2 shadow-2xl bg-card relative p-4 sm:p-6 lg:p-8 flex flex-col h-full">
       <button
         type="button"
         onClick={onCancel}
@@ -114,7 +120,7 @@ export function RecordingInterface({
         <X className="w-4 h-4" aria-hidden="true" />
       </button>
 
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col flex-1 min-h-0">
         <div className="text-center space-y-3">
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-medium ${
             isRecording ? 'bg-red-500/10 text-red-500' :
@@ -128,9 +134,7 @@ export function RecordingInterface({
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">{description}</p>
         </div>
 
-        {/* Recording controls */}
         <div className="flex items-center justify-center gap-4">
-          {/* Main mic/stop button */}
           <button
             type="button"
             onClick={handleMicClick}
@@ -159,49 +163,45 @@ export function RecordingInterface({
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 flex flex-col min-h-0">
+          {hasAvailableStudyTypes && (
+            <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
+              <label htmlFor="study-type" className="text-sm font-medium text-foreground whitespace-nowrap">
+                {labels.studyType}
+              </label>
+              {isDetectingStudyType ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  {labels.detecting}
+                </div>
+              ) : (
+                <select
+                  id="study-type"
+                  value={selectedStudyType || detectedStudyType || ''}
+                  onChange={(e) => onStudyTypeChange?.(e.target.value)}
+                  disabled={isActive}
+                  className="flex-1 min-w-[200px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {availableStudyTypes?.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
           <Textarea
+            ref={textareaRef}
             value={transcription}
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
-            className="min-h-[240px] text-base leading-relaxed"
+            className="flex-1 text-base leading-relaxed resize-none"
             readOnly={isRecording || isConnecting}
             disabled={disabled && !isActive}
           />
         </div>
-
-        {/* Study type selector */}
-        {showStudyTypeSelector && (
-          <div className="space-y-2">
-            <label htmlFor="study-type" className="text-sm font-medium text-foreground">
-              {labels.studyType}
-            </label>
-            {isDetectingStudyType ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                {labels.detecting}
-              </div>
-            ) : (
-              <select
-                id="study-type"
-                value={selectedStudyType || detectedStudyType || ''}
-                onChange={(e) => onStudyTypeChange?.(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {availableStudyTypes?.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            )}
-            {detectedStudyType && !isDetectingStudyType && (
-              <p className="text-xs text-muted-foreground">
-                Auto-detected: {detectedStudyType}
-              </p>
-            )}
-          </div>
-        )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
           <Button

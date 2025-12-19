@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
-import { generateReport, getReports, updateReport, detectStudyType } from "@/lib/api";
+import { generateReport, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
 import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { createReportHistoryItem, mapReportToHistoryItem } from "@/utils/reportHistory";
@@ -108,6 +108,21 @@ export default function HomePage() {
     }
   }, [sttState, transcript, transcription, language, detectedStudyType, isDetectingStudyType]);
 
+  // Load available templates when entering recording state
+  useEffect(() => {
+    if (demoState === "recording" && availableStudyTypes.length === 0) {
+      getAvailableTemplates({ language })
+        .then((result) => {
+          setAvailableStudyTypes(
+            result.templates.map((t: string) => ({ value: t, label: t }))
+          );
+        })
+        .catch((error) => {
+          console.error('[Templates] Failed to load templates:', error);
+        });
+    }
+  }, [demoState, language, availableStudyTypes.length]);
+
   const uploadSteps = useMemo(
     () => [
       t("upload.status1"),
@@ -127,6 +142,7 @@ export default function HomePage() {
       empty: t("report.empty"),
       loading: t("app.generateBusy"),
       date: t("report.date"),
+      template: t("report.template"),
       transcription: t("report.transcription"),
       copy: t("report.copy"),
       copied: t("report.copied"),
@@ -191,10 +207,6 @@ export default function HomePage() {
         const reports = await getReports();
         const historyItems = reports.map(mapReportToHistoryItem);
         setReportHistory(historyItems);
-        if (historyItems.length > 0 && !selectedReportId) {
-          setSelectedReportId(historyItems[0].id);
-          setDemoState("report");
-        }
       } catch (error) {
         const message = (error as ApiError)?.message ?? t("errors.requestFailed");
         toast({
@@ -240,7 +252,6 @@ export default function HomePage() {
     setSidebarView("reports");
     setIsReportsOpen(true);
     setDemoState("recording");
-    // Reset study type detection state
     setDetectedStudyType(null);
     setSelectedStudyType("");
     setAvailableStudyTypes([]);
@@ -257,7 +268,6 @@ export default function HomePage() {
   };
 
   const handleStartRecording = useCallback(async () => {
-    // Clear previous study type detection when starting a new recording
     setDetectedStudyType(null);
     setSelectedStudyType("");
     setAvailableStudyTypes([]);
@@ -354,7 +364,8 @@ export default function HomePage() {
 
   const handleSidebarHome = () => {
     setSidebarView("home");
-    setDemoState(reportHistory.length > 0 ? "report" : "main");
+    setDemoState("main");
+    setSelectedReportId(null);
   };
 
   const handleSidebarReports = () => {
@@ -571,8 +582,8 @@ export default function HomePage() {
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100vh - 4rem)" }}>
-          <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3">
-            <div className="space-y-6">{renderMainContent()}</div>
+          <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col">
+            <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
         </section>
       </main>

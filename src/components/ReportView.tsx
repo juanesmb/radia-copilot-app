@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useEffect, useCallback } from "react";
+import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ interface ReportViewLabels {
   empty: string;
   loading: string;
   date: string;
+  template: string;
   transcription: string;
   copy: string;
   copied: string;
@@ -40,7 +41,7 @@ export function ReportView({
   const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
   const transcriptionRef = useRef<HTMLDivElement>(null);
-  const [isCopied, setIsCopied] = React.useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   const combinedContent = useMemo(() => {
     if (!report) return "";
@@ -187,7 +188,7 @@ export function ReportView({
     <div className="space-y-6">
       <Card className="space-y-4 border-0 shadow-none">
         <h3 className="text-lg font-semibold">{report.title}</h3>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground uppercase">Report ID</p>
             <p className="text-sm font-medium">{report.id}</p>
@@ -202,6 +203,12 @@ export function ReportView({
               })}
             </p>
           </div>
+          {report.usedTemplate && (
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">{labels.template}</p>
+              <p className="text-sm font-medium">{report.usedTemplate}</p>
+            </div>
+          )}
         </div>
       </Card>
 
