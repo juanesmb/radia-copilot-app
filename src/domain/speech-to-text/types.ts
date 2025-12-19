@@ -11,7 +11,7 @@ export interface STTConfig {
   enablePartials?: boolean;
 }
 
-export type STTState = 'idle' | 'connecting' | 'recording' | 'paused' | 'stopping' | 'error';
+export type STTState = 'idle' | 'connecting' | 'recording' | 'stopping' | 'error';
 
 export interface STTError {
   code: string;

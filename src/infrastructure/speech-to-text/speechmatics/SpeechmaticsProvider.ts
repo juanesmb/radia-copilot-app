@@ -254,6 +254,13 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
       is_eos?: boolean;
     }>;
   }): void {
+    // Ignore transcript messages when not recording (idle/stopping states)
+    // These are late-arriving messages from a previous session that has already been finalized
+    if (this.state !== 'recording' && this.state !== 'connecting') {
+      log('TRANSCRIPT', `Ignoring transcript message in state "${this.state}"`);
+      return;
+    }
+    
     const isFinal = data.message === 'AddTranscript';
     let text = '';
 
@@ -275,12 +282,14 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     log('TRANSCRIPT', `Processing transcript: isFinal=${isFinal}, newText="${text.slice(0, 50)}..."`);
 
     if (isFinal && text) {
-      this.accumulatedTranscript += (this.accumulatedTranscript ? ' ' : '') + text;
+      this.accumulatedTranscript += this.accumulatedTranscript ? ` ${text}` : text;
       log('TRANSCRIPT', `Accumulated transcript length: ${this.accumulatedTranscript.length}`);
     }
 
+    const emittedText = isFinal ? this.accumulatedTranscript : this.accumulatedTranscript + (text ? ' ' + text : '');
+
     this.emitTranscript({
-      text: isFinal ? this.accumulatedTranscript : this.accumulatedTranscript + (text ? ' ' + text : ''),
+      text: emittedText,
       isFinal,
       confidence: data.results?.[0]?.alternatives?.[0]?.confidence,
     });
@@ -289,7 +298,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
   async startRecording(): Promise<void> {
     log('RECORDING', `Starting recording, current state: ${this.state}`);
     
-    if (this.state !== 'connecting' && this.state !== 'paused') {
+    if (this.state !== 'connecting') {
       logError('RECORDING', `Cannot start recording in state "${this.state}"`);
       throw new Error('Cannot start recording in current state');
     }
@@ -369,8 +378,8 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
   async stopRecording(): Promise<void> {
     log('RECORDING', `Stopping recording, current state: ${this.state}, chunks sent: ${this.audioChunkCount}`);
     
-    if (this.state !== 'recording' && this.state !== 'paused') {
-      log('RECORDING', 'Not in recording/paused state, nothing to stop');
+    if (this.state !== 'recording') {
+      log('RECORDING', 'Not in recording state, nothing to stop');
       return;
     }
 
@@ -418,24 +427,6 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     
     this.setState('idle');
     log('RECORDING', 'Recording stopped, state set to idle');
-  }
-
-  pauseRecording(): void {
-    log('RECORDING', `Pausing recording, current state: ${this.state}`);
-    if (this.state !== 'recording') {
-      log('RECORDING', 'Not recording, cannot pause');
-      return;
-    }
-    this.setState('paused');
-  }
-
-  resumeRecording(): void {
-    log('RECORDING', `Resuming recording, current state: ${this.state}`);
-    if (this.state !== 'paused') {
-      log('RECORDING', 'Not paused, cannot resume');
-      return;
-    }
-    this.setState('recording');
   }
 
   async disconnect(): Promise<void> {

@@ -42,8 +42,6 @@ export default function HomePage() {
     error: sttError,
     start: startSTT,
     stop: stopSTT,
-    pause: pauseSTT,
-    resume: resumeSTT,
     reset: resetSTT,
   } = useSpeechToText(sttProvider);
 
@@ -141,11 +139,8 @@ export default function HomePage() {
   const recordingLabels = useMemo(
     () => ({
       recording: t("recording.recording"),
-      paused: t("recording.paused"),
       connecting: t("recording.connecting"),
       stop: t("recording.stop"),
-      pause: t("recording.pause"),
-      resume: t("recording.resume"),
       studyType: t("recording.studyType"),
       detecting: t("recording.detecting"),
     }),
@@ -286,13 +281,6 @@ export default function HomePage() {
     await stopSTT();
   }, [stopSTT]);
 
-  const handlePauseRecording = useCallback(() => {
-    pauseSTT();
-  }, [pauseSTT]);
-
-  const handleResumeRecording = useCallback(() => {
-    resumeSTT();
-  }, [resumeSTT]);
 
   const handleStartUpload = async () => {
     const trimmed = transcription.trim();
@@ -391,8 +379,6 @@ export default function HomePage() {
           sttState={sttState}
           onStartRecording={handleStartRecording}
           onStopRecording={handleStopRecording}
-          onPauseRecording={handlePauseRecording}
-          onResumeRecording={handleResumeRecording}
           sttError={sttError?.message}
           detectedStudyType={detectedStudyType}
           availableStudyTypes={availableStudyTypes}

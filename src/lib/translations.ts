@@ -44,11 +44,8 @@ export const translations: TranslationMap = {
     "recording.label": "Dictation",
     "recording.upload": "Upload transcription",
     "recording.recording": "Recording...",
-    "recording.paused": "Paused",
     "recording.connecting": "Connecting...",
     "recording.stop": "Stop",
-    "recording.pause": "Pause",
-    "recording.resume": "Resume",
     "recording.studyType": "Study Type",
     "recording.detecting": "Detecting study type...",
 
@@ -113,11 +110,8 @@ export const translations: TranslationMap = {
     "recording.label": "Dictado",
     "recording.upload": "Subir transcripción",
     "recording.recording": "Grabando...",
-    "recording.paused": "Pausado",
     "recording.connecting": "Conectando...",
     "recording.stop": "Detener",
-    "recording.pause": "Pausar",
-    "recording.resume": "Reanudar",
     "recording.studyType": "Tipo de estudio",
     "recording.detecting": "Detectando tipo de estudio...",
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from "react";
-import { X, Upload, Mic, Square, Pause, Play } from "lucide-react";
+import { X, Upload, Mic, Square } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,6 @@ interface RecordingInterfaceProps {
   sttState: STTState;
   onStartRecording: () => void;
   onStopRecording: () => void;
-  onPauseRecording: () => void;
-  onResumeRecording: () => void;
   sttError?: string | null;
   // Study type detection
   detectedStudyType?: string | null;
@@ -40,11 +38,8 @@ interface RecordingInterfaceProps {
   // Labels
   labels: {
     recording: string;
-    paused: string;
     connecting: string;
     stop: string;
-    pause: string;
-    resume: string;
     studyType: string;
     detecting: string;
   };
@@ -64,8 +59,6 @@ export function RecordingInterface({
   sttState,
   onStartRecording,
   onStopRecording,
-  onPauseRecording,
-  onResumeRecording,
   sttError,
   detectedStudyType,
   availableStudyTypes,
@@ -75,10 +68,9 @@ export function RecordingInterface({
   labels,
 }: RecordingInterfaceProps) {
   const isRecording = sttState === 'recording';
-  const isPaused = sttState === 'paused';
   const isConnecting = sttState === 'connecting';
   const isStopping = sttState === 'stopping';
-  const isActive = isRecording || isPaused || isConnecting || isStopping;
+  const isActive = isRecording || isConnecting || isStopping;
   
   // Debounce to prevent double-clicks
   const isProcessingRef = useRef(false);
@@ -86,9 +78,8 @@ export function RecordingInterface({
   const statusLabel = useMemo(() => {
     if (isConnecting) return labels.connecting;
     if (isRecording) return labels.recording;
-    if (isPaused) return labels.paused;
     return label;
-  }, [isConnecting, isRecording, isPaused, labels, label]);
+  }, [isConnecting, isRecording, labels, label]);
 
   const handleMicClick = async () => {
     if (isProcessingRef.current) {
@@ -100,24 +91,13 @@ export function RecordingInterface({
     try {
       if (isRecording) {
         await onStopRecording();
-      } else if (isPaused) {
-        onResumeRecording();
       } else if (!isActive) {
         await onStartRecording();
       }
     } finally {
-      // Reset after a short delay to allow state to update
       setTimeout(() => {
         isProcessingRef.current = false;
       }, 500);
-    }
-  };
-
-  const handlePauseClick = () => {
-    if (isRecording) {
-      onPauseRecording();
-    } else if (isPaused) {
-      onResumeRecording();
     }
   };
 
@@ -138,7 +118,6 @@ export function RecordingInterface({
         <div className="text-center space-y-3">
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-medium ${
             isRecording ? 'bg-red-500/10 text-red-500' :
-            isPaused ? 'bg-yellow-500/10 text-yellow-500' :
             isConnecting ? 'bg-blue-500/10 text-blue-500' :
             'bg-primary/10 text-primary'
           }`}>
@@ -159,8 +138,6 @@ export function RecordingInterface({
             className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all ${
               isRecording
                 ? 'bg-red-500 hover:bg-red-600 text-white'
-                : isPaused
-                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
                 : 'bg-primary hover:bg-primary/90 text-primary-foreground'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
             aria-label={isRecording ? labels.stop : label}
@@ -174,22 +151,6 @@ export function RecordingInterface({
               <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
             )}
           </button>
-
-          {/* Pause/Resume button - only show when recording or paused */}
-          {(isRecording || isPaused) && (
-            <button
-              type="button"
-              onClick={handlePauseClick}
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all bg-muted hover:bg-muted/80 border-2 border-border"
-              aria-label={isPaused ? labels.resume : labels.pause}
-            >
-              {isPaused ? (
-                <Play className="w-6 h-6 sm:w-7 sm:h-7" />
-              ) : (
-                <Pause className="w-6 h-6 sm:w-7 sm:h-7" />
-              )}
-            </button>
-          )}
         </div>
 
         {sttError && (
@@ -204,7 +165,7 @@ export function RecordingInterface({
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
             className="min-h-[240px] text-base leading-relaxed"
-            readOnly={isRecording || isPaused || isConnecting}
+            readOnly={isRecording || isConnecting}
             disabled={disabled && !isActive}
           />
         </div>

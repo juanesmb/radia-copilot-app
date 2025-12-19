@@ -5,8 +5,6 @@ export interface SpeechToTextProvider {
   disconnect(): Promise<void>;
   startRecording(): Promise<void>;
   stopRecording(): Promise<void>;
-  pauseRecording(): void;
-  resumeRecording(): void;
 
   // Event handlers
   onTranscript(callback: (result: TranscriptResult) => void): void;
