@@ -47,7 +47,7 @@ export function ReportCard({
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <h3 className={`text-sm font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
+          <h3 className={`text-xs font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
             {report.title || "Untitled report"}
           </h3>
           <p className="text-xs text-muted-foreground">

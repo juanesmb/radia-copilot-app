@@ -258,19 +258,9 @@ export default function HomePage() {
     resetSTT();
   };
 
-  const handleCancelRecording = () => {
-    resetSTT();
-    setTranscription("");
-    setDetectedStudyType(null);
-    setSelectedStudyType("");
-    setAvailableStudyTypes([]);
-    setDemoState(reportHistory.length > 0 ? "report" : "main");
-  };
-
   const handleStartRecording = useCallback(async () => {
     setDetectedStudyType(null);
     setSelectedStudyType("");
-    setAvailableStudyTypes([]);
     
     try {
       await startSTT({
@@ -377,15 +367,12 @@ export default function HomePage() {
     if (demoState === "recording") {
       return (
         <RecordingInterface
-          title={t("recording.title")}
-          description={t("recording.description")}
           transcription={transcription}
           placeholder={t("recording.placeholder")}
           label={t("recording.label")}
           uploadLabel={t("recording.upload")}
           onChange={setTranscription}
           onUpload={handleStartUpload}
-          onCancel={handleCancelRecording}
           disabled={isGenerating}
           sttState={sttState}
           onStartRecording={handleStartRecording}
@@ -481,17 +468,32 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto pl-2 pr-4">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-2">
-              <Image
-                src="/logo.svg"
-                alt="RadiaCopilot"
-                width={200}
-                height={96}
-                className="h-12 sm:h-16 w-auto"
-                priority
-              />
+              {/* Mobile hamburger button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="lg:hidden w-8 h-8 sm:w-10 sm:h-10"
+              >
+                <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+              </Button>
+              <button
+                onClick={handleSidebarHome}
+                className="hover:opacity-80 transition-opacity cursor-pointer"
+                aria-label="Home"
+              >
+                <Image
+                  src="/logo.svg"
+                  alt="RadiaCopilot"
+                  width={200}
+                  height={96}
+                  className="h-12 sm:h-16 w-auto"
+                  priority
+                />
+              </button>
             </div>
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
@@ -500,16 +502,6 @@ export default function HomePage() {
           </div>
         </div>
       </header>
-
-      {/* Mobile hamburger button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="lg:hidden fixed top-14 sm:top-16 left-1 sm:left-2 z-40 bg-background/80 backdrop-blur-sm border border-border shadow-sm w-8 h-8 sm:w-10 sm:h-10"
-      >
-        <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-      </Button>
 
       {/* Mobile menu Sheet */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -543,7 +535,6 @@ export default function HomePage() {
                   handleGenerateReport();
                   setIsMobileMenuOpen(false);
                 }}
-                title={t("reports.title")}
                 generateLabel={t("reports.generate")}
                 emptyLabel={t("reports.empty")}
                 copyLabel={t("report.copy")}
@@ -574,7 +565,6 @@ export default function HomePage() {
           }}
           onCopyReport={handleCopyReportCard}
           onGenerateReport={handleGenerateReport}
-          title={t("reports.title")}
           generateLabel={t("reports.generate")}
           emptyLabel={t("reports.empty")}
           copyLabel={t("report.copy")}

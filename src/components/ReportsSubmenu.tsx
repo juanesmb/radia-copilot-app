@@ -14,7 +14,6 @@ interface ReportsSubmenuProps {
   onSelectReport: (reportId: string) => void;
   onCopyReport: (report: ReportHistoryItem) => void;
   onGenerateReport: () => void;
-  title: string;
   generateLabel: string;
   emptyLabel: string;
   copyLabel: string;
@@ -30,7 +29,6 @@ export function ReportsSubmenu({
   onSelectReport,
   onCopyReport,
   onGenerateReport,
-  title,
   generateLabel,
   emptyLabel,
   copyLabel,
@@ -55,17 +53,13 @@ export function ReportsSubmenu({
       style={{ height: isMobile ? "100%" : "calc(100vh - 4rem)" }}
     >
       <div className="flex-shrink-0 p-4 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-          <Button
-            type="button"
-            size="lg"
-            className="w-full justify-center gap-2"
-            onClick={onGenerateReport}
-          >
-            {generateLabel}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          className="w-full justify-center gap-2 h-10"
+          onClick={onGenerateReport}
+        >
+          {generateLabel}
+        </Button>
       </div>
 
       {reports.length === 0 ? (
@@ -93,5 +87,3 @@ export function ReportsSubmenu({
     </div>
   );
 }
-
-
