@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Menu } from "lucide-react";
 
@@ -15,7 +15,9 @@ import { UploadingInterface } from "@/components/UploadingInterface";
 import { ReportView } from "@/components/ReportView";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { generateReport, getReports, updateReport } from "@/lib/api";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
+import { generateReport, getReports, updateReport, detectStudyType } from "@/lib/api";
 import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { createReportHistoryItem, mapReportToHistoryItem } from "@/utils/reportHistory";
@@ -23,9 +25,27 @@ import { createReportHistoryItem, mapReportToHistoryItem } from "@/utils/reportH
 type DemoState = "main" | "recording" | "uploading" | "report";
 type SidebarView = "home" | "reports";
 
+interface StudyTypeOption {
+  value: string;
+  label: string;
+}
+
+// Create provider instance outside component to avoid recreation
+const sttProvider = createSpeechToTextProvider('speechmatics');
+
 export default function HomePage() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
+  const {
+    transcript,
+    state: sttState,
+    error: sttError,
+    start: startSTT,
+    stop: stopSTT,
+    pause: pauseSTT,
+    resume: resumeSTT,
+    reset: resetSTT,
+  } = useSpeechToText(sttProvider);
 
   const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -40,6 +60,55 @@ export default function HomePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
+
+  // Study type detection state
+  const [isDetectingStudyType, setIsDetectingStudyType] = useState(false);
+  const [detectedStudyType, setDetectedStudyType] = useState<string | null>(null);
+  const [selectedStudyType, setSelectedStudyType] = useState<string>("");
+  const [availableStudyTypes, setAvailableStudyTypes] = useState<StudyTypeOption[]>([]);
+  
+  const prevSttStateRef = useRef<typeof sttState>(sttState);
+
+  useEffect(() => {
+    setTranscription(transcript);
+  }, [transcript]);
+
+  // Auto-detect study type when recording stops
+  useEffect(() => {
+    const prevState = prevSttStateRef.current;
+    const currentState = sttState;
+    prevSttStateRef.current = currentState;
+
+    const justStopped = (prevState === 'recording' || prevState === 'stopping') && currentState === 'idle';
+    
+    if (!justStopped) {
+      return;
+    }
+
+    const textToDetect = transcription.trim() || transcript.trim();
+    
+    if (textToDetect && !isDetectingStudyType && !detectedStudyType) {
+      setIsDetectingStudyType(true);
+      
+      detectStudyType({
+        transcription: textToDetect,
+        language,
+      })
+        .then((result) => {
+          setDetectedStudyType(result.studyType);
+          setSelectedStudyType(result.studyType);
+          setAvailableStudyTypes(
+            result.availableTemplates.map((t: string) => ({ value: t, label: t }))
+          );
+        })
+        .catch((error) => {
+          console.error('[StudyType] Detection failed:', error);
+        })
+        .finally(() => {
+          setIsDetectingStudyType(false);
+        });
+    }
+  }, [sttState, transcript, transcription, language, detectedStudyType, isDetectingStudyType]);
 
   const uploadSteps = useMemo(
     () => [
@@ -65,6 +134,20 @@ export default function HomePage() {
       copied: t("report.copied"),
       transcriptionEmpty: t("report.transcriptionEmpty"),
       generatedTitle: t("report.generatedTitle"),
+    }),
+    [t],
+  );
+
+  const recordingLabels = useMemo(
+    () => ({
+      recording: t("recording.recording"),
+      paused: t("recording.paused"),
+      connecting: t("recording.connecting"),
+      stop: t("recording.stop"),
+      pause: t("recording.pause"),
+      resume: t("recording.resume"),
+      studyType: t("recording.studyType"),
+      detecting: t("recording.detecting"),
     }),
     [t],
   );
@@ -162,11 +245,54 @@ export default function HomePage() {
     setSidebarView("reports");
     setIsReportsOpen(true);
     setDemoState("recording");
+    // Reset study type detection state
+    setDetectedStudyType(null);
+    setSelectedStudyType("");
+    setAvailableStudyTypes([]);
+    resetSTT();
   };
 
   const handleCancelRecording = () => {
+    resetSTT();
+    setTranscription("");
+    setDetectedStudyType(null);
+    setSelectedStudyType("");
+    setAvailableStudyTypes([]);
     setDemoState(reportHistory.length > 0 ? "report" : "main");
   };
+
+  const handleStartRecording = useCallback(async () => {
+    // Clear previous study type detection when starting a new recording
+    setDetectedStudyType(null);
+    setSelectedStudyType("");
+    setAvailableStudyTypes([]);
+    
+    try {
+      await startSTT({
+        language,
+        enablePartials: true,
+        sampleRate: 16000,
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.generic"),
+        description: error instanceof Error ? error.message : t("errors.microphoneAccess"),
+        variant: "destructive",
+      });
+    }
+  }, [startSTT, language, toast, t]);
+
+  const handleStopRecording = useCallback(async () => {
+    await stopSTT();
+  }, [stopSTT]);
+
+  const handlePauseRecording = useCallback(() => {
+    pauseSTT();
+  }, [pauseSTT]);
+
+  const handleResumeRecording = useCallback(() => {
+    resumeSTT();
+  }, [resumeSTT]);
 
   const handleStartUpload = async () => {
     const trimmed = transcription.trim();
@@ -185,6 +311,7 @@ export default function HomePage() {
       const response = await generateReport({
         transcription: trimmed,
         language,
+        studyType: selectedStudyType || undefined,
       });
       setPendingReport(response);
     } catch (error) {
@@ -215,6 +342,9 @@ export default function HomePage() {
     setTranscription("");
     setPendingTranscription("");
     setPendingReport(null);
+    setDetectedStudyType(null);
+    setSelectedStudyType("");
+    setAvailableStudyTypes([]);
     toast({ title: t("app.generatedToast") });
   };
 
@@ -258,6 +388,18 @@ export default function HomePage() {
           onUpload={handleStartUpload}
           onCancel={handleCancelRecording}
           disabled={isGenerating}
+          sttState={sttState}
+          onStartRecording={handleStartRecording}
+          onStopRecording={handleStopRecording}
+          onPauseRecording={handlePauseRecording}
+          onResumeRecording={handleResumeRecording}
+          sttError={sttError?.message}
+          detectedStudyType={detectedStudyType}
+          availableStudyTypes={availableStudyTypes}
+          selectedStudyType={selectedStudyType}
+          onStudyTypeChange={setSelectedStudyType}
+          isDetectingStudyType={isDetectingStudyType}
+          labels={recordingLabels}
         />
       );
     }

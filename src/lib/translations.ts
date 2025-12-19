@@ -43,6 +43,14 @@ export const translations: TranslationMap = {
     "recording.placeholder": "Dictate or paste your transcription...",
     "recording.label": "Dictation",
     "recording.upload": "Upload transcription",
+    "recording.recording": "Recording...",
+    "recording.paused": "Paused",
+    "recording.connecting": "Connecting...",
+    "recording.stop": "Stop",
+    "recording.pause": "Pause",
+    "recording.resume": "Resume",
+    "recording.studyType": "Study Type",
+    "recording.detecting": "Detecting study type...",
 
     "upload.title": "Processing transcription",
     "upload.subtitle": "Generating structured findings and impression",
@@ -62,6 +70,7 @@ export const translations: TranslationMap = {
     "errors.requestFailed": "Unable to contact the report service.",
     "errors.validation.transcriptionRequired":
       "Please add a transcription before generating.",
+    "errors.microphoneAccess": "Could not access microphone. Please check permissions.",
   },
   es: {
     "app.title": "Graba tu Análisis",
@@ -103,6 +112,14 @@ export const translations: TranslationMap = {
     "recording.placeholder": "Dicta o pega tu transcripción...",
     "recording.label": "Dictado",
     "recording.upload": "Subir transcripción",
+    "recording.recording": "Grabando...",
+    "recording.paused": "Pausado",
+    "recording.connecting": "Conectando...",
+    "recording.stop": "Detener",
+    "recording.pause": "Pausar",
+    "recording.resume": "Reanudar",
+    "recording.studyType": "Tipo de estudio",
+    "recording.detecting": "Detectando tipo de estudio...",
 
     "upload.title": "Procesando transcripción",
     "upload.subtitle": "Generando hallazgos y conclusión estructurados",
@@ -122,6 +139,7 @@ export const translations: TranslationMap = {
     "errors.requestFailed": "No pudimos contactar el servicio de informes.",
     "errors.validation.transcriptionRequired":
       "Agrega una transcripción antes de generar.",
+    "errors.microphoneAccess": "No se pudo acceder al micrófono. Verifica los permisos.",
   },
 };
 

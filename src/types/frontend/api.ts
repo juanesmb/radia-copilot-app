@@ -3,6 +3,7 @@ import type { Language } from "@/contexts/LanguageContext";
 export interface GenerateReportRequest {
   transcription: string;
   language: Language;
+  studyType?: string;
 }
 
 export interface GenerateReportResponse {
