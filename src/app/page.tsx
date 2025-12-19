@@ -466,7 +466,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background overflow-hidden">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto pl-2 pr-4">
           <div className="flex items-center justify-between h-14 sm:h-16">
@@ -546,7 +546,7 @@ export default function HomePage() {
         </SheetContent>
       </Sheet>
 
-      <main className="pt-16 flex min-h-[calc(100vh-4rem)]">
+      <main className="pt-16 flex h-[calc(100vh-4rem)] overflow-hidden">
         <SidebarMenu
           activeView={sidebarView}
           isReportsOpen={isReportsOpen}
@@ -571,9 +571,9 @@ export default function HomePage() {
           copiedLabel={t("report.copied")}
         />
 
-        <section className="flex-1 min-w-0 overflow-hidden" style={{ height: "calc(100vh - 4rem)" }}>
+        <section className="flex-1 min-w-0 overflow-hidden h-full">
           <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col">
-            <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
+            <div className="space-y-6 flex-1 flex flex-col min-h-0 overflow-hidden">{renderMainContent()}</div>
           </div>
         </section>
       </main>

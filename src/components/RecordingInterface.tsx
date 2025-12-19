@@ -97,16 +97,16 @@ export function RecordingInterface({
   const hasAvailableStudyTypes = availableStudyTypes && availableStudyTypes.length > 0;
 
   return (
-    <div className="space-y-6 flex flex-col flex-1 min-h-0">
+    <div className="space-y-6 flex flex-col flex-1 min-h-0 overflow-hidden">
         {sttError && (
-          <div className="text-center text-sm text-red-500 bg-red-500/10 rounded-lg p-3">
+          <div className="text-center text-sm text-red-500 bg-red-500/10 rounded-lg p-3 shrink-0">
             {sttError}
           </div>
         )}
 
-        <div className="space-y-4 flex-1 flex flex-col min-h-0">
+        <div className="space-y-4 flex-1 flex flex-col min-h-0 overflow-hidden">
           {hasAvailableStudyTypes && (
-            <div className="flex flex-row items-center gap-3 flex-wrap justify-center">
+            <div className="flex flex-row items-center gap-3 flex-wrap justify-center shrink-0">
               <button
                 type="button"
                 onClick={handleMicClick}
