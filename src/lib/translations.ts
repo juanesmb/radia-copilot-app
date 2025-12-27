@@ -32,7 +32,7 @@ export const translations: TranslationMap = {
     "report.empty": "The generated report will appear here.",
     "report.copy": "Copy to clipboard",
     "report.copied": "Report copied",
-    "report.generatedTitle": "Generated Radiology Report",
+    "report.disclaimer": "This report has been generated using AI and may contain errors. Always verify the information.",
 
     "reports.title": "Reports",
     "reports.generate": "Generate report",
@@ -99,7 +99,7 @@ export const translations: TranslationMap = {
     "report.empty": "El informe generado aparecerá aquí.",
     "report.copy": "Copiar al portapapeles",
     "report.copied": "Informe copiado",
-    "report.generatedTitle": "Informe Radiológico",
+    "report.disclaimer": "Este reporte ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
 
     "reports.title": "Informes",
     "reports.generate": "Generar informe",

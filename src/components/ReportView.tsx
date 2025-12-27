@@ -5,7 +5,6 @@ import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TextEditorToolbar } from "@/components/TextEditorToolbar";
 import { useToast } from "@/components/ui/use-toast";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 
@@ -18,14 +17,13 @@ interface ReportViewLabels {
   copy: string;
   copied: string;
   transcriptionEmpty: string;
-  generatedTitle: string;
+  disclaimer: string;
 }
 
 interface ReportViewProps {
   report: ReportHistoryItem | null;
   isLoading: boolean;
   labels: ReportViewLabels;
-  onUpdateTitle: (value: string) => void;
   onUpdateReport: (value: string) => void;
   onUpdateTranscription: (value: string) => void;
 }
@@ -34,7 +32,6 @@ export function ReportView({
   report,
   isLoading,
   labels,
-  onUpdateTitle,
   onUpdateReport,
   onUpdateTranscription,
 }: ReportViewProps) {
@@ -73,10 +70,6 @@ export function ReportView({
         variant: "destructive",
       });
     }
-  };
-
-  const handleCommand = (command: string) => {
-    document.execCommand(command, false);
   };
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -227,26 +220,23 @@ export function ReportView({
 
       <Card className="border-0 shadow-none">
         <div className="bg-muted/50 rounded-lg p-1.5 sm:p-2 xl:p-3 2xl:p-4 3xl:p-5">
-          <div className="flex items-center justify-between mb-1.5 sm:mb-2 xl:mb-3 2xl:mb-4 3xl:mb-5">
-            <h3 className="text-lg sm:text-xl xl:text-xl 2xl:text-xl 3xl:text-xl font-semibold text-foreground">
-              {labels.generatedTitle}
-            </h3>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Button
-                onClick={handleCopy}
-                variant="outline"
-                size="sm"
-                className="gap-1 sm:gap-2 p-1.5 sm:p-2"
-                aria-label={isCopied ? labels.copied : labels.copy}
-              >
-                {isCopied ? (
-                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                )}
-              </Button>
-              <TextEditorToolbar onCommand={handleCommand} editorRef={editorRef} />
+          <div className="flex items-center justify-between gap-2 sm:gap-3 mb-1.5 sm:mb-2 xl:mb-3 2xl:mb-4 3xl:mb-5">
+            <div className="flex-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md p-1.5 sm:p-2 xl:p-2.5 text-[10px] sm:text-xs text-yellow-600 dark:text-yellow-500">
+              <p className="font-medium">{labels.disclaimer}</p>
             </div>
+            <Button
+              onClick={handleCopy}
+              variant="outline"
+              size="sm"
+              className="gap-1 sm:gap-2 p-1.5 sm:p-2 flex-shrink-0"
+              aria-label={isCopied ? labels.copied : labels.copy}
+            >
+              {isCopied ? (
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              )}
+            </Button>
           </div>
           <div
             ref={editorRef}

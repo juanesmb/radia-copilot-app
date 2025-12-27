@@ -111,3 +111,4 @@ export const listAvailableTemplates = (language: Language): string[] => {
     .map((file) => file.replace(".md", ""));
 };
 
+

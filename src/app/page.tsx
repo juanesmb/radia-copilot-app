@@ -147,7 +147,7 @@ export default function HomePage() {
       copy: t("report.copy"),
       copied: t("report.copied"),
       transcriptionEmpty: t("report.transcriptionEmpty"),
-      generatedTitle: t("report.generatedTitle"),
+      disclaimer: t("report.disclaimer"),
     }),
     [t],
   );
@@ -406,12 +406,6 @@ export default function HomePage() {
           report={selectedReport}
           isLoading={false}
           labels={reportLabels}
-          onUpdateTitle={(value) =>
-            updateSelectedReport(
-              (report) => ({ ...report, title: value }),
-              { report_title: value }
-            )
-          }
           onUpdateReport={(value) =>
             updateSelectedReport(
               (report) => ({ ...report, report: value }),
@@ -466,7 +460,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto pl-2 pr-4">
           <div className="flex items-center justify-between h-14 sm:h-16">
@@ -546,7 +540,7 @@ export default function HomePage() {
         </SheetContent>
       </Sheet>
 
-      <main className="pt-16 flex h-[calc(100vh-4rem)] overflow-hidden">
+      <main className="pt-16 flex min-h-[calc(100vh-4rem)]">
         <SidebarMenu
           activeView={sidebarView}
           isReportsOpen={isReportsOpen}
@@ -571,9 +565,9 @@ export default function HomePage() {
           copiedLabel={t("report.copied")}
         />
 
-        <section className="flex-1 min-w-0 overflow-hidden h-full">
+        <section className="flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100vh - 4rem)" }}>
           <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col">
-            <div className="space-y-6 flex-1 flex flex-col min-h-0 overflow-hidden">{renderMainContent()}</div>
+            <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
         </section>
       </main>
