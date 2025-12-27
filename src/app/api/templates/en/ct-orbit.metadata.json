@@ -1,0 +1,35 @@
+{
+  "studyType": "ct-orbit",
+  "modality": "ct",
+  "region": "orbit",
+  "keywords": [
+    "ct orbit",
+    "computed tomography orbit",
+    "tomography orbit",
+    "orbit ct",
+    "orbits ct",
+    "orbit without contrast",
+    "orbit with contrast",
+    "orbit without iv contrast",
+    "globe",
+    "globes",
+    "preseptal soft tissues",
+    "optic nerves",
+    "optic nerve",
+    "extrinsic ocular musculature",
+    "extraocular muscles",
+    "lacrimal gland",
+    "lacrimal glands",
+    "orbital bony structures",
+    "orbit",
+    "orbits",
+    "orbital",
+    "paranasal sinuses",
+    "sella turcica",
+    "cavernous sinuses",
+    "cervical spine"
+  ],
+  "requiredKeywords": ["ct", "tomography", "orbit", "orbits", "órbitas", "órbita", "orbitaria"],
+  "excludeKeywords": []
+}
+

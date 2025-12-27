@@ -1,0 +1,33 @@
+{
+  "studyType": "ct-hip",
+  "modality": "ct",
+  "region": "hip",
+  "keywords": [
+    "ct hip",
+    "computed tomography hip",
+    "tomography hip",
+    "hip ct",
+    "hip without contrast",
+    "hip with contrast",
+    "hip without iv contrast",
+    "hip bony structures",
+    "hip joint spaces",
+    "coxofemoral joint",
+    "coxofemoral",
+    "femoral head",
+    "femoral neck",
+    "acetabulum",
+    "intra-articular fluid",
+    "hip soft tissues",
+    "hip",
+    "hips",
+    "pelvis",
+    "bony pelvis",
+    "proximal femur",
+    "greater trochanter",
+    "lesser trochanter"
+  ],
+  "requiredKeywords": ["ct", "tomography", "hip", "cadera"],
+  "excludeKeywords": []
+}
+

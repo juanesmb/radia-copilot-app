@@ -1,11 +1,13 @@
 {
-  "studyType": "ct-abdomen-withoutContrast",
+  "studyType": "ct-abdomen",
   "modality": "ct",
   "region": "abdomen",
   "keywords": [
     "ct abdomen",
     "computed tomography abdomen",
+    "tomography abdomen",
     "abdomen without contrast",
+    "abdomen with contrast",
     "abdomen without iv contrast",
     "liver",
     "spleen",
@@ -20,7 +22,6 @@
     "prostate"
   ],
   "requiredKeywords": ["ct", "tomography", "abdomen"],
-  "excludeKeywords": ["iv contrast", "with contrast", "with iv contrast"]
+  "excludeKeywords": []
 }
-
 

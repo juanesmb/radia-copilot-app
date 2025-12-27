@@ -1,0 +1,34 @@
+{
+  "studyType": "ct-facial",
+  "modality": "ct",
+  "region": "facial",
+  "keywords": [
+    "ct facial",
+    "computed tomography facial",
+    "tomography facial",
+    "facial ct",
+    "facial without contrast",
+    "facial with contrast",
+    "facial without iv contrast",
+    "frontal sinuses",
+    "maxillary sinuses",
+    "ethmoid cells",
+    "sphenoid sinus",
+    "osteomeatal complexes",
+    "ostiomeatal complexes",
+    "nasal fossae",
+    "nasal septum",
+    "cavum",
+    "pharyngeal cavum",
+    "orbital regions",
+    "facial bony structures",
+    "nasal bones",
+    "paranasal sinuses",
+    "paranasal",
+    "facial mass",
+    "facial"
+  ],
+  "requiredKeywords": ["ct", "tomography", "facial", "macizo facial"],
+  "excludeKeywords": []
+}
+

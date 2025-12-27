@@ -44,11 +44,14 @@ const replaceTemplateInPrompt = (
     ? "**ESTRUCTURA OBLIGATORIA A SEGUIR (modifica solo lo mencionado en la transcripción):**"
     : "**MANDATORY STRUCTURE TO FOLLOW (modify only what is mentioned in the transcription):**";
 
+  if (!template || template.trim().length === 0) {
+    console.error(`❌ Template is empty for studyType: ${studyType}, language: ${language}`);
+  }
+
   const replacement = `${title}\n\n${instruction}\n\n\`\`\`\n${template}\n\`\`\``;
 
   if (language === "es") {
     // Spanish: Replace the section from "PLANTILLA:" through the closing code block
-    // Find the index of "PLANTILLA:" and then find the closing ``` of the code block
     const plantillaIndex = basePrompt.indexOf("PLANTILLA:");
     if (plantillaIndex === -1) {
       console.error("❌ Could not find 'PLANTILLA:' in prompt");
@@ -80,9 +83,36 @@ const replaceTemplateInPrompt = (
     return before + replacement + after;
   }
   
-  // English regex: matches "## Reference template:" section
-  const englishRegex = /## Reference template:[\s\S]*?```/;
-  return basePrompt.replace(englishRegex, replacement);
+  // English: Replace the section from "TEMPLATE:" through the closing code block
+  const templateIndex = basePrompt.indexOf("TEMPLATE:");
+  if (templateIndex === -1) {
+    console.error("❌ Could not find 'TEMPLATE:' in prompt");
+    return basePrompt;
+  }
+  
+  // Find the code block that starts after TEMPLATE:
+  const afterTemplate = basePrompt.substring(templateIndex);
+  const codeBlockStart = afterTemplate.indexOf("```");
+  if (codeBlockStart === -1) {
+    console.error("❌ Could not find code block start after 'TEMPLATE:'");
+    return basePrompt;
+  }
+  
+  // Find the closing ``` of the code block
+  const codeBlockContent = afterTemplate.substring(codeBlockStart + 3);
+  const codeBlockEnd = codeBlockContent.indexOf("```");
+  if (codeBlockEnd === -1) {
+    console.error("❌ Could not find code block end");
+    return basePrompt;
+  }
+  
+  // Calculate the end position (templateIndex + codeBlockStart + 3 + codeBlockEnd + 3)
+  const endIndex = templateIndex + codeBlockStart + 3 + codeBlockEnd + 3;
+  
+  // Replace the section
+  const before = basePrompt.substring(0, templateIndex);
+  const after = basePrompt.substring(endIndex);
+  return before + replacement + after;
 };
 
 const getDefaultTemplate = (language: Language): string => {

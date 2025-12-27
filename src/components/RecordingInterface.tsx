@@ -33,8 +33,6 @@ interface RecordingInterfaceProps {
   isDetectingStudyType?: boolean;
   // Labels
   labels: {
-    recording: string;
-    connecting: string;
     stop: string;
     studyType: string;
     detecting: string;
@@ -125,7 +123,7 @@ export function RecordingInterface({
                 ) : (
                   <Mic className="w-5 h-5" />
                 )}
-                <span className="hidden sm:inline">Dictado</span>
+                <span className="hidden sm:inline">{label}</span>
                 {isRecording && (
                   <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
                 )}

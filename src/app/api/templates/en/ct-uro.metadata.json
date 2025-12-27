@@ -1,0 +1,34 @@
+{
+  "studyType": "ct-uro",
+  "modality": "ct",
+  "region": "urogenital",
+  "keywords": [
+    "urography",
+    "uro tomography",
+    "uro-ct",
+    "uro ct",
+    "ct urography",
+    "tomography urography",
+    "urography without contrast",
+    "urography with contrast",
+    "uro without contrast",
+    "kidneys",
+    "ureter",
+    "ureters",
+    "bladder",
+    "urinary tract",
+    "renal calculi",
+    "urinary calculi",
+    "hydronephrosis",
+    "vesicoureteral junctions",
+    "right kidney",
+    "left kidney",
+    "right ureter",
+    "left ureter",
+    "nephrolithiasis",
+    "urolithiasis"
+  ],
+  "requiredKeywords": ["urography", "uro", "urotomografía", "kidney", "kidneys", "riñón", "riñones", "ureter", "ureters", "uréter", "uréteres", "bladder", "vejiga", "urinary tract", "tracto urinario"],
+  "excludeKeywords": []
+}
+

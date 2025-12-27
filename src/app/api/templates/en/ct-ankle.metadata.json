@@ -1,0 +1,32 @@
+{
+  "studyType": "ct-ankle",
+  "modality": "ct",
+  "region": "ankle",
+  "keywords": [
+    "ct ankle",
+    "computed tomography ankle",
+    "tomography ankle",
+    "ankle without contrast",
+    "ankle with contrast",
+    "ankle without iv contrast",
+    "ankle bony structures",
+    "ankle joint spaces",
+    "tibioperoneotalar joint",
+    "distal tibioperoneal joint",
+    "subtalar joint",
+    "intra-articular fluid",
+    "ankle soft tissues",
+    "ankle",
+    "ankles",
+    "distal tibia",
+    "distal fibula",
+    "talus",
+    "calcaneus",
+    "navicular",
+    "cuboid",
+    "ankle joint"
+  ],
+  "requiredKeywords": ["ct", "tomography", "ankle", "tobillo"],
+  "excludeKeywords": []
+}
+

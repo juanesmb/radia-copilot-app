@@ -1,11 +1,13 @@
 {
-  "studyType": "ct-chest-withoutContrast",
+  "studyType": "ct-chest",
   "modality": "ct",
   "region": "chest",
   "keywords": [
     "ct chest",
     "computed tomography chest",
+    "chest ct",
     "chest without contrast",
+    "chest with contrast",
     "chest without iv contrast",
     "airway",
     "pulmonary parenchyma",
@@ -18,7 +20,6 @@
     "lungs"
   ],
   "requiredKeywords": ["ct", "tomography", "chest", "tórax"],
-  "excludeKeywords": ["iv contrast", "with contrast", "with iv contrast"]
+  "excludeKeywords": []
 }
-
 

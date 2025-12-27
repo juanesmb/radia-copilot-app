@@ -154,8 +154,6 @@ export default function HomePage() {
 
   const recordingLabels = useMemo(
     () => ({
-      recording: t("recording.recording"),
-      connecting: t("recording.connecting"),
       stop: t("recording.stop"),
       studyType: t("recording.studyType"),
       detecting: t("recording.detecting"),

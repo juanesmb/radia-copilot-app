@@ -1,0 +1,30 @@
+{
+  "studyType": "ct-brain",
+  "modality": "ct",
+  "region": "brain",
+  "keywords": [
+    "ct brain",
+    "computed tomography brain",
+    "tomography brain",
+    "brain ct",
+    "brain without contrast",
+    "brain with contrast",
+    "brain without iv contrast",
+    "ventricular system",
+    "midline",
+    "subarachnoid spaces",
+    "cerebral parenchyma",
+    "cerebellum",
+    "brainstem",
+    "calvarium",
+    "paranasal sinuses",
+    "orbital structures",
+    "sella turcica",
+    "skull base",
+    "skull",
+    "cranial"
+  ],
+  "requiredKeywords": ["ct", "tomography", "brain", "cerebro", "craneal", "cráneo"],
+  "excludeKeywords": []
+}
+

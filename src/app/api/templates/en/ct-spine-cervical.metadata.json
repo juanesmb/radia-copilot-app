@@ -1,0 +1,36 @@
+{
+  "studyType": "ct-spine-cervical",
+  "modality": "ct",
+  "region": "spine",
+  "keywords": [
+    "ct cervical spine",
+    "computed tomography cervical spine",
+    "tomography cervical spine",
+    "cervical spine ct",
+    "cervical spine",
+    "cervical",
+    "cervical vertebrae",
+    "vertebral bodies",
+    "cervical discs",
+    "disc spaces",
+    "interapophyseal joints",
+    "uncovertebral joints",
+    "spinal canal",
+    "neuroforamina",
+    "foramina",
+    "cervical lordosis",
+    "posterior arches",
+    "articular facets",
+    "cervical vertebrae",
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5",
+    "c6",
+    "c7"
+  ],
+  "requiredKeywords": ["ct", "tomography", "cervical spine", "columna cervical", "cervical"],
+  "excludeKeywords": []
+}
+

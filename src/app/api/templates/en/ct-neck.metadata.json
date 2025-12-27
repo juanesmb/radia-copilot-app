@@ -1,0 +1,29 @@
+{
+  "studyType": "ct-neck",
+  "modality": "ct",
+  "region": "neck",
+  "keywords": [
+    "ct neck",
+    "computed tomography neck",
+    "tomography neck",
+    "neck ct",
+    "neck without contrast",
+    "neck with contrast",
+    "neck without iv contrast",
+    "laryngopharynx",
+    "salivary glands",
+    "major vascular structures",
+    "cervical lymphadenopathy",
+    "cervical lymph nodes",
+    "lateral cervical lymph nodes",
+    "thyroid gland",
+    "thyroid",
+    "upper thorax",
+    "neck",
+    "cervical",
+    "cervical region"
+  ],
+  "requiredKeywords": ["ct", "tomography", "neck", "cuello"],
+  "excludeKeywords": []
+}
+
