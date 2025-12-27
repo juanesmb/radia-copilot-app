@@ -96,7 +96,7 @@ export default function HomePage() {
           setDetectedStudyType(result.studyType);
           setSelectedStudyType(result.studyType);
           setAvailableStudyTypes(
-            result.availableTemplates.map((t: string) => ({ value: t, label: t }))
+            result.availableTemplates.map((templateId: string) => ({ value: templateId, label: t(`studyType.${templateId}`) || templateId }))
           );
         })
         .catch((error) => {
@@ -106,7 +106,7 @@ export default function HomePage() {
           setIsDetectingStudyType(false);
         });
     }
-  }, [sttState, transcript, transcription, language, detectedStudyType, isDetectingStudyType]);
+  }, [sttState, transcript, transcription, language, detectedStudyType, isDetectingStudyType, t]);
 
   // Load available templates when entering recording state
   useEffect(() => {
@@ -114,14 +114,14 @@ export default function HomePage() {
       getAvailableTemplates({ language })
         .then((result) => {
           setAvailableStudyTypes(
-            result.templates.map((t: string) => ({ value: t, label: t }))
+            result.templates.map((templateId: string) => ({ value: templateId, label: t(`studyType.${templateId}`) || templateId }))
           );
         })
         .catch((error) => {
           console.error('[Templates] Failed to load templates:', error);
         });
     }
-  }, [demoState, language, availableStudyTypes.length]);
+  }, [demoState, language, availableStudyTypes.length, t]);
 
   const uploadSteps = useMemo(
     () => [

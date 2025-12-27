@@ -69,6 +69,21 @@ export const translations: TranslationMap = {
     "errors.validation.transcriptionRequired":
       "Please add a transcription before generating.",
     "errors.microphoneAccess": "Could not access microphone. Please check permissions.",
+
+    "studyType.ct-abdomen": "CT Abdomen",
+    "studyType.ct-abdomen-withoutContrast": "CT Abdomen (No Contrast)",
+    "studyType.ct-ankle": "CT Ankle",
+    "studyType.ct-brain": "CT Brain",
+    "studyType.ct-chest": "CT Chest",
+    "studyType.ct-chest-withoutContrast": "CT Chest (No Contrast)",
+    "studyType.ct-ear": "CT Ear",
+    "studyType.ct-facial": "CT Facial",
+    "studyType.ct-hip": "CT Hip",
+    "studyType.ct-neck": "CT Neck",
+    "studyType.ct-orbit": "CT Orbit",
+    "studyType.ct-spine-cervical": "CT Cervical Spine",
+    "studyType.ct-spine-dorsolumbar": "CT Dorsolumbar Spine",
+    "studyType.ct-uro": "CT Urography",
   },
   es: {
     "app.title": "Graba tu Análisis",
@@ -136,6 +151,19 @@ export const translations: TranslationMap = {
     "errors.validation.transcriptionRequired":
       "Agrega una transcripción antes de generar.",
     "errors.microphoneAccess": "No se pudo acceder al micrófono. Verifica los permisos.",
+
+    "studyType.ct-abdomen": "TC Abdomen",
+    "studyType.ct-ankle": "TC Tobillo",
+    "studyType.ct-brain": "TC Cerebro",
+    "studyType.ct-chest": "TC Tórax",
+    "studyType.ct-ear": "TC Oído",
+    "studyType.ct-facial": "TC Facial",
+    "studyType.ct-hip": "TC Cadera",
+    "studyType.ct-neck": "TC Cuello",
+    "studyType.ct-orbit": "TC Órbita",
+    "studyType.ct-spine-cervical": "TC Columna Cervical",
+    "studyType.ct-spine-dorsolumbar": "TC Columna Dorsolumbar",
+    "studyType.ct-uro": "TC Urografía",
   },
 };
 
