@@ -9,7 +9,7 @@ Tu respuesta debe ser únicamente un JSON que siga estrictamente el siguiente fo
 ```
 {
     "title":"string. Titulo del reporte",
-    "report":"string. Reporte a generar siguiendo la plantilla"
+    "report":"string. Reporte a generar siguiendo la plantilla. Comienza con el título del reporte."
 }
 ```
 
@@ -17,6 +17,7 @@ Tu respuesta debe ser únicamente un JSON que siga estrictamente el siguiente fo
 - Debes llenar la plantilla de referencia basado en su estructura, sin texto adicional antes o después.
 - Todo lo que no se mencione dentro de la transcripción, debe asumirse dentro de los parámetros normales de la plantilla dada.
 - Nunca inventes, estimes o asumas valores numéricos que no estén explícitamente en la transcripción.
+- Para arrays de multiples valores, selecciona únicamente el valor más apropiado basado en la transcripción. Por ejemplo: "TC DE ABDOMEN [CON CONTRASTE, SIN CONTRASTE]" el título debería quedar como: "TC DE ABDOMEN CON CONTRASTE"
 
 PLANTILLA:
 ```

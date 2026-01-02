@@ -9,7 +9,7 @@ Your response must be **only** valid JSON that strictly follows the following fo
 ```
 {
     "title": "string. Report title",
-    "report": "string. Report to generate following the template"
+    "report": "string. Report to generate following the template. Start with the report title."
 }
 ```
 
@@ -17,6 +17,7 @@ Your response must be **only** valid JSON that strictly follows the following fo
 - You must fill the reference template based on its structure, without additional text before or after.
 - Everything not mentioned in the transcription should be assumed within normal parameters of the given template.
 - Never invent, estimate, or assume numerical values that are not explicitly in the transcription.
+- For arrays of multiple values, select only the most appropriate value based on the transcription. For example: "CT ABDOMEN [WITH CONTRAST, WITHOUT CONTRAST]" the title should be: "CT ABDOMEN WITH CONTRAST"
 
 TEMPLATE:
 ```
