@@ -48,9 +48,21 @@ export function ReportView({
 
   useEffect(() => {
     if (editorRef.current && report) {
+      // Compare using textContent (normalized) to detect changes, but always update if report changed
       const currentText = editorRef.current.textContent || "";
-      if (currentText !== combinedContent && document.activeElement !== editorRef.current) {
-        editorRef.current.textContent = combinedContent;
+      const reportChanged = report.id !== editorRef.current.dataset.reportId;
+      
+      if ((currentText !== combinedContent || reportChanged) && document.activeElement !== editorRef.current) {
+        // Fix: Convert newlines to <br> tags for contentEditable divs to ensure proper rendering
+        // This works better than textContent + whitespace-pre-wrap in some browsers
+        const htmlContent = combinedContent
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
+        editorRef.current.innerHTML = htmlContent;
+        // Store report ID to track changes
+        editorRef.current.dataset.reportId = report.id;
       }
     }
   }, [combinedContent, report]);
@@ -58,7 +70,15 @@ export function ReportView({
   const handleCopy = async () => {
     if (!report || !editorRef.current) return;
     try {
-      const content = editorRef.current.innerText || editorRef.current.textContent || "";
+      // Convert <br> tags to newlines for clipboard
+      const htmlContent = editorRef.current.innerHTML || "";
+      const textContent = htmlContent
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+      const content = textContent || editorRef.current.innerText || editorRef.current.textContent || "";
       await navigator.clipboard.writeText(content);
       setIsCopied(true);
       toast({ title: labels.copied });
@@ -115,7 +135,15 @@ export function ReportView({
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
     if (!report) return;
-    const fullContent = e.currentTarget.textContent || e.currentTarget.innerText || "";
+    // Convert <br> tags back to newlines when reading from contentEditable
+    const htmlContent = e.currentTarget.innerHTML || "";
+    const textContent = htmlContent
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+    const fullContent = textContent || e.currentTarget.textContent || e.currentTarget.innerText || "";
     
     // Only update the report field, not the title
     const newReport = fullContent.trim();
@@ -140,7 +168,15 @@ export function ReportView({
     // Debounce the update
     debounceTimeoutRef.current = setTimeout(() => {
       if (!editorRef.current) return;
-      const fullContent = editorRef.current.textContent || editorRef.current.innerText || "";
+      // Convert <br> tags back to newlines when reading from contentEditable
+      const htmlContent = editorRef.current.innerHTML || "";
+      const textContent = htmlContent
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+      const fullContent = textContent || editorRef.current.textContent || editorRef.current.innerText || "";
       const newReport = fullContent.trim();
       if (newReport !== report.report) {
         onUpdateReport(newReport);
