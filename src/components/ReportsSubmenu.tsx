@@ -50,7 +50,7 @@ export function ReportsSubmenu({
         isMobile ? "flex" : "hidden lg:flex",
         className
       )}
-      style={{ height: isMobile ? "100%" : "calc(100vh - 4rem)" }}
+      style={{ height: isMobile ? "100%" : "calc(100dvh - 4rem)" }}
     >
       <div className="flex-shrink-0 p-4 border-b border-border bg-background/80 backdrop-blur-sm">
         <Button

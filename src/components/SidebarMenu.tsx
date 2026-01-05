@@ -30,7 +30,7 @@ export function SidebarMenu({
   return (
     <aside
       className={`${className.includes("flex") ? "flex" : "hidden lg:flex"} flex-col gap-3 w-14 flex-shrink-0 border-r border-border pr-3 pt-4 transition-all duration-500 ${className}`}
-      style={{ height: className.includes("flex") ? "100%" : "calc(100vh - 4rem)" }}
+      style={{ height: className.includes("flex") ? "100%" : "calc(100dvh - 4rem)" }}
       aria-label="Primary navigation"
     >
       <Button
