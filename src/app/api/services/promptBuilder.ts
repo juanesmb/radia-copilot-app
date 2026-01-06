@@ -26,7 +26,6 @@ export interface PromptBuilder {
 }
 
 const buildUserPrompt = (transcription: string, _language: Language): string => {
-  // Only return the transcription, nothing else
   return transcription.trim();
 };
 
@@ -174,11 +173,24 @@ export const createPromptBuilder = (
     const basePrompt = getSystemPrompt(input.language);
 
     try {
-      const detection = await detectStudyType(
-        input.transcription,
-        input.language,
-        openAIClient
-      );
+      // Use provided studyType if available, otherwise detect
+      let detection: { studyType: string; confidence: number; keywords?: string[] };
+      
+      if (input.studyType && input.studyType.trim()) {
+        // User provided studyType - use it directly
+        detection = {
+          studyType: input.studyType.trim(),
+          confidence: 1.0,
+          keywords: [],
+        };
+      } else {
+        // No studyType provided - run detection
+        detection = await detectStudyType(
+          input.transcription,
+          input.language,
+          openAIClient
+        );
+      }
 
       const { studyType, template } = await findTemplateWithFallback(
         detection,

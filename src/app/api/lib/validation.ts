@@ -9,6 +9,7 @@ const generateReportSchema = z.object({
     .min(10, "Transcription must include at least 10 characters.")
     .max(4000, "Transcription is too long."),
   language: z.enum(["en", "es"]).default("en"),
+  studyType: z.string().optional(),
 });
 
 export type ValidationSuccess = {
