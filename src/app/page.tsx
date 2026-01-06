@@ -261,11 +261,15 @@ export default function HomePage() {
     setSelectedStudyType("");
     
     try {
-      await startSTT({
-        language,
-        enablePartials: true,
-        sampleRate: 16000,
-      });
+      // Pass current transcription as baseText to preserve manually entered text
+      await startSTT(
+        {
+          language,
+          enablePartials: true,
+          sampleRate: 16000,
+        },
+        transcription.trim() || undefined
+      );
     } catch (error) {
       toast({
         title: t("errors.generic"),
@@ -273,7 +277,7 @@ export default function HomePage() {
         variant: "destructive",
       });
     }
-  }, [startSTT, language, toast, t]);
+  }, [startSTT, language, toast, t, transcription]);
 
   const handleStopRecording = useCallback(async () => {
     await stopSTT();

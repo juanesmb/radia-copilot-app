@@ -12,9 +12,9 @@ interface UseSpeechToTextReturn {
   transcript: string;
   state: STTState;
   error: STTError | null;
-  start: (config: STTConfig) => Promise<void>;
+  start: (config: STTConfig, baseText?: string) => Promise<void>;
   stop: () => Promise<void>;
-  reset: () => void;
+  reset: () => Promise<void>;
 }
 
 export function useSpeechToText(
@@ -74,11 +74,17 @@ export function useSpeechToText(
     };
   }, [provider]);
 
-  const start = useCallback(async (config: STTConfig) => {
+  const start = useCallback(async (config: STTConfig, baseText?: string) => {
     setError(null);
-    // Save current transcript as base before starting new session
-    const currentTranscript = transcriptRef.current || transcript;
+    // Use provided baseText, or fall back to current transcript state
+    // This allows preserving manually entered text when starting recording
+    const currentTranscript = baseText?.trim() || transcriptRef.current || transcript;
     baseTranscriptRef.current = currentTranscript;
+    // Also update transcriptRef and state to keep them in sync
+    if (currentTranscript && currentTranscript !== transcriptRef.current) {
+      transcriptRef.current = currentTranscript;
+      setTranscript(currentTranscript);
+    }
     await providerRef.current.connect(config);
     await providerRef.current.startRecording();
   }, [transcript]);
