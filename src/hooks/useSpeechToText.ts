@@ -93,12 +93,12 @@ export function useSpeechToText(
     await providerRef.current.stopRecording();
   }, []);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     setTranscript('');
     setError(null);
     baseTranscriptRef.current = '';
     transcriptRef.current = '';
-    providerRef.current.disconnect();
+    await providerRef.current.disconnect();
   }, []);
 
   return {
