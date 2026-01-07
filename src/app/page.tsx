@@ -1,13 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import Image from "next/image";
 import { Menu } from "lucide-react";
 
-import { UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ReportsSubmenu } from "@/components/ReportsSubmenu";
 import { SidebarMenu } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
@@ -197,6 +194,12 @@ export default function HomePage() {
 
   const showWelcome = sidebarView === "home" && demoState === "main" && !selectedReport;
 
+  const getHeaderSubtitle = () => {
+    if (demoState === "recording") return t("header.generateReport");
+    if (demoState === "report") return t("header.reportDetails");
+    return null;
+  };
+
   // Load reports on mount
   useEffect(() => {
     const loadReports = async () => {
@@ -218,8 +221,7 @@ export default function HomePage() {
     };
 
     loadReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (demoState !== "uploading") return;
@@ -243,8 +245,7 @@ export default function HomePage() {
     if (uploadProgress < 100) return;
     if (!pendingReport) return;
     finalizeReport(pendingReport);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoState, pendingReport, uploadProgress]);
+  }, [demoState, pendingReport, uploadProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateReport = () => {
     setSidebarView("reports");
@@ -261,15 +262,11 @@ export default function HomePage() {
     setSelectedStudyType("");
     
     try {
-      // Pass current transcription as baseText to preserve manually entered text
-      await startSTT(
-        {
-          language,
-          enablePartials: true,
-          sampleRate: 16000,
-        },
-        transcription.trim() || undefined
-      );
+      await startSTT({
+        language,
+        enablePartials: true,
+        sampleRate: 16000,
+      });
     } catch (error) {
       toast({
         title: t("errors.generic"),
@@ -277,12 +274,11 @@ export default function HomePage() {
         variant: "destructive",
       });
     }
-  }, [startSTT, language, toast, t, transcription]);
+  }, [startSTT, language, toast, t]);
 
   const handleStopRecording = useCallback(async () => {
     await stopSTT();
   }, [stopSTT]);
-
 
   const handleStartUpload = async () => {
     const trimmed = transcription.trim();
@@ -463,7 +459,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto pl-2 pr-4">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-2">
@@ -476,25 +472,15 @@ export default function HomePage() {
               >
                 <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </Button>
-              <button
-                onClick={handleSidebarHome}
-                className="hover:opacity-80 transition-opacity cursor-pointer"
-                aria-label="Home"
-              >
-                <Image
-                  src="/logo.svg"
-                  alt="RadiaCopilot"
-                  width={200}
-                  height={96}
-                  className="h-12 sm:h-16 w-auto"
-                  priority
-                />
-              </button>
             </div>
-            <div className="flex items-center gap-3">
-              <LanguageSwitcher />
-              <UserButton />
-            </div>
+            {getHeaderSubtitle() && (
+              <div className="flex-1 flex justify-center">
+                <h2 className="text-base sm:text-lg font-medium text-foreground">
+                  {getHeaderSubtitle()}
+                </h2>
+              </div>
+            )}
+            <div className="w-8 sm:w-10" /> {/* Spacer to balance the hamburger button */}
           </div>
         </div>
       </header>
@@ -542,7 +528,7 @@ export default function HomePage() {
         </SheetContent>
       </Sheet>
 
-      <main className="pt-16 flex min-h-[calc(100dvh-4rem)]">
+      <main className="pt-16 lg:pt-0 flex min-h-[calc(100vh-4rem)] lg:min-h-screen">
         <SidebarMenu
           activeView={sidebarView}
           isReportsOpen={isReportsOpen}
@@ -567,7 +553,7 @@ export default function HomePage() {
           copiedLabel={t("report.copied")}
         />
 
-        <section className="flex-1 min-w-0 overflow-y-auto" style={{ height: "calc(100dvh - 4rem)" }}>
+        <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100vh-4rem)] lg:h-screen">
           <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col">
             <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>

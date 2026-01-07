@@ -48,11 +48,12 @@ export function ReportsSubmenu({
             ? "lg:max-w-xs xl:max-w-sm 2xl:max-w-md 3xl:max-w-lg lg:w-[280px] xl:w-[320px] 2xl:w-[360px] 3xl:w-[420px] lg:opacity-100 lg:translate-x-0"
             : "lg:max-w-0 lg:w-0 lg:opacity-0 lg:-translate-x-6 lg:pointer-events-none",
         isMobile ? "flex" : "hidden lg:flex",
+        !isMobile && "h-[calc(100dvh-4rem)] lg:h-screen",
         className
       )}
-      style={{ height: isMobile ? "100%" : "calc(100dvh - 4rem)" }}
+      style={{ height: isMobile ? "100%" : undefined }}
     >
-      <div className="flex-shrink-0 p-4 border-b border-border bg-background/80 backdrop-blur-sm">
+      <div className="flex-shrink-0 px-2 pt-4 pb-2 border-b border-border bg-background/80 backdrop-blur-sm">
         <Button
           type="button"
           className="w-full justify-center gap-2 h-10"
@@ -63,13 +64,13 @@ export function ReportsSubmenu({
       </div>
 
       {reports.length === 0 ? (
-        <div className="p-4 flex-1 overflow-y-auto">
+        <div className="p-2 flex-1 overflow-y-auto">
           <Card className="p-6 border-2 h-full flex items-center justify-center text-center text-sm text-muted-foreground">
             {emptyLabel}
           </Card>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-2 space-y-3">
           {reports.map((report) => (
             <ReportCard
               key={report.id}

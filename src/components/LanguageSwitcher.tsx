@@ -1,6 +1,5 @@
 'use client';
 
-import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,8 +15,7 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Globe className="h-4 w-4" />
+        <Button variant="outline" size="sm">
           <span className="uppercase" suppressHydrationWarning>
             {language}
           </span>

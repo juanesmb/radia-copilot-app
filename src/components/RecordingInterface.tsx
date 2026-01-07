@@ -70,8 +70,6 @@ export function RecordingInterface({
   
   const isProcessingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  // Undo/Redo history management
   const historyRef = useRef<HistoryEntry[]>([]);
   const historyIndexRef = useRef(-1);
   const isUndoRedoRef = useRef(false);
@@ -79,7 +77,7 @@ export function RecordingInterface({
   const lastSavedTextRef = useRef<string>(transcription);
   
   const MAX_HISTORY_SIZE = 50;
-  const DEBOUNCE_MS = 10; // Save history 10ms after user stops typing
+  const DEBOUNCE_MS = 10;
 
   const handleMicClick = async () => {
     if (isProcessingRef.current) {
@@ -101,46 +99,37 @@ export function RecordingInterface({
     }
   };
 
-  // Initialize history with current transcription
   useEffect(() => {
     if (historyRef.current.length === 0) {
       historyRef.current = [{ text: transcription, timestamp: Date.now() }];
       historyIndexRef.current = 0;
       lastSavedTextRef.current = transcription;
     }
-  }, []); // Only run once on mount
+  }, []);
 
-  // Save to history when transcription changes (debounced)
   useEffect(() => {
-    // Skip if this change was caused by undo/redo
     if (isUndoRedoRef.current) {
       isUndoRedoRef.current = false;
       return;
     }
 
-    // Skip if text hasn't actually changed
     if (transcription === lastSavedTextRef.current) {
       return;
     }
 
-    // Clear existing debounce timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    // Debounce history saving
     debounceTimerRef.current = setTimeout(() => {
       const currentIndex = historyIndexRef.current;
       const history = historyRef.current;
 
-      // If we're not at the end of history, truncate future history
-      // (user typed after undo - standard undo behavior)
       if (currentIndex < history.length - 1) {
         historyRef.current = history.slice(0, currentIndex + 1);
         historyIndexRef.current = historyRef.current.length - 1;
       }
 
-      // Add new entry
       const newEntry: HistoryEntry = {
         text: transcription,
         timestamp: Date.now(),
@@ -150,7 +139,6 @@ export function RecordingInterface({
       historyIndexRef.current = historyRef.current.length - 1;
       lastSavedTextRef.current = transcription;
 
-      // Limit history size
       if (historyRef.current.length > MAX_HISTORY_SIZE) {
         historyRef.current = historyRef.current.slice(-MAX_HISTORY_SIZE);
         historyIndexRef.current = historyRef.current.length - 1;
@@ -170,7 +158,6 @@ export function RecordingInterface({
     }
   }, [transcription, isActive]);
 
-  // Undo function
   const handleUndo = useCallback(() => {
     const history = historyRef.current;
     const currentIndex = historyIndexRef.current;
@@ -186,7 +173,6 @@ export function RecordingInterface({
     }
   }, [onChange]);
 
-  // Redo function
   const handleRedo = useCallback(() => {
     const history = historyRef.current;
     const currentIndex = historyIndexRef.current;
@@ -202,12 +188,10 @@ export function RecordingInterface({
     }
   }, [onChange]);
 
-  // Keyboard shortcut handler
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const modifierKey = isMac ? event.metaKey : event.ctrlKey;
 
-    // Cmd/Ctrl + Z: Undo
     if (modifierKey && event.key === 'z' && !event.shiftKey) {
       event.preventDefault();
       if (!isActive && !disabled) {
@@ -216,7 +200,6 @@ export function RecordingInterface({
       return;
     }
 
-    // Cmd/Ctrl + Shift + Z or Cmd/Ctrl + Y: Redo
     if (
       (modifierKey && event.shiftKey && event.key === 'z') ||
       (modifierKey && event.key === 'y')
@@ -228,13 +211,10 @@ export function RecordingInterface({
       return;
     }
 
-    // Cmd/Ctrl + A: Select All (native behavior, but ensure it works)
     if (modifierKey && event.key === 'a') {
-      // Only prevent if textarea is disabled or read-only during recording
       if (isActive || (disabled && !isActive)) {
         event.preventDefault();
       }
-      // Otherwise, let native behavior handle it
       return;
     }
   }, [isActive, disabled, handleUndo, handleRedo]);
@@ -256,7 +236,7 @@ export function RecordingInterface({
                 type="button"
                 onClick={handleMicClick}
                 disabled={disabled || isConnecting || isStopping}
-                className={`relative rounded-full flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 transition-all shrink-0 ${
+                className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
                   isRecording
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : isConnecting
@@ -266,9 +246,9 @@ export function RecordingInterface({
                 aria-label={isRecording ? labels.stop : label}
               >
                 {isRecording ? (
-                  <Square className="w-5 h-5" />
+                  <Square className="w-6 h-6 sm:w-5 sm:h-5" />
                 ) : (
-                  <Mic className="w-5 h-5" />
+                  <Mic className="w-6 h-6 sm:w-5 sm:h-5" />
                 )}
                 <span className="hidden sm:inline">{label}</span>
                 {isRecording && (

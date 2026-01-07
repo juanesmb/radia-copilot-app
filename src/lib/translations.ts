@@ -37,6 +37,8 @@ export const translations: TranslationMap = {
     "reports.title": "Reports",
     "reports.generate": "Generate report",
     "reports.empty": "No reports generated yet.",
+    "header.generateReport": "Generate Report",
+    "header.reportDetails": "Report Details",
 
     "recording.title": "Record Your Analysis",
     "recording.description":
@@ -119,11 +121,13 @@ export const translations: TranslationMap = {
     "reports.title": "Informes",
     "reports.generate": "Generar informe",
     "reports.empty": "Todavía no se han generado informes.",
+    "header.generateReport": "Generar Informe",
+    "header.reportDetails": "Detalles del informe",
 
     "recording.title": "Graba tu Análisis",
     "recording.description":
       "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
-    "recording.placeholder": "Dicta o escribe tu transcripción...",
+    "recording.placeholder": "Dicta o menciona tus hallazgos positivos...",
     "recording.label": "Dictado",
     "recording.upload": "Generar informe",
     "recording.recording": "Grabando...",
