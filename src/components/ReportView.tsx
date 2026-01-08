@@ -1,12 +1,15 @@
 'use client';
 
-import { useMemo, useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useState } from "react";
 import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { EditableTextarea } from "@/components/EditableTextarea";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
+
+const COPY_FEEDBACK_DURATION_MS = 2000;
 
 interface ReportViewLabels {
   empty: string;
@@ -16,7 +19,6 @@ interface ReportViewLabels {
   transcription: string;
   copy: string;
   copied: string;
-  transcriptionEmpty: string;
   disclaimer: string;
 }
 
@@ -36,53 +38,23 @@ export function ReportView({
   onUpdateTranscription,
 }: ReportViewProps) {
   const { toast } = useToast();
-  const editorRef = useRef<HTMLDivElement>(null);
-  const transcriptionRef = useRef<HTMLDivElement>(null);
+  const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  const combinedContent = useMemo(() => {
-    if (!report) return "";
-    // Only show the report field, not the title
-    return report.report || "";
-  }, [report]);
-
-  useEffect(() => {
-    if (editorRef.current && report) {
-      // Compare using textContent (normalized) to detect changes, but always update if report changed
-      const currentText = editorRef.current.textContent || "";
-      const reportChanged = report.id !== editorRef.current.dataset.reportId;
-      
-      if ((currentText !== combinedContent || reportChanged) && document.activeElement !== editorRef.current) {
-        // Fix: Convert newlines to <br> tags for contentEditable divs to ensure proper rendering
-        // This works better than textContent + whitespace-pre-wrap in some browsers
-        const htmlContent = combinedContent
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>');
-        editorRef.current.innerHTML = htmlContent;
-        // Store report ID to track changes
-        editorRef.current.dataset.reportId = report.id;
-      }
-    }
-  }, [combinedContent, report]);
-
   const handleCopy = async () => {
-    if (!report || !editorRef.current) return;
+    if (!report || !reportTextareaRef.current) return;
+    
     try {
-      // Convert <br> tags to newlines for clipboard
-      const htmlContent = editorRef.current.innerHTML || "";
-      const textContent = htmlContent
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
-      const content = textContent || editorRef.current.innerText || editorRef.current.textContent || "";
-      await navigator.clipboard.writeText(content);
+      const content = reportTextareaRef.current.value || report.report || "";
+      const contentStartsWithTitle = content.trim().toLowerCase().startsWith(report.title.trim().toLowerCase());
+      const textToCopy = contentStartsWithTitle 
+        ? content 
+        : `${report.title}\n\n${content}`;
+      
+      await navigator.clipboard.writeText(textToCopy);
       setIsCopied(true);
       toast({ title: labels.copied });
-      setTimeout(() => setIsCopied(false), 2000);
+      setTimeout(() => setIsCopied(false), COPY_FEEDBACK_DURATION_MS);
     } catch (error) {
       toast({
         title: labels.copy,
@@ -91,109 +63,6 @@ export function ReportView({
       });
     }
   };
-
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const transcriptionDebounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Sync transcription content when report changes (only if not focused)
-  useEffect(() => {
-    if (transcriptionRef.current && report) {
-      const transcriptionContent = report.transcription || "";
-      // Only update DOM if element is not focused (prevents cursor reset)
-      if (document.activeElement !== transcriptionRef.current) {
-        transcriptionRef.current.textContent = transcriptionContent;
-      }
-    }
-  }, [report?.id, report?.transcription]);
-
-  const handleTranscriptionBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (!report) return;
-    const newTranscription = (e.currentTarget.textContent || "").trim();
-    if (newTranscription !== report.transcription) {
-      if (transcriptionDebounceRef.current) {
-        clearTimeout(transcriptionDebounceRef.current);
-      }
-      onUpdateTranscription(newTranscription);
-    }
-  }, [report, onUpdateTranscription]);
-
-  const handleTranscriptionInput = useCallback(() => {
-    if (!report || !transcriptionRef.current) return;
-    
-    if (transcriptionDebounceRef.current) {
-      clearTimeout(transcriptionDebounceRef.current);
-    }
-    
-    transcriptionDebounceRef.current = setTimeout(() => {
-      if (!transcriptionRef.current) return;
-      const newTranscription = (transcriptionRef.current.textContent || "").trim();
-      if (newTranscription !== report.transcription) {
-        onUpdateTranscription(newTranscription);
-      }
-    }, 1000);
-  }, [report, onUpdateTranscription]);
-
-  const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (!report) return;
-    // Convert <br> tags back to newlines when reading from contentEditable
-    const htmlContent = e.currentTarget.innerHTML || "";
-    const textContent = htmlContent
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>');
-    const fullContent = textContent || e.currentTarget.textContent || e.currentTarget.innerText || "";
-    
-    // Only update the report field, not the title
-    const newReport = fullContent.trim();
-    if (newReport !== report.report) {
-      // Clear any pending debounce
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-      // Update immediately on blur
-      onUpdateReport(newReport);
-    }
-  }, [report, onUpdateReport]);
-
-  const handleInput = useCallback(() => {
-    if (!report || !editorRef.current) return;
-    
-    // Clear existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    
-    // Debounce the update
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (!editorRef.current) return;
-      // Convert <br> tags back to newlines when reading from contentEditable
-      const htmlContent = editorRef.current.innerHTML || "";
-      const textContent = htmlContent
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
-      const fullContent = textContent || editorRef.current.textContent || editorRef.current.innerText || "";
-      const newReport = fullContent.trim();
-      if (newReport !== report.report) {
-        onUpdateReport(newReport);
-      }
-    }, 1000); // 1 second debounce
-  }, [report, onUpdateReport]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-      if (transcriptionDebounceRef.current) {
-        clearTimeout(transcriptionDebounceRef.current);
-      }
-    };
-  }, []);
 
   if (isLoading) {
     return (
@@ -243,13 +112,10 @@ export function ReportView({
 
       <Card className="space-y-3 border-0 shadow-none">
         <h3 className="text-lg font-semibold">{labels.transcription}</h3>
-        <div
-          ref={transcriptionRef}
-          contentEditable
-          suppressContentEditableWarning
-          className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[100px] p-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-          onBlur={handleTranscriptionBlur}
-          onInput={handleTranscriptionInput}
+        <EditableTextarea
+          value={report.transcription || ""}
+          onUpdate={onUpdateTranscription}
+          className="text-sm text-muted-foreground min-h-[100px] p-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           style={{ wordBreak: "break-word" }}
         />
       </Card>
@@ -274,13 +140,11 @@ export function ReportView({
               )}
             </Button>
           </div>
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            className="text-sm sm:text-base xl:text-base 2xl:text-base 3xl:text-base text-foreground leading-relaxed whitespace-pre-wrap min-h-[200px] sm:min-h-[300px] xl:min-h-[400px] 2xl:min-h-[500px] 3xl:min-h-[600px] p-2 sm:p-3 xl:p-4 2xl:p-6 3xl:p-8 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            onBlur={handleBlur}
-            onInput={handleInput}
+          <EditableTextarea
+            ref={reportTextareaRef}
+            value={report.report || ""}
+            onUpdate={onUpdateReport}
+            className="text-sm sm:text-base xl:text-base 2xl:text-base 3xl:text-base text-foreground leading-relaxed min-h-[200px] sm:min-h-[300px] xl:min-h-[400px] 2xl:min-h-[500px] 3xl:min-h-[600px] p-2 sm:p-3 xl:p-4 2xl:p-6 3xl:p-8 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             style={{
               wordBreak: "break-word",
             }}

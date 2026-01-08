@@ -29,7 +29,11 @@ interface StudyTypeOption {
   label: string;
 }
 
-// Create provider instance outside component to avoid recreation
+const COPY_FEEDBACK_DURATION_MS = 2000;
+const UPLOAD_PROGRESS_INTERVAL_MS = 1200;
+const UPLOAD_PROGRESS_INCREMENT = 4;
+const UPLOAD_PROGRESS_MAX = 100;
+
 const sttProvider = createSpeechToTextProvider('speechmatics');
 
 export default function HomePage() {
@@ -56,7 +60,6 @@ export default function HomePage() {
   const [pendingReport, setPendingReport] = useState<GenerateReportResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isLoadingReports, setIsLoadingReports] = useState(true);
 
   // Study type detection state
   const [isDetectingStudyType, setIsDetectingStudyType] = useState(false);
@@ -150,7 +153,6 @@ export default function HomePage() {
       transcription: t("report.transcription"),
       copy: t("report.copy"),
       copied: t("report.copied"),
-      transcriptionEmpty: t("report.transcriptionEmpty"),
       disclaimer: t("report.disclaimer"),
     }),
     [t],
@@ -201,16 +203,14 @@ export default function HomePage() {
 
   const showWelcome = sidebarView === "home" && demoState === "main" && !selectedReport;
 
-  const getHeaderSubtitle = () => {
+  const headerSubtitle = useMemo(() => {
     if (demoState === "recording") return t("header.generateReport");
     if (demoState === "report") return t("header.reportDetails");
     return null;
-  };
+  }, [demoState, t]);
 
-  // Load reports on mount
   useEffect(() => {
     const loadReports = async () => {
-      setIsLoadingReports(true);
       try {
         const reports = await getReports();
         const historyItems = reports.map(mapReportToHistoryItem);
@@ -222,13 +222,12 @@ export default function HomePage() {
           description: message,
           variant: "destructive",
         });
-      } finally {
-        setIsLoadingReports(false);
       }
     };
 
     loadReports();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (demoState !== "uploading") return;
@@ -237,10 +236,10 @@ export default function HomePage() {
 
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
-        const next = Math.min(prev + 4, 100);
+        const next = Math.min(prev + UPLOAD_PROGRESS_INCREMENT, UPLOAD_PROGRESS_MAX);
         return next;
       });
-    }, 1200);
+    }, UPLOAD_PROGRESS_INTERVAL_MS);
 
     return () => {
       clearInterval(progressInterval);
@@ -249,7 +248,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (demoState !== "uploading") return;
-    if (uploadProgress < 100) return;
+    if (uploadProgress < UPLOAD_PROGRESS_MAX) return;
     if (!pendingReport) return;
     finalizeReport(pendingReport);
   }, [demoState, pendingReport, uploadProgress]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -273,7 +272,7 @@ export default function HomePage() {
         language,
         enablePartials: true,
         sampleRate: 16000,
-      });
+      }, transcription);
     } catch (error) {
       toast({
         title: t("errors.generic"),
@@ -281,7 +280,7 @@ export default function HomePage() {
         variant: "destructive",
       });
     }
-  }, [startSTT, language, toast, t]);
+  }, [startSTT, language, toast, t, transcription]);
 
   const handleStopRecording = useCallback(async () => {
     await stopSTT();
@@ -388,7 +387,7 @@ export default function HomePage() {
         `${report.title}\n\n${report.report}`,
       );
       setCopiedReportId(report.id);
-      setTimeout(() => setCopiedReportId(null), 2000);
+      setTimeout(() => setCopiedReportId(null), COPY_FEEDBACK_DURATION_MS);
     } catch (error) {
       toast({
         title: t("errors.generic"),
@@ -495,10 +494,10 @@ export default function HomePage() {
                 <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </Button>
             </div>
-            {getHeaderSubtitle() && (
+            {headerSubtitle && (
               <div className="flex-1 flex justify-center">
                 <h2 className="text-base sm:text-lg font-medium text-foreground">
-                  {getHeaderSubtitle()}
+                  {headerSubtitle}
                 </h2>
               </div>
             )}
