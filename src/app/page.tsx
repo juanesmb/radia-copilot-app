@@ -539,7 +539,7 @@ export default function HomePage() {
               onToggleReports={() => {
                 handleSidebarReports();
               }}
-              className="flex border-r border-border pr-3"
+              className="flex border-r border-border"
             />
             <div className="flex-1 h-full flex flex-col overflow-hidden border-l border-border">
               <ReportsSubmenu

@@ -32,7 +32,7 @@ export function SidebarMenu({
 
   return (
     <aside
-      className={`${className.includes("flex") ? "flex" : "hidden lg:flex"} flex-col gap-3 w-14 flex-shrink-0 border-r border-border pr-0 pt-4 pb-4 transition-all duration-500 ${className.includes("flex") ? "h-full" : "h-[calc(100dvh-4rem)] lg:h-screen"} ${className}`}
+      className={`${className.includes("flex") ? "flex" : "hidden lg:flex"} flex-col gap-3 w-14 flex-shrink-0 border-r border-border pt-4 pb-4 transition-all duration-500 ${className.includes("flex") ? "h-full" : "h-[calc(100dvh-4rem)] lg:h-screen"} ${className}`}
       aria-label="Primary navigation"
     >
       <div className="flex flex-col items-center gap-3 flex-1">
