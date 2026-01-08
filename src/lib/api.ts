@@ -233,3 +233,54 @@ export async function getAvailableTemplates(
   }
 }
 
+// Submit feedback
+const FEEDBACK_PATH = "/api/feedback";
+
+export interface SubmitFeedbackRequest {
+  reportId: string;
+  confidence: number;
+  reason?: string | null;
+}
+
+export interface SubmitFeedbackResponse {
+  id: string;
+  reportId: string;
+  confidence: number;
+  reason: string | null;
+  createdAt: string;
+}
+
+export async function submitFeedback(
+  payload: SubmitFeedbackRequest
+): Promise<SubmitFeedbackResponse> {
+  try {
+    const response = await fetch(FEEDBACK_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to submit feedback",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as SubmitFeedbackResponse;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+

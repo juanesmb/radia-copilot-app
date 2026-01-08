@@ -9,6 +9,7 @@ import { ReportsSubmenu } from "@/components/ReportsSubmenu";
 import { SidebarMenu } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
 import { UploadingInterface } from "@/components/UploadingInterface";
+import { ReportFeedback } from "@/components/ReportFeedback";
 import { ReportView } from "@/components/ReportView";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -61,6 +62,11 @@ export default function HomePage() {
   const [detectedStudyType, setDetectedStudyType] = useState<string | null>(null);
   const [selectedStudyType, setSelectedStudyType] = useState<string>("");
   const [availableStudyTypes, setAvailableStudyTypes] = useState<StudyTypeOption[]>([]);
+  
+  // Feedback state
+  const [dismissedFeedbackReports, setDismissedFeedbackReports] = useState<Set<string>>(new Set());
+  const [submittedFeedbackReports, setSubmittedFeedbackReports] = useState<Set<string>>(new Set());
+  const [newlyGeneratedReportIds, setNewlyGeneratedReportIds] = useState<Set<string>>(new Set());
   
   const prevSttStateRef = useRef<typeof sttState>(sttState);
 
@@ -322,6 +328,8 @@ export default function HomePage() {
     });
     setReportHistory((prev) => [newReport, ...prev]);
     setSelectedReportId(newReport.id);
+    // Mark this report as newly generated so feedback shows
+    setNewlyGeneratedReportIds((prev) => new Set(prev).add(newReport.id));
     setSidebarView("reports");
     setIsReportsOpen(true);
     setDemoState("report");
@@ -333,6 +341,45 @@ export default function HomePage() {
     setAvailableStudyTypes([]);
     toast({ title: t("app.generatedToast") });
   };
+
+  const removeFromNewlyGenerated = useCallback((reportId: string) => {
+    setNewlyGeneratedReportIds((prev) => {
+      const next = new Set(prev);
+      next.delete(reportId);
+      return next;
+    });
+  }, []);
+
+  const handleFeedbackSubmitted = useCallback(
+    (reportId: string) => {
+      setSubmittedFeedbackReports((prev) => new Set(prev).add(reportId));
+      removeFromNewlyGenerated(reportId);
+    },
+    [removeFromNewlyGenerated]
+  );
+
+  const handleFeedbackDismissed = useCallback(
+    (reportId: string) => {
+      setDismissedFeedbackReports((prev) => new Set(prev).add(reportId));
+      removeFromNewlyGenerated(reportId);
+    },
+    [removeFromNewlyGenerated]
+  );
+
+  const shouldShowFeedback = useMemo(() => {
+    if (demoState !== "report" || !selectedReportId) {
+      return false;
+    }
+    // Only show feedback for newly generated reports
+    if (!newlyGeneratedReportIds.has(selectedReportId)) {
+      return false;
+    }
+    // Don't show if already dismissed or submitted
+    return (
+      !dismissedFeedbackReports.has(selectedReportId) &&
+      !submittedFeedbackReports.has(selectedReportId)
+    );
+  }, [demoState, selectedReportId, newlyGeneratedReportIds, dismissedFeedbackReports, submittedFeedbackReports]);
 
   const handleCopyReportCard = async (report: ReportHistoryItem) => {
     try {
@@ -559,6 +606,13 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+      {shouldShowFeedback && selectedReportId && (
+        <ReportFeedback
+          reportId={selectedReportId}
+          onSubmitted={() => handleFeedbackSubmitted(selectedReportId)}
+          onDismiss={() => handleFeedbackDismissed(selectedReportId)}
+        />
+      )}
     </div>
   );
 }
