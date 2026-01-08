@@ -43,7 +43,7 @@ export const translations: TranslationMap = {
     "recording.title": "Record Your Analysis",
     "recording.description":
       "Click the microphone to start recording your verbal findings. Speak naturally as you would during a case review.",
-    "recording.placeholder": "Dictate or paste your transcription...",
+    "recording.placeholder": "Dictate or mention the positive findings...",
     "recording.label": "Dictation",
     "recording.upload": "Generate report",
     "recording.recording": "Recording...",
@@ -55,15 +55,14 @@ export const translations: TranslationMap = {
     "upload.title": "Processing transcription",
     "upload.subtitle": "Generating structured findings and impression",
     "upload.status1": "Analyzing study context",
-    "upload.status2": "Structuring findings",
+    "upload.status2": "Organizing findings",
     "upload.status3": "Preparing impression",
     "upload.complete": "Ready!",
 
-    "welcome.tagline": "AI Radiology Assistant",
+    "welcome.tagline": "Your Radiology Copilot with AI",
     "welcome.greeting": "Welcome",
     "welcome.title": "Record, review, and share structured reports",
-    "welcome.subtitle":
-      "Transcribe your studies, edit the structured output, and collaborate with your care team in seconds.",
+    "welcome.subtitle": "Mention your findings, edit the result and generate structured reports in seconds.",
     "welcome.generate": "Generate report",
     "welcome.viewReports": "View history",
 
@@ -141,7 +140,7 @@ export const translations: TranslationMap = {
     "recording.title": "Graba tu Análisis",
     "recording.description":
       "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
-    "recording.placeholder": "Dicta o menciona tus hallazgos positivos...",
+    "recording.placeholder": "Dicta o menciona los hallazgos positivos...",
     "recording.label": "Dictado",
     "recording.upload": "Generar informe",
     "recording.recording": "Grabando...",
@@ -157,11 +156,10 @@ export const translations: TranslationMap = {
     "upload.status3": "Preparando la conclusión",
     "upload.complete": "¡Listo!",
 
-    "welcome.tagline": "Asistente de Radiología con IA",
+    "welcome.tagline": "Tu copiloto de Radiología con IA",
     "welcome.greeting": "Bienvenido/a",
     "welcome.title": "Graba, revisa y comparte informes estructurados",
-    "welcome.subtitle":
-      "Transcribe tus estudios, edita el resultado estructurado y colabora con tu equipo clínico en segundos.",
+    "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
     "welcome.generate": "Generar informe",
     "welcome.viewReports": "Ver historial",
 
@@ -182,7 +180,7 @@ export const translations: TranslationMap = {
     "studyType.ct-orbit": "TC Órbita",
     "studyType.ct-spine-cervical": "TC Columna Cervical",
     "studyType.ct-spine-dorsolumbar": "TC Columna Dorsolumbar",
-    "studyType.ct-uro": "TC Urografía",
+    "studyType.ct-uro": "Urotomografía",
 
     "feedback.title": "¿Este informe cumplió con tus expectativas?",
     "feedback.scale1": "Para nada",
