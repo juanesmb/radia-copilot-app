@@ -485,13 +485,6 @@ export default function HomePage() {
             >
               {t("welcome.generate")}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDemoState(selectedReport ? "report" : "main")}
-            >
-              {t("welcome.viewReports")}
-            </Button>
           </div>
         </div>
       );
