@@ -75,7 +75,16 @@ export function SidebarMenu({
 
       <div className="flex flex-col items-center gap-3">
         <LanguageSwitcher />
-        <UserButton />
+        <UserButton
+          appearance={{
+            elements: {
+              userButtonPopoverCard: {
+                pointerEvents: 'initial',
+                zIndex: 9999,
+              },
+            },
+          }}
+        />
       </div>
     </aside>
   );
