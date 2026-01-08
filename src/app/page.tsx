@@ -11,6 +11,7 @@ import { RecordingInterface } from "@/components/RecordingInterface";
 import { UploadingInterface } from "@/components/UploadingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
 import { ReportView } from "@/components/ReportView";
+import { WelcomeSection } from "@/components/WelcomeSection";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
@@ -468,26 +469,7 @@ export default function HomePage() {
     }
 
     if (showWelcome) {
-      return (
-        <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center space-y-4 bg-muted/10">
-          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("welcome.tagline")}
-          </p>
-          <h2 className="text-3xl font-bold text-foreground">{t("welcome.title")}</h2>
-          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-            {t("welcome.subtitle")}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={handleGenerateReport}
-            >
-              {t("welcome.generate")}
-            </Button>
-          </div>
-        </div>
-      );
+      return <WelcomeSection onGenerateReport={handleGenerateReport} />;
     }
 
     return (

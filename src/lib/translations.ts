@@ -60,6 +60,7 @@ export const translations: TranslationMap = {
     "upload.complete": "Ready!",
 
     "welcome.tagline": "AI Radiology Assistant",
+    "welcome.greeting": "Welcome",
     "welcome.title": "Record, review, and share structured reports",
     "welcome.subtitle":
       "Transcribe your studies, edit the structured output, and collaborate with your care team in seconds.",
@@ -157,6 +158,7 @@ export const translations: TranslationMap = {
     "upload.complete": "¡Listo!",
 
     "welcome.tagline": "Asistente de Radiología con IA",
+    "welcome.greeting": "Bienvenido/a",
     "welcome.title": "Graba, revisa y comparte informes estructurados",
     "welcome.subtitle":
       "Transcribe tus estudios, edita el resultado estructurado y colabora con tu equipo clínico en segundos.",
