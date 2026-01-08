@@ -255,7 +255,7 @@ export function ReportView({
       </Card>
 
       <Card className="border-0 shadow-none">
-        <div className="bg-muted/50 rounded-lg p-1.5 sm:p-2 xl:p-3 2xl:p-4 3xl:p-5">
+        <div className="bg-muted/50 rounded-lg p-1.5 sm:p-2 xl:p-3 2xl:p-4 3xl:p-5 mb-6">
           <div className="flex items-center justify-between gap-2 sm:gap-3 mb-1.5 sm:mb-2 xl:mb-3 2xl:mb-4 3xl:mb-5">
             <div className="flex-1 bg-yellow-500/10 border border-yellow-500/20 rounded-md p-1.5 sm:p-2 xl:p-2.5 text-[10px] sm:text-xs text-yellow-600 dark:text-yellow-500">
               <p className="font-medium">{labels.disclaimer}</p>

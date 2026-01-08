@@ -222,7 +222,7 @@ export function RecordingInterface({
   const hasAvailableStudyTypes = availableStudyTypes && availableStudyTypes.length > 0;
 
   return (
-    <div className="space-y-6 flex flex-col flex-1 min-h-0">
+    <div className="space-y-6 flex flex-col flex-1 min-h-0 overflow-hidden">
         {sttError && (
           <div className="text-center text-sm text-red-500 bg-red-500/10 rounded-lg p-3">
             {sttError}

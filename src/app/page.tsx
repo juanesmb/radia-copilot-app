@@ -593,17 +593,17 @@ export default function HomePage() {
           copiedLabel={t("report.copied")}
         />
 
-        <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100vh-4rem)] lg:h-screen">
-          <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col">
+        <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen">
+          <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col min-h-0">
             <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
         </section>
       </main>
-      {shouldShowFeedback && selectedReportId && (
+      {shouldShowFeedback && (
         <ReportFeedback
-          reportId={selectedReportId}
-          onSubmitted={() => handleFeedbackSubmitted(selectedReportId)}
-          onDismiss={() => handleFeedbackDismissed(selectedReportId)}
+          reportId={selectedReportId!}
+          onSubmitted={() => handleFeedbackSubmitted(selectedReportId!)}
+          onDismiss={() => handleFeedbackDismissed(selectedReportId!)}
         />
       )}
     </div>
