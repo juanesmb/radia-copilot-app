@@ -64,6 +64,7 @@ export const generateReportHandler = async (request: NextRequest) => {
         studyType: report.studyType,
         detectionConfidence: report.detectionConfidence,
         modelUsed: report.modelUsed,
+        selectedTemplate: report.selectedTemplate,
       },
       { status: 200 }
     );

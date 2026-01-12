@@ -18,6 +18,7 @@ export const translations: TranslationMap = {
     "language.spanish": "Spanish",
 
     "input.label": "Transcription",
+    "input.title": "Positive Findings",
     "input.placeholder": "Use your device dictation feature or paste your notes here...",
     "input.hint": "Tip: enable your OS dictation shortcut for a faster workflow.",
 
@@ -52,7 +53,13 @@ export const translations: TranslationMap = {
     "recording.connecting": "Connecting...",
     "recording.stop": "Stop",
     "recording.studyType": "Select template",
+    "recording.studyTypePlaceholder": "Select a template...",
     "recording.detecting": "Detecting study type...",
+
+    "template.title": "Template",
+    "template.empty": "Select a study type from the dropdown above, or start recording - the template will appear automatically after you finish recording",
+    "template.detecting": "Detecting study type...",
+    "template.error": "Error loading template",
 
     "upload.title": "Processing transcription",
     "upload.subtitle": "Generating structured findings and impression",
@@ -115,6 +122,7 @@ export const translations: TranslationMap = {
     "language.spanish": "Español",
 
     "input.label": "Transcripción",
+    "input.title": "Hallazgos positivos",
     "input.placeholder":
       "Usa la función de dictado de tu dispositivo o pega tus notas aquí...",
     "input.hint":
@@ -151,7 +159,13 @@ export const translations: TranslationMap = {
     "recording.connecting": "Conectando...",
     "recording.stop": "Detener",
     "recording.studyType": "Seleccionar plantilla",
+    "recording.studyTypePlaceholder": "Selecciona una plantilla...",
     "recording.detecting": "Detectando tipo de estudio...",
+
+    "template.title": "Plantilla",
+    "template.empty": "Selecciona un tipo de estudio del menú desplegable arriba, o comienza a grabar - la plantilla aparecerá automáticamente después de que termines de grabar",
+    "template.detecting": "Detectando tipo de estudio...",
+    "template.error": "Error al cargar la plantilla",
 
     "upload.title": "Procesando transcripción",
     "upload.subtitle": "Generando hallazgos y conclusión estructurados",

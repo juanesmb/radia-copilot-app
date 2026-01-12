@@ -1,3 +1,5 @@
+import type { Language } from "./language";
+
 export interface TemplateMetadata {
   studyType: string;
   modality: string;
@@ -19,4 +21,14 @@ export interface TemplateSearchResult {
   score: number;
 }
 
+export interface GetTemplateContentRequest {
+  studyType: string;
+  language: Language;
+}
+
+export interface GetTemplateContentResponse {
+  content: string;
+  studyType: string;
+  language: string;
+}
 

@@ -3,6 +3,10 @@ import type {
   GenerateReportRequest,
   GenerateReportResponse,
 } from "@/types/frontend/api";
+import type {
+  GetTemplateContentRequest,
+  GetTemplateContentResponse,
+} from "@/app/api/types/template";
 
 const API_PATH = "/api/generate-report";
 const REPORTS_PATH = "/api/reports";
@@ -233,6 +237,44 @@ export async function getAvailableTemplates(
   }
 }
 
+// Get template content
+const GET_TEMPLATE_CONTENT_PATH = "/api/templates";
+
+
+export async function getTemplateContent(
+  payload: GetTemplateContentRequest
+): Promise<GetTemplateContentResponse> {
+  try {
+    const response = await fetch(`${GET_TEMPLATE_CONTENT_PATH}/${payload.studyType}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ language: payload.language }),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to get template content",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as GetTemplateContentResponse;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
 // Submit feedback
 const FEEDBACK_PATH = "/api/feedback";
 
@@ -283,4 +325,3 @@ export async function submitFeedback(
     };
   }
 }
-

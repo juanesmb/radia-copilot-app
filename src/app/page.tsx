@@ -231,6 +231,7 @@ export default function HomePage() {
           selectedStudyType={selectedStudyType}
           onStudyTypeChange={setSelectedStudyType}
           isDetectingStudyType={isDetectingStudyType}
+          language={language}
           labels={recordingLabels}
         />
       );

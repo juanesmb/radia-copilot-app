@@ -1,10 +1,13 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { Sparkles, Mic, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { TemplatePreview } from "@/components/TemplatePreview";
+import { useTemplateContent } from "@/hooks/useTemplateContent";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { STTState } from "@/domain/speech-to-text";
 
 type HistoryEntry = {
@@ -36,6 +39,8 @@ interface RecordingInterfaceProps {
   selectedStudyType?: string;
   onStudyTypeChange?: (studyType: string) => void;
   isDetectingStudyType?: boolean;
+  // Language (for template fetching)
+  language: "en" | "es";
   // Labels
   labels: {
     stop: string;
@@ -61,13 +66,32 @@ export function RecordingInterface({
   selectedStudyType,
   onStudyTypeChange,
   isDetectingStudyType,
+  language,
   labels,
 }: RecordingInterfaceProps) {
+  const { t } = useLanguage();
+
+  const effectiveStudyType = selectedStudyType || detectedStudyType || null;
+  const { content, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
+    effectiveStudyType,
+    language
+  );
+  
+  const [editedTemplateContent, setEditedTemplateContent] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEditedTemplateContent(content);
+  }, [content]);
+
+  const handleTemplateChange = useCallback((value: string) => {
+    setEditedTemplateContent(value);
+  }, []);
+
   const isRecording = sttState === 'recording';
   const isConnecting = sttState === 'connecting';
   const isStopping = sttState === 'stopping';
   const isActive = isRecording || isConnecting || isStopping;
-  
+
   const isProcessingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const historyRef = useRef<HistoryEntry[]>([]);
@@ -222,106 +246,136 @@ export function RecordingInterface({
   const hasAvailableStudyTypes = availableStudyTypes && availableStudyTypes.length > 0;
 
   return (
-    <div className="space-y-6 flex flex-col flex-1 min-h-0 overflow-hidden">
-        {sttError && (
-          <div className="text-center text-sm text-red-500 bg-red-500/10 rounded-lg p-3">
-            {sttError}
-          </div>
-        )}
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      {sttError && (
+        <div className="text-center text-sm text-red-500 bg-red-500/10 rounded-lg p-3 mb-6 shrink-0">
+          {sttError}
+        </div>
+      )}
 
-        <div className="space-y-4 flex-1 flex flex-col min-h-0">
-          {hasAvailableStudyTypes && (
-            <div className="flex flex-row items-center gap-3 flex-wrap justify-center">
-              <button
-                type="button"
-                onClick={handleMicClick}
-                disabled={disabled || isConnecting || isStopping}
-                className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
-                  isRecording
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : isConnecting
-                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white animate-pulse'
-                    : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                aria-label={isRecording ? labels.stop : label}
+      {/* Controls row */}
+      {hasAvailableStudyTypes && (
+        <div className="flex flex-row items-center gap-3 flex-wrap justify-center shrink-0 mb-6">
+          <button
+            type="button"
+            onClick={handleMicClick}
+            disabled={disabled || isConnecting || isStopping}
+            className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
+              isRecording
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : isConnecting
+                ? 'bg-yellow-500 hover:bg-yellow-600 text-white animate-pulse'
+                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            aria-label={isRecording ? labels.stop : label}
+          >
+            {isRecording ? (
+              <Square className="w-6 h-6 sm:w-5 sm:h-5" />
+            ) : (
+              <Mic className="w-6 h-6 sm:w-5 sm:h-5" />
+            )}
+            <span className="hidden sm:inline">{label}</span>
+            {isRecording && (
+              <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
+            )}
+            {isConnecting && (
+              <span className="absolute inset-0 rounded-full animate-ping bg-yellow-500/30" />
+            )}
+          </button>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {isDetectingStudyType ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                {labels.detecting}
+              </div>
+            ) : (
+              <select
+                id="study-type"
+                value={selectedStudyType || detectedStudyType || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only call onChange if a real option is selected (not the placeholder)
+                  if (value) {
+                    onStudyTypeChange?.(value);
+                  } else {
+                    onStudyTypeChange?.('');
+                  }
+                }}
+                disabled={isActive}
+                className="flex-1 min-w-0 max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isRecording ? (
-                  <Square className="w-6 h-6 sm:w-5 sm:h-5" />
-                ) : (
-                  <Mic className="w-6 h-6 sm:w-5 sm:h-5" />
-                )}
-                <span className="hidden sm:inline">{label}</span>
-                {isRecording && (
-                  <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
-                )}
-                {isConnecting && (
-                  <span className="absolute inset-0 rounded-full animate-ping bg-yellow-500/30" />
-                )}
-              </button>
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <label htmlFor="study-type" className="text-sm font-medium text-foreground whitespace-nowrap shrink-0">
-                  {labels.studyType}
-                </label>
-                {isDetectingStudyType ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    {labels.detecting}
-                  </div>
-                ) : (
-                  <select
-                    id="study-type"
-                    value={selectedStudyType || detectedStudyType || ''}
-                    onChange={(e) => onStudyTypeChange?.(e.target.value)}
-                    disabled={isActive}
-                    className="flex-1 min-w-0 max-w-[200px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {availableStudyTypes?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              {/* Desktop: Generate button aligned to the right */}
-              <div className="hidden lg:flex ml-auto">
-                <Button
-                  type="button"
-                  className="gap-2 text-base h-10 px-6"
-                  onClick={onUpload}
-                  disabled={disabled || !transcription.trim() || isActive || isDetectingStudyType}
-                >
-                  <Sparkles className="w-4 h-4" aria-hidden="true" />
-                  {uploadLabel}
-                </Button>
-              </div>
-            </div>
-          )}
+                <option value="">{t("recording.studyTypePlaceholder")}</option>
+                {availableStudyTypes?.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {/* Desktop: Generate button aligned to the right */}
+          <div className="hidden lg:flex ml-auto">
+            <Button
+              type="button"
+              className="gap-2 text-base h-10 px-6"
+              onClick={onUpload}
+              disabled={disabled || isActive || isDetectingStudyType || !effectiveStudyType}
+            >
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
+              {uploadLabel}
+            </Button>
+          </div>
+        </div>
+      )}
 
-          <Textarea
-            ref={textareaRef}
-            value={transcription}
-            onChange={(event) => onChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            className="flex-1 text-base leading-relaxed resize-none"
-            readOnly={isRecording || isConnecting}
-            disabled={disabled && !isActive}
+      {/* Split view: Transcription and Template */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
+        {/* Left panel: Transcription */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
+            <div className="p-4 border-b border-border shrink-0">
+              <h3 className="text-sm font-semibold text-foreground">{t("input.title")}</h3>
+            </div>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <Textarea
+                ref={textareaRef}
+                value={transcription}
+                onChange={(event) => onChange(event.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                className="flex-1 text-base leading-relaxed resize-none"
+                readOnly={isRecording || isConnecting}
+                disabled={disabled && !isActive}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Right panel: Template Preview */}
+        <div className="flex-1 lg:max-w-[50%] min-h-0 flex flex-col">
+          <TemplatePreview
+            content={editedTemplateContent}
+            isLoading={isTemplateLoading}
+            error={templateError}
+            studyType={effectiveStudyType}
+            isDetectingStudyType={isDetectingStudyType}
+            onContentChange={handleTemplateChange}
           />
         </div>
+      </div>
 
-        {/* Mobile: Generate button at the bottom */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center mt-auto pb-4 lg:hidden">
-          <Button
-            type="button"
-            className="gap-2 text-base h-12 px-6"
-            onClick={onUpload}
-            disabled={disabled || !transcription.trim() || isActive || isDetectingStudyType}
-          >
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
-            {uploadLabel}
-          </Button>
-        </div>
+      {/* Mobile: Generate button at the bottom */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center pt-6 pb-4 lg:hidden shrink-0">
+        <Button
+          type="button"
+          className="gap-2 text-base h-12 px-6"
+          onClick={onUpload}
+          disabled={disabled || isActive || isDetectingStudyType || !effectiveStudyType}
+        >
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
+          {uploadLabel}
+        </Button>
+      </div>
     </div>
   );
 }

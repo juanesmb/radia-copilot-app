@@ -54,6 +54,7 @@ export const createReportHistoryItem = ({
     transcription,
     report: response.report?.trim() || "",
     createdAt: now,
+    usedTemplate: response.selectedTemplate,
     metadata: {
       patientName: extractPatientName(transcription),
     },

@@ -13,6 +13,7 @@ export interface GenerateReportResponse {
   studyType?: string;
   detectionConfidence?: number;
   modelUsed: string;
+  selectedTemplate?: string;
 }
 
 export interface ApiError {
