@@ -76,12 +76,12 @@ export function useSpeechToText(
 
   const start = useCallback(async (config: STTConfig, baseText?: string) => {
     setError(null);
-    // Use provided baseText, or fall back to current transcript state
-    // This allows preserving manually entered text when starting recording
-    const currentTranscript = baseText?.trim() || transcriptRef.current || transcript;
+    // Use provided baseText if explicitly provided (even if empty), otherwise fall back to current transcript state
+    // This allows preserving manually entered text when starting recording, and clearing when user deletes text
+    const currentTranscript = baseText !== undefined ? baseText.trim() : (transcriptRef.current || transcript);
     baseTranscriptRef.current = currentTranscript;
-    // Also update transcriptRef and state to keep them in sync
-    if (currentTranscript && currentTranscript !== transcriptRef.current) {
+    // Always update transcriptRef and state to keep them in sync (even if empty)
+    if (currentTranscript !== transcriptRef.current) {
       transcriptRef.current = currentTranscript;
       setTranscript(currentTranscript);
     }
