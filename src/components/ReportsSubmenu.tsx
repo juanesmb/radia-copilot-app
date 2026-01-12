@@ -1,5 +1,6 @@
 'use client';
 
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ReportCard } from "@/components/ReportCard";
@@ -52,6 +53,7 @@ export function ReportsSubmenu({
               disabled={isRecording}
               aria-pressed={isRecording}
             >
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
               {generateLabel}
             </Button>
           </div>
@@ -69,6 +71,7 @@ export function ReportsSubmenu({
               disabled={isRecording}
               aria-pressed={isRecording}
             >
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
               {generateLabel}
             </Button>
           </div>

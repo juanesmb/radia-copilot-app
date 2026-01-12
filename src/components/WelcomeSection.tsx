@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from "react";
+import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -27,7 +28,6 @@ export function WelcomeSection({ onGenerateReport }: WelcomeSectionProps) {
       tagline: t("welcome.tagline"),
       title: t("welcome.title"),
       subtitle: t("welcome.subtitle"),
-      generate: t("welcome.generate"),
     }),
     [t],
   );
@@ -42,15 +42,14 @@ export function WelcomeSection({ onGenerateReport }: WelcomeSectionProps) {
       <p className="text-base text-muted-foreground max-w-2xl mx-auto">
         {welcomeLabels.subtitle}
       </p>
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Button
-          type="button"
-          className="gap-2"
-          onClick={onGenerateReport}
-        >
-          {welcomeLabels.generate}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        className="gap-2"
+        onClick={onGenerateReport}
+      >
+        <Sparkles className="w-4 h-4" aria-hidden="true" />
+        {t("recording.upload")}
+      </Button>
     </div>
   );
 }

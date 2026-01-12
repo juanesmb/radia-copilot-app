@@ -3,10 +3,6 @@ import type {
   GenerateReportRequest,
   GenerateReportResponse,
 } from "@/types/frontend/api";
-import type {
-  GetTemplateContentRequest,
-  GetTemplateContentResponse,
-} from "@/app/api/types/template";
 
 const API_PATH = "/api/generate-report";
 const REPORTS_PATH = "/api/reports";
@@ -240,6 +236,7 @@ export async function getAvailableTemplates(
 // Get template content
 const GET_TEMPLATE_CONTENT_PATH = "/api/templates";
 
+import type { GetTemplateContentRequest, GetTemplateContentResponse } from "@/app/api/types/template";
 
 export async function getTemplateContent(
   payload: GetTemplateContentRequest

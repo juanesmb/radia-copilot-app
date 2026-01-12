@@ -37,7 +37,7 @@ export const translations: TranslationMap = {
 
     "reports.title": "Reports",
     "reports.subtitle": "Your Reports",
-    "reports.generate": "New Report",
+    "reports.generate": "Generate report",
     "reports.empty": "No reports generated yet.",
     "reports.emptyState": "Select a report to show it here. Or click new report to generate a new report.",
     "header.generateReport": "Generate Report",
@@ -143,7 +143,7 @@ export const translations: TranslationMap = {
 
     "reports.title": "Informes",
     "reports.subtitle": "Tus Reportes",
-    "reports.generate": "Nuevo Reporte",
+    "reports.generate": "Generar reporte",
     "reports.empty": "Todavía no se han generado informes.",
     "reports.emptyState": "Selecciona un informe para mostrarlo aquí. O haz clic en nuevo informe para generar uno nuevo.",
     "header.generateReport": "Generar reporte",

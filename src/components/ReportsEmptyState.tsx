@@ -1,5 +1,6 @@
 'use client';
 
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ReportsEmptyStateProps {
@@ -21,9 +22,10 @@ export function ReportsEmptyState({
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button
           type="button"
-          className="gap-2"
+          className="w-full justify-center gap-2 h-10"
           onClick={onGenerateReport}
         >
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
           {generateLabel}
         </Button>
       </div>
