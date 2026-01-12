@@ -130,13 +130,13 @@ export function ReportView({
               onClick={handleCopy}
               variant="outline"
               size="sm"
-              className="gap-1 sm:gap-2 p-1.5 sm:p-2 flex-shrink-0"
+              className="aspect-square h-10 w-10 sm:h-9 sm:w-9 flex-shrink-0 p-0"
               aria-label={isCopied ? labels.copied : labels.copy}
             >
               {isCopied ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Check className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               ) : (
-                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Copy className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               )}
             </Button>
           </div>

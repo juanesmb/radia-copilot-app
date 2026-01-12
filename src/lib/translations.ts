@@ -35,8 +35,10 @@ export const translations: TranslationMap = {
     "report.disclaimer": "This report has been generated using AI and may contain errors. Always verify the information.",
 
     "reports.title": "Reports",
-    "reports.generate": "Generate report",
+    "reports.subtitle": "Your Reports",
+    "reports.generate": "New Report",
     "reports.empty": "No reports generated yet.",
+    "reports.emptyState": "Select a report to show it here. Or click new report to generate a new report.",
     "header.generateReport": "Generate Report",
     "header.reportDetails": "Report Details",
 
@@ -49,7 +51,7 @@ export const translations: TranslationMap = {
     "recording.recording": "Recording...",
     "recording.connecting": "Connecting...",
     "recording.stop": "Stop",
-    "recording.studyType": "Study Type",
+    "recording.studyType": "Select template",
     "recording.detecting": "Detecting study type...",
 
     "upload.title": "Processing transcription",
@@ -63,7 +65,7 @@ export const translations: TranslationMap = {
     "welcome.greeting": "Welcome",
     "welcome.title": "Record, review, and share structured reports",
     "welcome.subtitle": "Mention your findings, edit the result and generate structured reports in seconds.",
-    "welcome.generate": "Generate report",
+    "welcome.generate": "New Report",
     "welcome.viewReports": "View history",
 
     "errors.generic": "We could not generate the report. Please try again.",
@@ -132,9 +134,11 @@ export const translations: TranslationMap = {
     "report.disclaimer": "Este reporte ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
 
     "reports.title": "Informes",
-    "reports.generate": "Generar informe",
+    "reports.subtitle": "Tus Reportes",
+    "reports.generate": "Nuevo Reporte",
     "reports.empty": "Todavía no se han generado informes.",
-    "header.generateReport": "Generar Informe",
+    "reports.emptyState": "Selecciona un informe para mostrarlo aquí. O haz clic en nuevo informe para generar uno nuevo.",
+    "header.generateReport": "Generar reporte",
     "header.reportDetails": "Detalles del informe",
 
     "recording.title": "Graba tu Análisis",
@@ -142,11 +146,11 @@ export const translations: TranslationMap = {
       "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
     "recording.placeholder": "Dicta o menciona los hallazgos positivos...",
     "recording.label": "Dictado",
-    "recording.upload": "Generar informe",
+    "recording.upload": "Generar reporte",
     "recording.recording": "Grabando...",
     "recording.connecting": "Conectando...",
     "recording.stop": "Detener",
-    "recording.studyType": "Tipo de estudio",
+    "recording.studyType": "Seleccionar plantilla",
     "recording.detecting": "Detectando tipo de estudio...",
 
     "upload.title": "Procesando transcripción",
@@ -158,9 +162,9 @@ export const translations: TranslationMap = {
 
     "welcome.tagline": "Tu copiloto de Radiología con IA",
     "welcome.greeting": "Bienvenido/a",
-    "welcome.title": "Graba, revisa y comparte informes estructurados",
+    "welcome.title": "Graba, revisa y comparte reportes estructurados",
     "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
-    "welcome.generate": "Generar informe",
+    "welcome.generate": "Nuevo Reporte",
     "welcome.viewReports": "Ver historial",
 
     "errors.generic": "No pudimos generar el informe. Intenta nuevamente.",

@@ -12,6 +12,8 @@ import { UploadingInterface } from "@/components/UploadingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
 import { ReportView } from "@/components/ReportView";
 import { WelcomeSection } from "@/components/WelcomeSection";
+import { ReportsEmptyState } from "@/components/ReportsEmptyState";
+import { MainContentLayout } from "@/components/MainContentLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
@@ -52,7 +54,7 @@ export default function HomePage() {
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
-  const [isReportsOpen, setIsReportsOpen] = useState(true);
+  const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
@@ -209,6 +211,78 @@ export default function HomePage() {
     return null;
   }, [demoState, t]);
 
+  const renderContentPanel = () => {
+    if (demoState === "recording") {
+      return (
+        <RecordingInterface
+          transcription={transcription}
+          placeholder={t("recording.placeholder")}
+          label={t("recording.label")}
+          uploadLabel={t("recording.upload")}
+          onChange={setTranscription}
+          onUpload={handleStartUpload}
+          disabled={isGenerating}
+          sttState={sttState}
+          onStartRecording={handleStartRecording}
+          onStopRecording={handleStopRecording}
+          sttError={sttError?.message}
+          detectedStudyType={detectedStudyType}
+          availableStudyTypes={availableStudyTypes}
+          selectedStudyType={selectedStudyType}
+          onStudyTypeChange={setSelectedStudyType}
+          isDetectingStudyType={isDetectingStudyType}
+          labels={recordingLabels}
+        />
+      );
+    }
+
+    if (demoState === "uploading") {
+      return (
+        <UploadingInterface
+          progress={uploadProgress}
+          steps={uploadSteps}
+          title={t("upload.title")}
+          subtitle={t("upload.subtitle")}
+          completeLabel={t("upload.complete")}
+        />
+      );
+    }
+
+    if (selectedReport && demoState === "report") {
+      return (
+        <ReportView
+          report={selectedReport}
+          isLoading={false}
+          labels={reportLabels}
+          onUpdateReport={(value) =>
+            updateSelectedReport(
+              (report) => ({ ...report, report: value }),
+              { updated_report: value }
+            )
+          }
+          onUpdateTranscription={(value) =>
+            updateSelectedReport(
+              (report) => ({ ...report, transcription: value }),
+              { updated_transcription: value }
+            )
+          }
+        />
+      );
+    }
+
+    if (showWelcome) {
+      return <WelcomeSection onGenerateReport={handleGenerateReport} />;
+    }
+
+    return (
+      <ReportsEmptyState
+        message={t("reports.emptyState")}
+        onGenerateReport={handleGenerateReport}
+        generateLabel={t("reports.generate")}
+      />
+    );
+  };
+
   useEffect(() => {
     const loadReports = async () => {
       try {
@@ -253,7 +327,7 @@ export default function HomePage() {
     finalizeReport(pendingReport);
   }, [demoState, pendingReport, uploadProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = useCallback(() => {
     setSidebarView("reports");
     setIsReportsOpen(true);
     setDemoState("recording");
@@ -261,7 +335,7 @@ export default function HomePage() {
     setSelectedStudyType("");
     setAvailableStudyTypes([]);
     resetSTT();
-  };
+  }, [resetSTT]);
 
   const handleStartRecording = useCallback(async () => {
     setDetectedStudyType(null);
@@ -381,7 +455,7 @@ export default function HomePage() {
     );
   }, [demoState, selectedReportId, newlyGeneratedReportIds, dismissedFeedbackReports, submittedFeedbackReports]);
 
-  const handleCopyReportCard = async (report: ReportHistoryItem) => {
+  const handleCopyReportCard = useCallback(async (report: ReportHistoryItem) => {
     try {
       await navigator.clipboard.writeText(
         `${report.title}\n\n${report.report}`,
@@ -395,86 +469,66 @@ export default function HomePage() {
         variant: "destructive",
       });
     }
-  };
+  }, [toast, t]);
 
-  const handleSidebarHome = () => {
+  const handleSidebarHome = useCallback(() => {
     setSidebarView("home");
     setDemoState("main");
     setSelectedReportId(null);
-  };
+    setIsReportsOpen(false);
+  }, []);
 
-  const handleSidebarReports = () => {
+  const handleSidebarReports = useCallback(() => {
     setSidebarView("reports");
-    setIsReportsOpen((prev) => !prev);
-  };
+    setIsReportsOpen(true);
+    setSelectedReportId(null);
+    setDemoState("main");
+  }, []);
+
+  const shouldShowReportOnMobile = useMemo(() => {
+    if (!isReportsOpen) return false;
+    const hasSelectedReport = selectedReportId !== null && demoState === "report";
+    const isRecordingOrUploading = demoState === "recording" || demoState === "uploading";
+    return hasSelectedReport || isRecordingOrUploading;
+  }, [isReportsOpen, selectedReportId, demoState]);
+
+  const reportsSubmenuProps = useMemo(
+    () => ({
+      reports: reportHistory,
+      selectedReportId,
+      copiedReportId,
+      onSelectReport: (id: string) => {
+        setSelectedReportId(id);
+        setDemoState("report");
+      },
+      onCopyReport: handleCopyReportCard,
+      onGenerateReport: handleGenerateReport,
+      isRecording: demoState === "recording",
+      generateLabel: t("reports.generate"),
+      subtitleLabel: t("reports.subtitle"),
+      emptyLabel: t("reports.empty"),
+      copyLabel: t("report.copy"),
+      copiedLabel: t("report.copied"),
+    }),
+    [
+      reportHistory,
+      selectedReportId,
+      copiedReportId,
+      demoState,
+      t,
+      handleCopyReportCard,
+      handleGenerateReport,
+    ]
+  );
 
   const renderMainContent = () => {
-    if (demoState === "recording") {
-      return (
-        <RecordingInterface
-          transcription={transcription}
-          placeholder={t("recording.placeholder")}
-          label={t("recording.label")}
-          uploadLabel={t("recording.upload")}
-          onChange={setTranscription}
-          onUpload={handleStartUpload}
-          disabled={isGenerating}
-          sttState={sttState}
-          onStartRecording={handleStartRecording}
-          onStopRecording={handleStopRecording}
-          sttError={sttError?.message}
-          detectedStudyType={detectedStudyType}
-          availableStudyTypes={availableStudyTypes}
-          selectedStudyType={selectedStudyType}
-          onStudyTypeChange={setSelectedStudyType}
-          isDetectingStudyType={isDetectingStudyType}
-          labels={recordingLabels}
-        />
-      );
-    }
-
-    if (demoState === "uploading") {
-      return (
-        <UploadingInterface
-          progress={uploadProgress}
-          steps={uploadSteps}
-          title={t("upload.title")}
-          subtitle={t("upload.subtitle")}
-          completeLabel={t("upload.complete")}
-        />
-      );
-    }
-
-    if (selectedReport && demoState === "report") {
-      return (
-        <ReportView
-          report={selectedReport}
-          isLoading={false}
-          labels={reportLabels}
-          onUpdateReport={(value) =>
-            updateSelectedReport(
-              (report) => ({ ...report, report: value }),
-              { updated_report: value }
-            )
-          }
-          onUpdateTranscription={(value) =>
-            updateSelectedReport(
-              (report) => ({ ...report, transcription: value }),
-              { updated_transcription: value }
-            )
-          }
-        />
-      );
-    }
-
-    if (showWelcome) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} />;
-    }
-
     return (
-      <div className="rounded-2xl border border-border p-6 text-center text-muted-foreground">
-        {t("report.empty")}
-      </div>
+      <MainContentLayout
+        isReportsOpen={isReportsOpen}
+        leftPanel={<ReportsSubmenu {...reportsSubmenuProps} />}
+        rightPanel={renderContentPanel()}
+        showReportOnMobile={shouldShowReportOnMobile}
+      />
     );
   };
 
@@ -494,10 +548,10 @@ export default function HomePage() {
                 <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </Button>
             </div>
-            {headerSubtitle && (
+            {(headerSubtitle || (isReportsOpen && sidebarView === "reports")) && (
               <div className="flex-1 flex justify-center">
                 <h2 className="text-base sm:text-lg font-medium text-foreground">
-                  {headerSubtitle}
+                  {headerSubtitle || t("reports.subtitle")}
                 </h2>
               </div>
             )}
@@ -508,44 +562,20 @@ export default function HomePage() {
 
       {/* Mobile menu Sheet */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="w-[90vw] max-w-[90vw] sm:w-[400px] sm:max-w-[400px] p-0">
-          <div className="flex h-full">
-            <SidebarMenu
-              activeView={sidebarView}
-              isReportsOpen={isReportsOpen}
-              onSelectHome={() => {
-                handleSidebarHome();
-                setIsMobileMenuOpen(false);
-              }}
-              onToggleReports={() => {
-                handleSidebarReports();
-              }}
-              className="flex border-r border-border"
-            />
-            <div className="flex-1 h-full flex flex-col overflow-hidden border-l border-border">
-              <ReportsSubmenu
-                isOpen={true}
-                reports={reportHistory}
-                selectedReportId={selectedReportId}
-                copiedReportId={copiedReportId}
-                onSelectReport={(id) => {
-                  setSelectedReportId(id);
-                  setDemoState("report");
-                  setIsMobileMenuOpen(false);
-                }}
-                onCopyReport={handleCopyReportCard}
-                onGenerateReport={() => {
-                  handleGenerateReport();
-                  setIsMobileMenuOpen(false);
-                }}
-                generateLabel={t("reports.generate")}
-                emptyLabel={t("reports.empty")}
-                copyLabel={t("report.copy")}
-                copiedLabel={t("report.copied")}
-                className="flex"
-              />
-            </div>
-          </div>
+        <SheetContent side="left" className="w-auto max-w-none p-0 shadow-none border-none data-[state=open]:animate-in data-[state=closed]:animate-out [&>button]:hidden">
+          <SidebarMenu
+            activeView={sidebarView}
+            isReportsOpen={isReportsOpen}
+            onSelectHome={() => {
+              handleSidebarHome();
+              setIsMobileMenuOpen(false);
+            }}
+            onToggleReports={() => {
+              handleSidebarReports();
+              setIsMobileMenuOpen(false);
+            }}
+            className="flex"
+          />
         </SheetContent>
       </Sheet>
 
@@ -557,26 +587,9 @@ export default function HomePage() {
           onToggleReports={handleSidebarReports}
         />
 
-        <ReportsSubmenu
-          isOpen={isReportsOpen}
-          reports={reportHistory}
-          selectedReportId={selectedReportId}
-          copiedReportId={copiedReportId}
-          onSelectReport={(id) => {
-            setSelectedReportId(id);
-            setDemoState("report");
-          }}
-          onCopyReport={handleCopyReportCard}
-          onGenerateReport={handleGenerateReport}
-          generateLabel={t("reports.generate")}
-          emptyLabel={t("reports.empty")}
-          copyLabel={t("report.copy")}
-          copiedLabel={t("report.copied")}
-        />
-
         <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen">
-          <div className="mx-auto max-w-6xl px-2 py-4 lg:px-3 h-full flex flex-col min-h-0">
-            <div className="space-y-6 flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
+          <div className="h-full flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
         </section>
       </main>

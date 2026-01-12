@@ -33,7 +33,7 @@ export function WelcomeSection({ onGenerateReport }: WelcomeSectionProps) {
   );
 
   return (
-    <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center space-y-4 bg-muted/10">
+    <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center space-y-4 bg-muted/10 mx-4">
       <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         {welcomeLabels.tagline}
       </p>

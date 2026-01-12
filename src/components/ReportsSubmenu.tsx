@@ -1,88 +1,91 @@
 'use client';
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ReportCard } from "@/components/ReportCard";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 
 interface ReportsSubmenuProps {
-  isOpen: boolean;
   reports: ReportHistoryItem[];
   selectedReportId: string | null;
   copiedReportId: string | null;
   onSelectReport: (reportId: string) => void;
   onCopyReport: (report: ReportHistoryItem) => void;
   onGenerateReport: () => void;
+  isRecording?: boolean;
   generateLabel: string;
+  subtitleLabel: string;
   emptyLabel: string;
   copyLabel: string;
   copiedLabel: string;
-  className?: string;
 }
 
 export function ReportsSubmenu({
-  isOpen,
   reports,
   selectedReportId,
   copiedReportId,
   onSelectReport,
   onCopyReport,
   onGenerateReport,
+  isRecording = false,
   generateLabel,
+  subtitleLabel,
   emptyLabel,
   copyLabel,
   copiedLabel,
-  className = "",
 }: ReportsSubmenuProps) {
-  const isMobile = className.includes("flex");
-  
   return (
-    <div
-      data-column="left"
-      className={cn(
-        "lg:flex-shrink-0 flex flex-col overflow-hidden border-r border-border bg-background transition-[width,max-width,opacity,transform,border-right] duration-700 ease-in-out will-change-[width,max-width,opacity,transform]",
-        isMobile
-          ? "w-full opacity-100 translate-x-0"
-          : isOpen
-            ? "lg:max-w-xs xl:max-w-sm 2xl:max-w-md 3xl:max-w-lg lg:w-[280px] xl:w-[320px] 2xl:w-[360px] 3xl:w-[420px] lg:opacity-100 lg:translate-x-0"
-            : "lg:max-w-0 lg:w-0 lg:opacity-0 lg:-translate-x-6 lg:pointer-events-none",
-        isMobile ? "flex" : "hidden lg:flex",
-        !isMobile && "h-[calc(100dvh-4rem)] lg:h-screen",
-        className
-      )}
-      style={{ height: isMobile ? "100%" : undefined }}
-    >
-      <div className="flex-shrink-0 px-2 pt-4 pb-2 border-b border-border bg-background/80 backdrop-blur-sm">
-        <Button
-          type="button"
-          className="w-full justify-center gap-2 h-10"
-          onClick={onGenerateReport}
-        >
-          {generateLabel}
-        </Button>
+    <div className="w-full lg:w-64 flex flex-col h-full bg-background lg:border-r border-border">
+      <div className="hidden lg:flex flex-shrink-0 px-2 pt-4 pb-2 border-b border-border bg-background/80 backdrop-blur-sm">
+        <h2 className="text-lg font-semibold text-foreground tracking-tight">
+          {subtitleLabel}
+        </h2>
       </div>
 
       {reports.length === 0 ? (
-        <div className="p-2 flex-1 overflow-y-auto">
-          <Card className="p-6 border-2 h-full flex items-center justify-center text-center text-sm text-muted-foreground">
+        <div className="flex-1 flex flex-col p-2">
+          <div className="pb-2">
+            <Button
+              type="button"
+              className="w-full justify-center gap-2 h-10"
+              onClick={onGenerateReport}
+              disabled={isRecording}
+              aria-pressed={isRecording}
+            >
+              {generateLabel}
+            </Button>
+          </div>
+          <Card className="flex-1 flex items-center justify-center p-6 border-2 text-center text-sm text-muted-foreground">
             {emptyLabel}
           </Card>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-2 space-y-3">
-          {reports.map((report) => (
-            <ReportCard
-              key={report.id}
-              report={report}
-              isSelected={selectedReportId === report.id}
-              isCopied={copiedReportId === report.id}
-              onSelect={onSelectReport}
-              onCopy={onCopyReport}
-              copyLabel={copyLabel}
-              copiedLabel={copiedLabel}
-            />
-          ))}
+        <div className="flex-1 flex flex-col">
+          <div className="px-2 pt-2 pb-2">
+            <Button
+              type="button"
+              className="w-full justify-center gap-2 h-10"
+              onClick={onGenerateReport}
+              disabled={isRecording}
+              aria-pressed={isRecording}
+            >
+              {generateLabel}
+            </Button>
+          </div>
+          <div className="flex-1 p-2 space-y-3">
+            {reports.map((report) => (
+              <ReportCard
+                key={report.id}
+                report={report}
+                isSelected={selectedReportId === report.id}
+                isCopied={copiedReportId === report.id}
+                onSelect={onSelectReport}
+                onCopy={onCopyReport}
+                copyLabel={copyLabel}
+                copiedLabel={copiedLabel}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useCallback } from "react";
-import { Upload, Mic, Square } from "lucide-react";
+import { Sparkles, Mic, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -283,6 +283,18 @@ export function RecordingInterface({
                   </select>
                 )}
               </div>
+              {/* Desktop: Generate button aligned to the right */}
+              <div className="hidden lg:flex ml-auto">
+                <Button
+                  type="button"
+                  className="gap-2 text-base h-10 px-6"
+                  onClick={onUpload}
+                  disabled={disabled || !transcription.trim() || isActive || isDetectingStudyType}
+                >
+                  <Sparkles className="w-4 h-4" aria-hidden="true" />
+                  {uploadLabel}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -298,14 +310,15 @@ export function RecordingInterface({
           />
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+        {/* Mobile: Generate button at the bottom */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center mt-auto pb-4 lg:hidden">
           <Button
             type="button"
             className="gap-2 text-base h-12 px-6"
             onClick={onUpload}
             disabled={disabled || !transcription.trim() || isActive || isDetectingStudyType}
           >
-            <Upload className="w-4 h-4" aria-hidden="true" />
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
             {uploadLabel}
           </Button>
         </div>
