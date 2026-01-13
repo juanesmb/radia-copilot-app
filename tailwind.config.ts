@@ -102,6 +102,10 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateX(30px)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -112,6 +116,7 @@ const config: Config = {
         "pulse-ring": "pulse-ring 2s ease-out infinite",
         "slide-in-left": "slide-in-left 0.4s ease-out",
         "slide-in-right": "slide-in-right 0.4s ease-out",
+        shimmer: "shimmer 2s ease-in-out infinite",
       },
     },
   },

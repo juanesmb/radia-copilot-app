@@ -1,13 +1,14 @@
 'use client';
 
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Sparkles, Mic, Square } from "lucide-react";
+import { Sparkles, Mic, Square, Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { useTemplateContent } from "@/hooks/useTemplateContent";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useDebouncedTextEditor } from "@/hooks/useDebouncedTextEditor";
 import type { STTState } from "@/domain/speech-to-text";
 
 type HistoryEntry = {
@@ -47,6 +48,16 @@ interface RecordingInterfaceProps {
     studyType: string;
     detecting: string;
   };
+  // Generated report props
+  generatedReport?: string | null;
+  onReportChange?: (value: string) => void;
+  isGenerating?: boolean;
+  // Report management props
+  currentReportId?: string | null;
+  reportTitle?: string | null;
+  onCopyReport?: () => void;
+  onUpdateTranscription?: (value: string) => void;
+  onUpdateReport?: (value: string) => void;
 }
 
 export function RecordingInterface({
@@ -68,8 +79,18 @@ export function RecordingInterface({
   isDetectingStudyType,
   language,
   labels,
+  generatedReport,
+  onReportChange,
+  isGenerating = false,
+  currentReportId,
+  reportTitle,
+  onCopyReport,
+  onUpdateTranscription,
+  onUpdateReport,
 }: RecordingInterfaceProps) {
   const { t } = useLanguage();
+  const [isCopied, setIsCopied] = useState(false);
+  const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const effectiveStudyType = selectedStudyType || detectedStudyType || null;
   const { content, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
@@ -86,6 +107,41 @@ export function RecordingInterface({
   const handleTemplateChange = useCallback((value: string) => {
     setEditedTemplateContent(value);
   }, []);
+
+  const handleCopyReport = useCallback(async () => {
+    if (!reportTextareaRef.current || !generatedReport) return;
+    
+    try {
+      const content = reportTextareaRef.current.value || generatedReport || "";
+      const contentStartsWithTitle = reportTitle && content.trim().toLowerCase().startsWith(reportTitle.trim().toLowerCase());
+      const textToCopy = contentStartsWithTitle 
+        ? content 
+        : reportTitle 
+        ? `${reportTitle}\n\n${content}`
+        : content;
+      
+      await navigator.clipboard.writeText(textToCopy);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      onCopyReport?.();
+    } catch (error) {
+      // Error handling is done in parent via onCopyReport
+    }
+  }, [generatedReport, reportTitle, onCopyReport]);
+
+  // Debounced transcription editor - always call hook, but only use if onUpdateTranscription is provided
+  const transcriptionEditor = useDebouncedTextEditor({
+    initialValue: transcription,
+    onUpdate: onUpdateTranscription || (() => {}),
+    debounceMs: 1500,
+  });
+
+  // Debounced report editor - always call hook, but only use if onUpdateReport is provided
+  const reportEditor = useDebouncedTextEditor({
+    initialValue: generatedReport || '',
+    onUpdate: onUpdateReport || (() => {}),
+    debounceMs: 1500,
+  });
 
   const isRecording = sttState === 'recording';
   const isConnecting = sttState === 'connecting';
@@ -253,114 +309,141 @@ export function RecordingInterface({
         </div>
       )}
 
-      {/* Controls row */}
-      {hasAvailableStudyTypes && (
-        <div className="flex flex-row items-center gap-3 flex-wrap justify-center shrink-0 mb-6">
-          <button
-            type="button"
-            onClick={handleMicClick}
-            disabled={disabled || isConnecting || isStopping}
-            className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
-              isRecording
-                ? 'bg-red-500 hover:bg-red-600 text-white'
-                : isConnecting
-                ? 'bg-yellow-500 hover:bg-yellow-600 text-white animate-pulse'
-                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-            aria-label={isRecording ? labels.stop : label}
-          >
-            {isRecording ? (
-              <Square className="w-6 h-6 sm:w-5 sm:h-5" />
-            ) : (
-              <Mic className="w-6 h-6 sm:w-5 sm:h-5" />
-            )}
-            <span className="hidden sm:inline">{label}</span>
-            {isRecording && (
-              <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
-            )}
-            {isConnecting && (
-              <span className="absolute inset-0 rounded-full animate-ping bg-yellow-500/30" />
-            )}
-          </button>
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {isDetectingStudyType ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                {labels.detecting}
+
+      {/* Three-column layout: Left (stacked Transcription + Template), Right (Report) */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
+        {/* Left column: Stacked Transcription and Template */}
+        <div className="flex-1 lg:max-w-[50%] flex flex-col gap-4 min-h-0">
+          {/* Transcription panel */}
+          <div className="flex-1 flex flex-col min-h-0 min-w-0">
+            <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
+              <div className="p-4 border-b border-border shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-foreground">{t("input.title")}</h3>
+                  <button
+                    type="button"
+                    onClick={handleMicClick}
+                    disabled={disabled || isConnecting || isStopping}
+                    className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
+                      isRecording
+                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                        : isConnecting
+                        ? 'bg-yellow-500 hover:bg-yellow-600 text-white animate-pulse'
+                        : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    aria-label={isRecording ? labels.stop : label}
+                  >
+                    {isRecording ? (
+                      <Square className="w-6 h-6 sm:w-5 sm:h-5" />
+                    ) : (
+                      <Mic className="w-6 h-6 sm:w-5 sm:h-5" />
+                    )}
+                    <span className="hidden sm:inline">{label}</span>
+                    {isRecording && (
+                      <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
+                    )}
+                    {isConnecting && (
+                      <span className="absolute inset-0 rounded-full animate-ping bg-yellow-500/30" />
+                    )}
+                  </button>
+                </div>
               </div>
-            ) : (
-              <select
-                id="study-type"
-                value={selectedStudyType || detectedStudyType || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only call onChange if a real option is selected (not the placeholder)
-                  if (value) {
-                    onStudyTypeChange?.(value);
-                  } else {
-                    onStudyTypeChange?.('');
-                  }
-                }}
-                disabled={isActive}
-                className="flex-1 min-w-0 max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">{t("recording.studyTypePlaceholder")}</option>
-                {availableStudyTypes?.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            )}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <Textarea
+                  ref={textareaRef}
+                  value={onUpdateTranscription ? transcriptionEditor.value : transcription}
+                  onChange={onUpdateTranscription ? (e) => {
+                    transcriptionEditor.onChange(e);
+                    onChange(e.target.value); // Also update immediately for UI
+                  } : (event) => onChange(event.target.value)}
+                  onBlur={onUpdateTranscription ? transcriptionEditor.onBlur : undefined}
+                  onKeyDown={handleKeyDown}
+                  placeholder={placeholder}
+                  className="flex-1 text-base leading-relaxed resize-none"
+                  readOnly={isRecording || isConnecting}
+                  disabled={disabled && !isActive}
+                />
+              </div>
+            </div>
           </div>
-          {/* Desktop: Generate button aligned to the right */}
-          <div className="hidden lg:flex ml-auto">
-            <Button
-              type="button"
-              className="gap-2 text-base h-10 px-6"
-              onClick={onUpload}
-              disabled={disabled || isActive || isDetectingStudyType || !effectiveStudyType}
-            >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
-              {uploadLabel}
-            </Button>
+
+          {/* Template Preview panel */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <TemplatePreview
+              content={editedTemplateContent}
+              isLoading={isTemplateLoading}
+              error={templateError}
+              studyType={effectiveStudyType}
+              isDetectingStudyType={isDetectingStudyType}
+              onContentChange={handleTemplateChange}
+              availableStudyTypes={availableStudyTypes}
+              selectedStudyType={selectedStudyType || detectedStudyType || ''}
+              onStudyTypeChange={onStudyTypeChange}
+              isActive={isActive}
+              disabled={disabled}
+            />
           </div>
         </div>
-      )}
 
-      {/* Split view: Transcription and Template */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
-        {/* Left panel: Transcription */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        {/* Right column: Generated Report */}
+        <div className="flex-1 lg:max-w-[50%] min-h-0 flex flex-col">
           <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
             <div className="p-4 border-b border-border shrink-0">
-              <h3 className="text-sm font-semibold text-foreground">{t("input.title")}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-foreground">{t("report.title")}</h3>
+                {hasAvailableStudyTypes && (
+                  <Button
+                    type="button"
+                    className="gap-2 text-base h-10 px-6 shrink-0"
+                    onClick={onUpload}
+                    disabled={disabled || isActive || isDetectingStudyType || !effectiveStudyType}
+                  >
+                    <Sparkles className="w-4 h-4" aria-hidden="true" />
+                    {uploadLabel}
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+              {generatedReport && currentReportId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 z-10 h-8 w-8 shrink-0"
+                  onClick={handleCopyReport}
+                  aria-label={t("report.copy")}
+                >
+                  {isCopied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
               <Textarea
-                ref={textareaRef}
-                value={transcription}
-                onChange={(event) => onChange(event.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={placeholder}
-                className="flex-1 text-base leading-relaxed resize-none"
-                readOnly={isRecording || isConnecting}
-                disabled={disabled && !isActive}
+                ref={reportTextareaRef}
+                value={onUpdateReport ? reportEditor.value : (generatedReport || '')}
+                onChange={onUpdateReport ? (e) => {
+                  reportEditor.onChange(e);
+                  onReportChange?.(e.target.value); // Also update immediately for UI
+                } : (event) => onReportChange?.(event.target.value)}
+                onBlur={onUpdateReport ? reportEditor.onBlur : undefined}
+                placeholder={isGenerating ? t("app.generateBusy") : t("report.empty")}
+                className={`flex-1 text-base leading-relaxed resize-none transition-all duration-300 ${
+                  isGenerating 
+                    ? 'opacity-70 pointer-events-none' 
+                    : 'opacity-100'
+                }`}
+                readOnly={(!onReportChange && !onUpdateReport) || isGenerating}
               />
+              {isGenerating && (
+                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-md">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer"></div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Right panel: Template Preview */}
-        <div className="flex-1 lg:max-w-[50%] min-h-0 flex flex-col">
-          <TemplatePreview
-            content={editedTemplateContent}
-            isLoading={isTemplateLoading}
-            error={templateError}
-            studyType={effectiveStudyType}
-            isDetectingStudyType={isDetectingStudyType}
-            onContentChange={handleTemplateChange}
-          />
         </div>
       </div>
 

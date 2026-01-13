@@ -13,7 +13,7 @@ interface MainContentLayoutProps {
 const MOBILE_PANEL_CLASSES = "lg:hidden h-full pt-4 w-full";
 const DESKTOP_SPLIT_CONTAINER_CLASSES = "hidden lg:flex gap-3 h-full";
 const LEFT_PANEL_CLASSES = "flex-shrink-0 w-64";
-const RIGHT_PANEL_CLASSES = "flex-1 min-w-0 flex flex-col min-h-0 overflow-y-auto pt-4 pr-3";
+const RIGHT_PANEL_CLASSES = "flex-1 min-w-0 flex flex-col min-h-0 overflow-y-auto pt-4 pr-3 pb-4";
 
 export function MainContentLayout({
   isReportsOpen,

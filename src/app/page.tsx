@@ -8,9 +8,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ReportsSubmenu } from "@/components/ReportsSubmenu";
 import { SidebarMenu } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
-import { UploadingInterface } from "@/components/UploadingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
-import { ReportView } from "@/components/ReportView";
 import { WelcomeSection } from "@/components/WelcomeSection";
 import { ReportsEmptyState } from "@/components/ReportsEmptyState";
 import { MainContentLayout } from "@/components/MainContentLayout";
@@ -24,7 +22,7 @@ import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { createReportHistoryItem, mapReportToHistoryItem } from "@/utils/reportHistory";
 
-type DemoState = "main" | "recording" | "uploading" | "report";
+type DemoState = "main" | "recording" | "uploading";
 type SidebarView = "home" | "reports";
 
 interface StudyTypeOption {
@@ -33,9 +31,6 @@ interface StudyTypeOption {
 }
 
 const COPY_FEEDBACK_DURATION_MS = 2000;
-const UPLOAD_PROGRESS_INTERVAL_MS = 1200;
-const UPLOAD_PROGRESS_INCREMENT = 4;
-const UPLOAD_PROGRESS_MAX = 100;
 
 const sttProvider = createSpeechToTextProvider('speechmatics');
 
@@ -59,10 +54,10 @@ export default function HomePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
-  const [pendingTranscription, setPendingTranscription] = useState("");
-  const [pendingReport, setPendingReport] = useState<GenerateReportResponse | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null);
+  const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
 
   // Study type detection state
   const [isDetectingStudyType, setIsDetectingStudyType] = useState(false);
@@ -77,10 +72,10 @@ export default function HomePage() {
   const [feedbackDelayElapsed, setFeedbackDelayElapsed] = useState(false);
   
   // Scroll detection for feedback
-  const shouldTrackScroll = demoState === "report" && 
-    selectedReportId !== null && 
-    newlyGeneratedReportIds.has(selectedReportId) &&
-    !submittedFeedbackReports.has(selectedReportId);
+  const shouldTrackScroll = demoState === "recording" && 
+    currentReportId !== null && 
+    newlyGeneratedReportIds.has(currentReportId) &&
+    !submittedFeedbackReports.has(currentReportId);
   const hasScrolledPastThreshold = useReportScroll(shouldTrackScroll, 0.3);
   
   const prevSttStateRef = useRef<typeof sttState>(sttState);
@@ -141,33 +136,7 @@ export default function HomePage() {
     }
   }, [demoState, language, availableStudyTypes.length, t]);
 
-  const uploadSteps = useMemo(
-    () => [
-      t("upload.status1"),
-      t("upload.status2"),
-      t("upload.status3"),
-    ],
-    [t],
-  );
 
-  const selectedReport = useMemo(
-    () => reportHistory.find((item) => item.id === selectedReportId) ?? null,
-    [reportHistory, selectedReportId],
-  );
-
-  const reportLabels = useMemo(
-    () => ({
-      empty: t("report.empty"),
-      loading: t("app.generateBusy"),
-      date: t("report.date"),
-      template: t("report.template"),
-      transcription: t("report.transcription"),
-      copy: t("report.copy"),
-      copied: t("report.copied"),
-      disclaimer: t("report.disclaimer"),
-    }),
-    [t],
-  );
 
   const recordingLabels = useMemo(
     () => ({
@@ -178,45 +147,10 @@ export default function HomePage() {
     [t],
   );
 
-  const updateSelectedReport = async (
-    updater: (report: ReportHistoryItem) => ReportHistoryItem,
-    fieldsToUpdate: Partial<{ report_title: string; updated_report: string; updated_transcription: string }>
-  ) => {
-    if (!selectedReportId) return;
-
-    const currentReport = reportHistory.find((item) => item.id === selectedReportId);
-    if (!currentReport) return;
-
-    const previousReport = { ...currentReport };
-    const updatedReport = updater(currentReport);
-
-    // Optimistically update UI
-    setReportHistory((prev) =>
-      prev.map((item) => (item.id === selectedReportId ? updatedReport : item)),
-    );
-
-    // Save to database
-    try {
-      await updateReport(selectedReportId, fieldsToUpdate);
-    } catch (error) {
-      // Revert on error
-      setReportHistory((prev) =>
-        prev.map((item) => (item.id === selectedReportId ? previousReport : item)),
-      );
-      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
-      toast({
-        title: t("errors.generic"),
-        description: message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const showWelcome = sidebarView === "home" && demoState === "main" && !selectedReport;
+  const showWelcome = sidebarView === "home" && demoState === "main" && !currentReportId;
 
   const headerSubtitle = useMemo(() => {
     if (demoState === "recording") return t("header.generateReport");
-    if (demoState === "report") return t("header.reportDetails");
     return null;
   }, [demoState, t]);
 
@@ -242,43 +176,19 @@ export default function HomePage() {
           isDetectingStudyType={isDetectingStudyType}
           language={language}
           labels={recordingLabels}
+          generatedReport={generatedReport}
+          onReportChange={setGeneratedReport}
+          isGenerating={isGenerating}
+          currentReportId={currentReportId}
+          reportTitle={currentReportTitle}
+          onCopyReport={handleCopyReport}
+          onUpdateTranscription={handleTranscriptionUpdate}
+          onUpdateReport={handleReportUpdate}
         />
       );
     }
 
-    if (demoState === "uploading") {
-      return (
-        <UploadingInterface
-          progress={uploadProgress}
-          steps={uploadSteps}
-          title={t("upload.title")}
-          subtitle={t("upload.subtitle")}
-          completeLabel={t("upload.complete")}
-        />
-      );
-    }
 
-    if (selectedReport && demoState === "report") {
-      return (
-        <ReportView
-          report={selectedReport}
-          isLoading={false}
-          labels={reportLabels}
-          onUpdateReport={(value) =>
-            updateSelectedReport(
-              (report) => ({ ...report, report: value }),
-              { updated_report: value }
-            )
-          }
-          onUpdateTranscription={(value) =>
-            updateSelectedReport(
-              (report) => ({ ...report, transcription: value }),
-              { updated_transcription: value }
-            )
-          }
-        />
-      );
-    }
 
     if (showWelcome) {
       return <WelcomeSection onGenerateReport={handleGenerateReport} />;
@@ -313,43 +223,20 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (demoState !== "uploading") return;
-
-    setUploadProgress(0);
-
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => {
-        const next = Math.min(prev + UPLOAD_PROGRESS_INCREMENT, UPLOAD_PROGRESS_MAX);
-        return next;
-      });
-    }, UPLOAD_PROGRESS_INTERVAL_MS);
-
-    return () => {
-      clearInterval(progressInterval);
-    };
-  }, [demoState]);
-
-  useEffect(() => {
-    if (demoState !== "uploading") return;
-    if (uploadProgress < UPLOAD_PROGRESS_MAX) return;
-    if (!pendingReport) return;
-    finalizeReport(pendingReport);
-  }, [demoState, pendingReport, uploadProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Delay feedback appearance by 8 seconds
   useEffect(() => {
-    if (demoState !== "report" || !selectedReportId) {
+    if (demoState !== "recording" || !currentReportId) {
       setFeedbackDelayElapsed(false);
       return;
     }
 
-    if (!newlyGeneratedReportIds.has(selectedReportId)) {
+    if (!newlyGeneratedReportIds.has(currentReportId)) {
       setFeedbackDelayElapsed(false);
       return;
     }
 
-    if (submittedFeedbackReports.has(selectedReportId)) {
+    if (submittedFeedbackReports.has(currentReportId)) {
       setFeedbackDelayElapsed(false);
       return;
     }
@@ -361,7 +248,7 @@ export default function HomePage() {
     return () => {
       clearTimeout(timer);
     };
-  }, [demoState, selectedReportId, newlyGeneratedReportIds, submittedFeedbackReports]);
+  }, [demoState, currentReportId, newlyGeneratedReportIds, submittedFeedbackReports]);
 
   const handleGenerateReport = useCallback(() => {
     setSidebarView("reports");
@@ -370,6 +257,12 @@ export default function HomePage() {
     setDetectedStudyType(null);
     setSelectedStudyType("");
     setAvailableStudyTypes([]);
+    setGeneratedReport(null);
+    setCurrentReportId(null);
+    setCurrentReportTitle(null);
+    setTranscription("");
+    setSelectedReportId(null);
+    setIsGenerating(false);
     resetSTT();
   }, [resetSTT]);
 
@@ -396,6 +289,93 @@ export default function HomePage() {
     await stopSTT();
   }, [stopSTT]);
 
+  const saveReportToDatabase = async (response: GenerateReportResponse, transcriptionText: string) => {
+    const newReport = createReportHistoryItem({
+      response,
+      transcription: transcriptionText,
+      language,
+    });
+    setReportHistory((prev) => [newReport, ...prev]);
+    // Mark this report as newly generated so feedback shows
+    setNewlyGeneratedReportIds((prev) => new Set(prev).add(newReport.id));
+    // Set as current report
+    setCurrentReportId(newReport.id);
+    setCurrentReportTitle(newReport.title);
+    return newReport;
+  };
+
+  const handleTranscriptionUpdate = useCallback(async (value: string) => {
+    if (!currentReportId) return;
+    
+    try {
+      await updateReport(currentReportId, { updated_transcription: value });
+      // Update local state
+      setReportHistory((prev) =>
+        prev.map((report) =>
+          report.id === currentReportId
+            ? { ...report, transcription: value }
+            : report
+        )
+      );
+    } catch (error) {
+      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
+      toast({
+        title: t("errors.generic"),
+        description: message,
+        variant: "destructive",
+      });
+    }
+  }, [currentReportId, t, toast]);
+
+  const handleReportUpdate = useCallback(async (value: string) => {
+    if (!currentReportId) return;
+    
+    try {
+      await updateReport(currentReportId, { updated_report: value });
+      // Update local state
+      setReportHistory((prev) =>
+        prev.map((report) =>
+          report.id === currentReportId
+            ? { ...report, report: value }
+            : report
+        )
+      );
+    } catch (error) {
+      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
+      toast({
+        title: t("errors.generic"),
+        description: message,
+        variant: "destructive",
+      });
+    }
+  }, [currentReportId, t, toast]);
+
+  const handleCopyReport = useCallback(async () => {
+    if (!currentReportId || !generatedReport) return;
+    
+    try {
+      const report = reportHistory.find((r) => r.id === currentReportId);
+      if (!report) return;
+      
+      const content = generatedReport || report.report || "";
+      const contentStartsWithTitle = currentReportTitle && content.trim().toLowerCase().startsWith(currentReportTitle.trim().toLowerCase());
+      const textToCopy = contentStartsWithTitle 
+        ? content 
+        : currentReportTitle 
+        ? `${currentReportTitle}\n\n${content}`
+        : content;
+      
+      await navigator.clipboard.writeText(textToCopy);
+      toast({ title: t("report.copied") });
+    } catch (error) {
+      toast({
+        title: t("errors.generic"),
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    }
+  }, [currentReportId, currentReportTitle, generatedReport, reportHistory, t, toast]);
+
   const handleStartUpload = async () => {
     const trimmed = transcription.trim();
     if (!trimmed) {
@@ -407,7 +387,6 @@ export default function HomePage() {
     }
 
     setPendingTranscription(trimmed);
-    setDemoState("uploading");
     setIsGenerating(true);
     try {
       const response = await generateReport({
@@ -415,7 +394,22 @@ export default function HomePage() {
         language,
         studyType: selectedStudyType || undefined,
       });
-      setPendingReport(response);
+      // Save report to database and update state, but stay in recording mode
+      try {
+        await saveReportToDatabase(response, trimmed);
+        // Set the generated report content to display in the textarea
+        setGeneratedReport(response.report || "");
+        setPendingTranscription("");
+        toast({ title: t("app.generatedToast") });
+      } catch (error) {
+        console.error("Failed to save report:", error);
+        toast({
+          title: t("errors.generic"),
+          description: t("errors.requestFailed"),
+          variant: "destructive",
+        });
+        setGeneratedReport(null);
+      }
     } catch (error) {
       const message = (error as ApiError)?.message ?? t("errors.requestFailed");
       toast({
@@ -423,34 +417,12 @@ export default function HomePage() {
         description: message,
         variant: "destructive",
       });
-      setDemoState("recording");
-      setPendingReport(null);
+      setGeneratedReport(null);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const finalizeReport = (response: GenerateReportResponse) => {
-    const newReport = createReportHistoryItem({
-      response,
-      transcription: pendingTranscription,
-      language,
-    });
-    setReportHistory((prev) => [newReport, ...prev]);
-    setSelectedReportId(newReport.id);
-    // Mark this report as newly generated so feedback shows
-    setNewlyGeneratedReportIds((prev) => new Set(prev).add(newReport.id));
-    setSidebarView("reports");
-    setIsReportsOpen(true);
-    setDemoState("report");
-    setTranscription("");
-    setPendingTranscription("");
-    setPendingReport(null);
-    setDetectedStudyType(null);
-    setSelectedStudyType("");
-    setAvailableStudyTypes([]);
-    toast({ title: t("app.generatedToast") });
-  };
 
   const removeFromNewlyGenerated = useCallback((reportId: string) => {
     setNewlyGeneratedReportIds((prev) => {
@@ -484,15 +456,15 @@ export default function HomePage() {
   );
 
   const shouldShowFeedback = useMemo(() => {
-    if (demoState !== "report" || !selectedReportId) {
+    if (demoState !== "recording" || !currentReportId) {
       return false;
     }
     // Only show feedback for newly generated reports
-    if (!newlyGeneratedReportIds.has(selectedReportId)) {
+    if (!newlyGeneratedReportIds.has(currentReportId)) {
       return false;
     }
     // Don't show if already submitted
-    if (submittedFeedbackReports.has(selectedReportId)) {
+    if (submittedFeedbackReports.has(currentReportId)) {
       return false;
     }
     // Require both delay elapsed AND scroll threshold reached
@@ -501,7 +473,7 @@ export default function HomePage() {
     }
     // Show feedback (minimized state is handled separately in the component)
     return true;
-  }, [demoState, selectedReportId, newlyGeneratedReportIds, submittedFeedbackReports, feedbackDelayElapsed, hasScrolledPastThreshold]);
+  }, [demoState, currentReportId, newlyGeneratedReportIds, submittedFeedbackReports, feedbackDelayElapsed, hasScrolledPastThreshold]);
 
   const handleCopyReportCard = useCallback(async (report: ReportHistoryItem) => {
     try {
@@ -523,6 +495,8 @@ export default function HomePage() {
     setSidebarView("home");
     setDemoState("main");
     setSelectedReportId(null);
+    setCurrentReportId(null);
+    setCurrentReportTitle(null);
     setIsReportsOpen(false);
   }, []);
 
@@ -535,23 +509,35 @@ export default function HomePage() {
 
   const shouldShowReportOnMobile = useMemo(() => {
     if (!isReportsOpen) return false;
-    const hasSelectedReport = selectedReportId !== null && demoState === "report";
     const isRecordingOrUploading = demoState === "recording" || demoState === "uploading";
-    return hasSelectedReport || isRecordingOrUploading;
-  }, [isReportsOpen, selectedReportId, demoState]);
+    return isRecordingOrUploading;
+  }, [isReportsOpen, demoState]);
 
   const reportsSubmenuProps = useMemo(
     () => ({
       reports: reportHistory,
-      selectedReportId,
+      selectedReportId: currentReportId,
       copiedReportId,
       onSelectReport: (id: string) => {
-        setSelectedReportId(id);
-        setDemoState("report");
+        const report = reportHistory.find((r) => r.id === id);
+        if (report) {
+          setCurrentReportId(report.id);
+          setCurrentReportTitle(report.title);
+          setTranscription(report.transcription);
+          setGeneratedReport(report.report);
+          // Set the study type from the used template so the template loads
+          if (report.usedTemplate) {
+            setSelectedStudyType(report.usedTemplate);
+            setDetectedStudyType(report.usedTemplate);
+          }
+          setSelectedReportId(id);
+          setDemoState("recording");
+          setSidebarView("reports");
+          setIsReportsOpen(true);
+        }
       },
       onCopyReport: handleCopyReportCard,
       onGenerateReport: handleGenerateReport,
-      isRecording: demoState === "recording",
       generateLabel: t("reports.generate"),
       subtitleLabel: t("reports.subtitle"),
       emptyLabel: t("reports.empty"),
@@ -560,9 +546,8 @@ export default function HomePage() {
     }),
     [
       reportHistory,
-      selectedReportId,
+      currentReportId,
       copiedReportId,
-      demoState,
       t,
       handleCopyReportCard,
       handleGenerateReport,
@@ -643,10 +628,10 @@ export default function HomePage() {
       </main>
       {shouldShowFeedback && (
         <ReportFeedback
-          reportId={selectedReportId!}
-          onSubmitted={() => handleFeedbackSubmitted(selectedReportId!)}
-          onMinimize={() => handleFeedbackMinimized(selectedReportId!)}
-          isMinimized={minimizedFeedbackReports.has(selectedReportId!)}
+          reportId={currentReportId!}
+          onSubmitted={() => handleFeedbackSubmitted(currentReportId!)}
+          onMinimize={() => handleFeedbackMinimized(currentReportId!)}
+          isMinimized={minimizedFeedbackReports.has(currentReportId!)}
         />
       )}
     </div>

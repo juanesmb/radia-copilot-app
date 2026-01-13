@@ -4,6 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+interface StudyTypeOption {
+  value: string;
+  label: string;
+}
+
 interface TemplatePreviewProps {
   content: string | null;
   isLoading: boolean;
@@ -11,6 +16,11 @@ interface TemplatePreviewProps {
   studyType: string | null;
   isDetectingStudyType?: boolean;
   onContentChange?: (value: string) => void;
+  availableStudyTypes?: StudyTypeOption[];
+  selectedStudyType?: string;
+  onStudyTypeChange?: (studyType: string) => void;
+  isActive?: boolean;
+  disabled?: boolean;
 }
 
 export function TemplatePreview({
@@ -20,15 +30,58 @@ export function TemplatePreview({
   studyType,
   isDetectingStudyType = false,
   onContentChange,
+  availableStudyTypes,
+  selectedStudyType,
+  onStudyTypeChange,
+  isActive = false,
+  disabled = false,
 }: TemplatePreviewProps) {
   const { t } = useLanguage();
+
+  const renderHeader = () => (
+    <div className="p-4 border-b border-border shrink-0">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{t("template.title")}</h3>
+        {availableStudyTypes && availableStudyTypes.length > 0 && (
+          <>
+            {isDetectingStudyType ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                {t("recording.detecting")}
+              </div>
+            ) : (
+              <select
+                id="study-type"
+                value={selectedStudyType || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value) {
+                    onStudyTypeChange?.(value);
+                  } else {
+                    onStudyTypeChange?.('');
+                  }
+                }}
+                disabled={isActive || disabled}
+                className="flex-1 min-w-0 max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">{t("recording.studyTypePlaceholder")}</option>
+                {availableStudyTypes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
       <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">{t("template.title")}</h3>
-        </div>
+        {renderHeader()}
         <div className="flex-1 p-4">
           <div className="space-y-3 animate-pulse">
             <div className="h-4 bg-muted rounded w-3/4" />
@@ -45,9 +98,7 @@ export function TemplatePreview({
   if (error) {
     return (
       <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">{t("template.title")}</h3>
-        </div>
+        {renderHeader()}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center space-y-2">
             <p className="text-sm text-destructive font-medium">{t("template.error")}</p>
@@ -61,9 +112,7 @@ export function TemplatePreview({
   if (isDetectingStudyType) {
     return (
       <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">{t("template.title")}</h3>
-        </div>
+        {renderHeader()}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center space-y-2">
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -77,9 +126,7 @@ export function TemplatePreview({
   if (!studyType || !content) {
     return (
       <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">{t("template.title")}</h3>
-        </div>
+        {renderHeader()}
         <div className="flex-1 flex items-center justify-center p-4">
           <p className="text-sm text-muted-foreground text-center max-w-sm">
             {t("template.empty")}
@@ -91,9 +138,7 @@ export function TemplatePreview({
 
   return (
     <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30 min-h-0">
-      <div className="p-4 border-b border-border shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">{t("template.title")}</h3>
-      </div>
+      {renderHeader()}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <Textarea
           value={content || ''}

@@ -131,7 +131,7 @@ export const translations: TranslationMap = {
     "input.hint":
       "Tip: activa el atajo de dictado de tu sistema operativo para trabajar más rápido.",
 
-    "report.title": "Vista previa del informe",
+    "report.title": "Vista previa",
     "report.studyTitle": "Título del Estudio",
     "report.findings": "Hallazgos",
     "report.impression": "Conclusión",
@@ -146,7 +146,7 @@ export const translations: TranslationMap = {
 
     "reports.title": "Informes",
     "reports.subtitle": "Tus Reportes",
-    "reports.generate": "Generar reporte",
+    "reports.generate": "Nuevo Reporte",
     "reports.empty": "Todavía no se han generado informes.",
     "reports.emptyState": "Selecciona un informe para mostrarlo aquí. O haz clic en nuevo informe para generar uno nuevo.",
     "header.generateReport": "Generar reporte",

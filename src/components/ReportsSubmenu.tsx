@@ -1,6 +1,5 @@
 'use client';
 
-import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ReportCard } from "@/components/ReportCard";
@@ -13,7 +12,6 @@ interface ReportsSubmenuProps {
   onSelectReport: (reportId: string) => void;
   onCopyReport: (report: ReportHistoryItem) => void;
   onGenerateReport: () => void;
-  isRecording?: boolean;
   generateLabel: string;
   subtitleLabel: string;
   emptyLabel: string;
@@ -28,7 +26,6 @@ export function ReportsSubmenu({
   onSelectReport,
   onCopyReport,
   onGenerateReport,
-  isRecording = false,
   generateLabel,
   subtitleLabel,
   emptyLabel,
@@ -36,7 +33,7 @@ export function ReportsSubmenu({
   copiedLabel,
 }: ReportsSubmenuProps) {
   return (
-    <div className="w-full lg:w-64 flex flex-col h-full bg-background lg:border-r border-border">
+    <div className="w-full lg:w-64 flex flex-col h-full bg-background lg:border-r border-border overflow-hidden">
       <div className="hidden lg:flex flex-shrink-0 px-2 pt-4 pb-2 border-b border-border bg-background/80 backdrop-blur-sm">
         <h2 className="text-lg font-semibold text-foreground tracking-tight">
           {subtitleLabel}
@@ -50,10 +47,7 @@ export function ReportsSubmenu({
               type="button"
               className="w-full justify-center gap-2 h-10"
               onClick={onGenerateReport}
-              disabled={isRecording}
-              aria-pressed={isRecording}
             >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
               {generateLabel}
             </Button>
           </div>
@@ -62,20 +56,17 @@ export function ReportsSubmenu({
           </Card>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col">
-          <div className="px-2 pt-2 pb-2">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="px-2 pt-2 pb-2 shrink-0">
             <Button
               type="button"
               className="w-full justify-center gap-2 h-10"
               onClick={onGenerateReport}
-              disabled={isRecording}
-              aria-pressed={isRecording}
             >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
               {generateLabel}
             </Button>
           </div>
-          <div className="flex-1 p-2 space-y-3">
+          <div className="flex-1 p-2 space-y-3 overflow-y-auto min-h-0">
             {reports.map((report) => (
               <ReportCard
                 key={report.id}
