@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,13 +17,15 @@ const SUCCESS_MESSAGE_DELAY = 1500;
 interface ReportFeedbackProps {
   reportId: string;
   onSubmitted: () => void;
-  onDismiss: () => void;
+  onMinimize: () => void;
+  isMinimized: boolean;
 }
 
 export function ReportFeedback({
   reportId,
   onSubmitted,
-  onDismiss,
+  onMinimize,
+  isMinimized,
 }: ReportFeedbackProps) {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -79,8 +81,23 @@ export function ReportFeedback({
     );
   }
 
+  // Minimized state: show small floating button
+  if (isMinimized) {
+    return (
+      <Button
+        onClick={onMinimize}
+        className="fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg"
+        size="icon"
+        aria-label={t("feedback.maximize")}
+      >
+        <MessageSquare className="h-5 w-5" />
+      </Button>
+    );
+  }
+
+  // Expanded state: show full feedback form
   return (
-    <Card className="fixed bottom-4 right-4 z-50 w-80 p-4 shadow-lg">
+    <Card className="fixed bottom-4 right-4 z-50 w-80 p-4 shadow-lg transition-all">
       <div className="flex items-start justify-between gap-2 mb-3">
         <h3 className="text-sm font-semibold text-foreground">
           {t("feedback.title")}
@@ -89,10 +106,10 @@ export function ReportFeedback({
           variant="ghost"
           size="icon"
           className="h-6 w-6 -mt-1 -mr-1"
-          onClick={onDismiss}
-          aria-label={t("feedback.dismiss")}
+          onClick={onMinimize}
+          aria-label={t("feedback.minimize")}
         >
-          <X className="h-4 w-4" />
+          <ChevronDown className="h-4 w-4" />
         </Button>
       </div>
 
@@ -128,25 +145,14 @@ export function ReportFeedback({
           />
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={onDismiss}
-            disabled={isSubmitting}
-          >
-            {t("feedback.dismiss")}
-          </Button>
-          <Button
-            size="sm"
-            className="flex-1"
-            onClick={handleSubmit}
-            disabled={confidence === null || isSubmitting}
-          >
-            {t("feedback.submit")}
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={confidence === null || isSubmitting}
+        >
+          {t("feedback.submit")}
+        </Button>
       </div>
     </Card>
   );

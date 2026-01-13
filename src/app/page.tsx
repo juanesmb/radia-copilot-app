@@ -17,6 +17,7 @@ import { MainContentLayout } from "@/components/MainContentLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { useReportScroll } from "@/hooks/useReportScroll";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
 import { generateReport, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
 import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
@@ -70,9 +71,17 @@ export default function HomePage() {
   const [availableStudyTypes, setAvailableStudyTypes] = useState<StudyTypeOption[]>([]);
   
   // Feedback state
-  const [dismissedFeedbackReports, setDismissedFeedbackReports] = useState<Set<string>>(new Set());
+  const [minimizedFeedbackReports, setMinimizedFeedbackReports] = useState<Set<string>>(new Set());
   const [submittedFeedbackReports, setSubmittedFeedbackReports] = useState<Set<string>>(new Set());
   const [newlyGeneratedReportIds, setNewlyGeneratedReportIds] = useState<Set<string>>(new Set());
+  const [feedbackDelayElapsed, setFeedbackDelayElapsed] = useState(false);
+  
+  // Scroll detection for feedback
+  const shouldTrackScroll = demoState === "report" && 
+    selectedReportId !== null && 
+    newlyGeneratedReportIds.has(selectedReportId) &&
+    !submittedFeedbackReports.has(selectedReportId);
+  const hasScrolledPastThreshold = useReportScroll(shouldTrackScroll, 0.3);
   
   const prevSttStateRef = useRef<typeof sttState>(sttState);
 
@@ -328,6 +337,32 @@ export default function HomePage() {
     finalizeReport(pendingReport);
   }, [demoState, pendingReport, uploadProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Delay feedback appearance by 8 seconds
+  useEffect(() => {
+    if (demoState !== "report" || !selectedReportId) {
+      setFeedbackDelayElapsed(false);
+      return;
+    }
+
+    if (!newlyGeneratedReportIds.has(selectedReportId)) {
+      setFeedbackDelayElapsed(false);
+      return;
+    }
+
+    if (submittedFeedbackReports.has(selectedReportId)) {
+      setFeedbackDelayElapsed(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setFeedbackDelayElapsed(true);
+    }, 8000); // 8 second delay
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [demoState, selectedReportId, newlyGeneratedReportIds, submittedFeedbackReports]);
+
   const handleGenerateReport = useCallback(() => {
     setSidebarView("reports");
     setIsReportsOpen(true);
@@ -433,12 +468,19 @@ export default function HomePage() {
     [removeFromNewlyGenerated]
   );
 
-  const handleFeedbackDismissed = useCallback(
+  const handleFeedbackMinimized = useCallback(
     (reportId: string) => {
-      setDismissedFeedbackReports((prev) => new Set(prev).add(reportId));
-      removeFromNewlyGenerated(reportId);
+      setMinimizedFeedbackReports((prev) => {
+        const next = new Set(prev);
+        if (next.has(reportId)) {
+          next.delete(reportId);
+        } else {
+          next.add(reportId);
+        }
+        return next;
+      });
     },
-    [removeFromNewlyGenerated]
+    []
   );
 
   const shouldShowFeedback = useMemo(() => {
@@ -449,12 +491,17 @@ export default function HomePage() {
     if (!newlyGeneratedReportIds.has(selectedReportId)) {
       return false;
     }
-    // Don't show if already dismissed or submitted
-    return (
-      !dismissedFeedbackReports.has(selectedReportId) &&
-      !submittedFeedbackReports.has(selectedReportId)
-    );
-  }, [demoState, selectedReportId, newlyGeneratedReportIds, dismissedFeedbackReports, submittedFeedbackReports]);
+    // Don't show if already submitted
+    if (submittedFeedbackReports.has(selectedReportId)) {
+      return false;
+    }
+    // Require both delay elapsed AND scroll threshold reached
+    if (!feedbackDelayElapsed || !hasScrolledPastThreshold) {
+      return false;
+    }
+    // Show feedback (minimized state is handled separately in the component)
+    return true;
+  }, [demoState, selectedReportId, newlyGeneratedReportIds, submittedFeedbackReports, feedbackDelayElapsed, hasScrolledPastThreshold]);
 
   const handleCopyReportCard = useCallback(async (report: ReportHistoryItem) => {
     try {
@@ -588,7 +635,7 @@ export default function HomePage() {
           onToggleReports={handleSidebarReports}
         />
 
-        <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen">
+        <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen" data-report-container>
           <div className="h-full flex flex-col min-h-0">
             <div className="flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
@@ -598,7 +645,8 @@ export default function HomePage() {
         <ReportFeedback
           reportId={selectedReportId!}
           onSubmitted={() => handleFeedbackSubmitted(selectedReportId!)}
-          onDismiss={() => handleFeedbackDismissed(selectedReportId!)}
+          onMinimize={() => handleFeedbackMinimized(selectedReportId!)}
+          isMinimized={minimizedFeedbackReports.has(selectedReportId!)}
         />
       )}
     </div>
