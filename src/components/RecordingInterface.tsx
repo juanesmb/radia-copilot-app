@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { useTemplateContent } from "@/hooks/useTemplateContent";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useDebouncedTextEditor } from "@/hooks/useDebouncedTextEditor";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import type { STTState } from "@/domain/speech-to-text";
 
 type HistoryEntry = {
@@ -171,18 +172,34 @@ export function RecordingInterface({
     }
   }, [generatedReport, isGenerating]);
 
-  // Debounced transcription editor - always call hook, but only use if onUpdateTranscription is provided
-  const transcriptionEditor = useDebouncedTextEditor({
+  // Auto-save transcription editor
+  const transcriptionAutoSave = useAutoSave({
     initialValue: transcription,
-    onUpdate: onUpdateTranscription || (() => {}),
+    onSave: onUpdateTranscription
+      ? async (value: string) => {
+          await onUpdateTranscription(value);
+        }
+      : async () => {
+          // No-op when handler not provided
+        },
     debounceMs: 1500,
+    isDisabled: false,
+    reportId: currentReportId,
   });
 
-  // Debounced report editor - always call hook, but only use if onUpdateReport is provided
-  const reportEditor = useDebouncedTextEditor({
+  // Auto-save report editor
+  const reportAutoSave = useAutoSave({
     initialValue: generatedReport || '',
-    onUpdate: onUpdateReport || (() => {}),
+    onSave: onUpdateReport
+      ? async (value: string) => {
+          await onUpdateReport(value);
+        }
+      : async () => {
+          // No-op when handler not provided
+        },
     debounceMs: 1500,
+    isDisabled: isGenerating, // Prevent saves during report generation
+    reportId: currentReportId,
   });
 
   const isRecording = sttState === 'recording';
@@ -198,8 +215,9 @@ export function RecordingInterface({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedTextRef = useRef<string>(transcription);
   
+  // Constants for undo/redo history
   const MAX_HISTORY_SIZE = 50;
-  const DEBOUNCE_MS = 10;
+  const HISTORY_DEBOUNCE_MS = 10;
 
   const handleMicClick = async () => {
     if (isProcessingRef.current) {
@@ -265,7 +283,7 @@ export function RecordingInterface({
         historyRef.current = historyRef.current.slice(-MAX_HISTORY_SIZE);
         historyIndexRef.current = historyRef.current.length - 1;
       }
-    }, DEBOUNCE_MS);
+    }, HISTORY_DEBOUNCE_MS);
 
     return () => {
       if (debounceTimerRef.current) {
@@ -361,7 +379,15 @@ export function RecordingInterface({
             <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
               <div className="p-4 border-b border-border shrink-0">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
+                    {onUpdateTranscription && (
+                      <SaveStatusIndicator
+                        status={transcriptionAutoSave.status}
+                        error={transcriptionAutoSave.error}
+                      />
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleMicClick}
@@ -393,12 +419,12 @@ export function RecordingInterface({
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <Textarea
                   ref={textareaRef}
-                  value={onUpdateTranscription ? transcriptionEditor.value : transcription}
+                  value={onUpdateTranscription ? transcriptionAutoSave.value : transcription}
                   onChange={onUpdateTranscription ? (e) => {
-                    transcriptionEditor.onChange(e);
+                    transcriptionAutoSave.onChange(e);
                     onChange(e.target.value); // Also update immediately for UI
                   } : (event) => onChange(event.target.value)}
-                  onBlur={onUpdateTranscription ? transcriptionEditor.onBlur : undefined}
+                  onBlur={onUpdateTranscription ? transcriptionAutoSave.onBlur : undefined}
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   className="flex-1 text-base leading-relaxed resize-none"
@@ -434,7 +460,15 @@ export function RecordingInterface({
           <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
             <div className="p-4 border-b border-border shrink-0">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
+                  {onUpdateReport && (
+                    <SaveStatusIndicator
+                      status={reportAutoSave.status}
+                      error={reportAutoSave.error}
+                    />
+                  )}
+                </div>
                 {hasAvailableStudyTypes && (
                   <Button
                     type="button"
@@ -467,12 +501,12 @@ export function RecordingInterface({
               )}
               <Textarea
                 ref={reportTextareaRef}
-                value={onUpdateReport ? reportEditor.value : (generatedReport || '')}
+                value={onUpdateReport ? reportAutoSave.value : (generatedReport || '')}
                 onChange={onUpdateReport ? (e) => {
-                  reportEditor.onChange(e);
+                  reportAutoSave.onChange(e);
                   onReportChange?.(e.target.value); // Also update immediately for UI
                 } : (event) => onReportChange?.(event.target.value)}
-                onBlur={onUpdateReport ? reportEditor.onBlur : undefined}
+                onBlur={onUpdateReport ? reportAutoSave.onBlur : undefined}
                 placeholder={isGenerating ? t("app.generateBusy") : t("report.empty")}
                 className={`flex-1 text-base leading-relaxed resize-none transition-all duration-300 ${
                   isGenerating 

@@ -312,51 +312,55 @@ export default function HomePage() {
     await stopSTT();
   }, [stopSTT]);
 
+  /**
+   * Handles auto-save of transcription updates
+   * Errors are handled by the useAutoSave hook and displayed in the status indicator
+   * 
+   * @param value - The updated transcription text
+   * @throws {ApiError} Re-throws errors for the hook to handle
+   */
   const handleTranscriptionUpdate = useCallback(async (value: string) => {
-    if (!currentReportId) return;
-    
-    try {
-      await updateReport(currentReportId, { updated_transcription: value });
-      // Update local state
-      setReportHistory((prev) =>
-        prev.map((report) =>
-          report.id === currentReportId
-            ? { ...report, transcription: value }
-            : report
-        )
-      );
-    } catch (error) {
-      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
-      toast({
-        title: t("errors.generic"),
-        description: message,
-        variant: "destructive",
-      });
+    if (!currentReportId) {
+      // Silently skip if no report ID (no-op for auto-save)
+      return;
     }
-  }, [currentReportId, t, toast]);
+    
+    await updateReport(currentReportId, { updated_transcription: value });
+    
+    // Update local state only after successful save
+    setReportHistory((prev) =>
+      prev.map((report) =>
+        report.id === currentReportId
+          ? { ...report, transcription: value }
+          : report
+      )
+    );
+  }, [currentReportId]);
 
+  /**
+   * Handles auto-save of report updates
+   * Errors are handled by the useAutoSave hook and displayed in the status indicator
+   * 
+   * @param value - The updated report text
+   * @throws {ApiError} Re-throws errors for the hook to handle
+   */
   const handleReportUpdate = useCallback(async (value: string) => {
-    if (!currentReportId) return;
-    
-    try {
-      await updateReport(currentReportId, { updated_report: value });
-      // Update local state
-      setReportHistory((prev) =>
-        prev.map((report) =>
-          report.id === currentReportId
-            ? { ...report, report: value }
-            : report
-        )
-      );
-    } catch (error) {
-      const message = (error as ApiError)?.message ?? t("errors.requestFailed");
-      toast({
-        title: t("errors.generic"),
-        description: message,
-        variant: "destructive",
-      });
+    if (!currentReportId) {
+      // Silently skip if no report ID (no-op for auto-save)
+      return;
     }
-  }, [currentReportId, t, toast]);
+    
+    await updateReport(currentReportId, { updated_report: value });
+    
+    // Update local state only after successful save
+    setReportHistory((prev) =>
+      prev.map((report) =>
+        report.id === currentReportId
+          ? { ...report, report: value }
+          : report
+      )
+    );
+  }, [currentReportId]);
 
   const handleCopyReport = useCallback(async () => {
     if (!currentReportId || !generatedReport) return;
