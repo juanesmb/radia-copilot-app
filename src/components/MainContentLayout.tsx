@@ -34,7 +34,7 @@ export function MainContentLayout({
     <>
       {/* Mobile: Show report view if selected, otherwise show ReportsSubmenu */}
       {showReportOnMobile ? (
-        <div className={cn(MOBILE_PANEL_CLASSES, "px-3 flex flex-col", className)}>
+        <div className={cn(MOBILE_PANEL_CLASSES, "px-3 pb-4 flex flex-col", className)}>
           {rightPanel}
         </div>
       ) : (

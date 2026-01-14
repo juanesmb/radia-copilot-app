@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useRef } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
+import { cn } from "@/lib/utils";
 
 interface StudyTypeOption {
   value: string;
@@ -25,6 +27,9 @@ interface TemplatePreviewProps {
   disabled?: boolean;
   isCustom?: boolean;
   onCustomStateReset?: () => void;
+  // Mobile fullscreen props
+  isMobileFullscreen?: boolean;
+  onMobileFullscreenToggle?: () => void;
 }
 
 export function TemplatePreview({
@@ -41,6 +46,8 @@ export function TemplatePreview({
   disabled = false,
   isCustom = false,
   onCustomStateReset,
+  isMobileFullscreen = false,
+  onMobileFullscreenToggle,
 }: TemplatePreviewProps) {
   const { t } = useLanguage();
   const templateScrollbarRef = useAutoHideScrollbar();
@@ -52,13 +59,6 @@ export function TemplatePreview({
       (templateScrollbarRef as React.MutableRefObject<HTMLElement | null>).current = textareaRef.current;
     }
   }, [templateScrollbarRef]);
-  
-  // Debug: log when isCustom changes
-  useEffect(() => {
-    if (isCustom) {
-      console.log('[TemplatePreview] Template is now custom');
-    }
-  }, [isCustom]);
 
   const renderHeader = () => (
     <div className="p-4 border-b border-border shrink-0">
@@ -66,57 +66,74 @@ export function TemplatePreview({
         <h3 className="text-base font-semibold text-foreground">
           {t("template.title")}
         </h3>
-        {availableStudyTypes && availableStudyTypes.length > 0 && (
-          <>
-            {isDetectingStudyType ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                {t("recording.detecting")}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-1 min-w-0 max-w-[280px]">
-                <select
-                  id="study-type"
-                  value={isCustom ? 'custom' : (selectedStudyType || '')}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === 'custom') {
-                      // Don't allow selecting custom - it's just a display value
-                      return;
-                    }
-                    if (value) {
-                      onStudyTypeChange?.(value);
-                      // Reset custom state when a new template is selected
-                      onCustomStateReset?.();
-                    } else {
-                      onStudyTypeChange?.('');
-                      onCustomStateReset?.();
-                    }
-                  }}
-                  disabled={isActive || disabled}
-                  className="flex-1 min-w-0 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">{t("recording.studyTypePlaceholder")}</option>
-                  <option value="custom" disabled={!isCustom}>
-                    {t("recording.customTemplate")}
-                  </option>
-                  {availableStudyTypes.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+        <div className="flex items-center gap-2">
+          {/* Mobile fullscreen button */}
+          {onMobileFullscreenToggle && (
+            <button
+              type="button"
+              onClick={onMobileFullscreenToggle}
+              className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+              aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+              {isMobileFullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </button>
+          )}
+          {availableStudyTypes && availableStudyTypes.length > 0 && (
+            <>
+              {isDetectingStudyType ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  {t("recording.detecting")}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1 min-w-0 max-w-[280px]">
+                  <select
+                    id="study-type"
+                    value={isCustom ? 'custom' : (selectedStudyType || '')}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === 'custom') {
+                        // Don't allow selecting custom - it's just a display value
+                        return;
+                      }
+                      if (value) {
+                        onStudyTypeChange?.(value);
+                        // Reset custom state when a new template is selected
+                        onCustomStateReset?.();
+                      } else {
+                        onStudyTypeChange?.('');
+                        onCustomStateReset?.();
+                      }
+                    }}
+                    disabled={isActive || disabled}
+                    className="flex-1 min-w-0 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{t("recording.studyTypePlaceholder")}</option>
+                    <option value="custom" disabled={!isCustom}>
+                      {t("recording.customTemplate")}
                     </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </>
-        )}
+                    {availableStudyTypes.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 
   if (isLoading) {
     return (
-      <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
+      <Card className="h-full lg:h-full flex flex-col border-0 shadow-none bg-muted/30 min-h-[200px] lg:min-h-0">
         {renderHeader()}
         <div className="flex-1 p-4">
           <div className="space-y-3 animate-pulse">
@@ -133,7 +150,7 @@ export function TemplatePreview({
 
   if (error) {
     return (
-      <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
+      <Card className="h-full lg:h-full flex flex-col border-0 shadow-none bg-muted/30 min-h-[200px] lg:min-h-0">
         {renderHeader()}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center space-y-2">
@@ -147,7 +164,7 @@ export function TemplatePreview({
 
   if (isDetectingStudyType) {
     return (
-      <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30">
+      <Card className="h-full lg:h-full flex flex-col border-0 shadow-none bg-muted/30 min-h-[200px] lg:min-h-0">
         {renderHeader()}
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center space-y-2">
@@ -160,7 +177,10 @@ export function TemplatePreview({
   }
 
   return (
-    <Card className="h-full flex flex-col border-0 shadow-none bg-muted/30 min-h-0">
+    <Card className={cn(
+      "h-full lg:h-full flex flex-col border-0 shadow-none bg-muted/30",
+      isMobileFullscreen ? "h-full" : "min-h-[200px] lg:min-h-0"
+    )}>
       {renderHeader()}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <Textarea

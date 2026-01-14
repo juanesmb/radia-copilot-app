@@ -1,11 +1,12 @@
 'use client';
 
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Sparkles, Mic, Square, Copy, Check } from "lucide-react";
+import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import { cn } from "@/lib/utils";
 import { useTemplateContent } from "@/hooks/useTemplateContent";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoSave } from "@/hooks/useAutoSave";
@@ -100,9 +101,11 @@ export function RecordingInterface({
 }: RecordingInterfaceProps) {
   const { t } = useLanguage();
   const [isCopied, setIsCopied] = useState(false);
+  const [mobileFullscreen, setMobileFullscreen] = useState<'transcription' | 'template' | 'report' | null>(null);
   const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
   const transcriptionScrollbarRef = useAutoHideScrollbar();
   const reportScrollbarRef = useAutoHideScrollbar();
+  const mobileContainerRef = useAutoHideScrollbar();
 
   // Sync scrollbar refs with textarea refs
   useEffect(() => {
@@ -189,6 +192,7 @@ export function RecordingInterface({
   }, [generatedReport, isGenerating]);
 
   // Auto-save transcription editor
+  // Only enable auto-save if there's a report ID (report has been generated)
   const transcriptionAutoSave = useAutoSave({
     initialValue: transcription,
     onSave: onUpdateTranscription
@@ -199,11 +203,12 @@ export function RecordingInterface({
           // No-op when handler not provided
         },
     debounceMs: 1500,
-    isDisabled: false,
+    isDisabled: !currentReportId, // Disable if no report has been generated
     reportId: currentReportId,
   });
 
   // Auto-save report editor
+  // Only enable auto-save if there's a report ID (report has been generated)
   const reportAutoSave = useAutoSave({
     initialValue: generatedReport || '',
     onSave: onUpdateReport
@@ -214,7 +219,7 @@ export function RecordingInterface({
           // No-op when handler not provided
         },
     debounceMs: 1500,
-    isDisabled: isGenerating, // Prevent saves during report generation
+    isDisabled: isGenerating || !currentReportId, // Prevent saves during report generation or if no report exists
     reportId: currentReportId,
   });
 
@@ -378,7 +383,14 @@ export function RecordingInterface({
   const hasAvailableStudyTypes = availableStudyTypes && availableStudyTypes.length > 0;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div 
+      ref={(node) => {
+        if (node) {
+          (mobileContainerRef as React.MutableRefObject<HTMLElement | null>).current = node;
+        }
+      }}
+      className="flex flex-col flex-1 min-h-0 overflow-hidden lg:overflow-hidden overflow-y-auto lg:overflow-y-hidden scrollbar-transparent"
+    >
       {sttError && (
         <div className="text-center text-sm text-red-500 bg-red-500/10 rounded-lg p-3 mb-6 shrink-0">
           {sttError}
@@ -387,24 +399,56 @@ export function RecordingInterface({
 
 
       {/* Three-column layout: Left (stacked Transcription + Template), Right (Report) */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
+      {/* Mobile: Stack vertically and allow scrolling. Desktop: Side-by-side with overflow hidden */}
+      {/* Mobile fullscreen: When a component is fullscreen, it takes full height */}
+      <div className={cn(
+        "flex flex-col lg:flex-row gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden",
+        mobileFullscreen && "flex-1 h-full"
+      )}>
         {/* Left column: Stacked Transcription and Template */}
-        <div className="flex-1 lg:max-w-[50%] flex flex-col gap-4 min-h-0">
+        {/* Mobile: Use auto height to stack naturally. Desktop: Use flex-1 for equal sizing */}
+        <div className={cn(
+          "flex flex-col gap-4 lg:flex-1 lg:max-w-[50%] lg:min-h-0",
+          mobileFullscreen === 'transcription' && "flex-1 h-full",
+          mobileFullscreen === 'template' && "flex-1 h-full"
+        )}>
           {/* Transcription panel */}
-          <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
+          {/* Mobile: Use min-height. Desktop: Use flex-1 */}
+          <div className={cn(
+            "flex flex-col min-h-[200px] lg:flex-1 lg:min-h-0 min-w-0",
+            mobileFullscreen && mobileFullscreen !== 'transcription' && "hidden lg:flex",
+            mobileFullscreen === 'transcription' && "lg:flex flex-1 h-full"
+          )}>
+            <div className={cn(
+              "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
+              mobileFullscreen === 'transcription' ? "h-full" : "min-h-[200px] lg:min-h-0 lg:h-full"
+            )}>
               <div className="p-4 border-b border-border shrink-0">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
-                    {onUpdateTranscription && (
+                    {onUpdateTranscription && currentReportId && (
                       <SaveStatusIndicator
                         status={transcriptionAutoSave.status}
                         error={transcriptionAutoSave.error}
                       />
                     )}
                   </div>
-                  <button
+                  <div className="flex items-center gap-2">
+                    {/* Mobile fullscreen button */}
+                    <button
+                      type="button"
+                      onClick={() => setMobileFullscreen(mobileFullscreen === 'transcription' ? null : 'transcription')}
+                      className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+                      aria-label={mobileFullscreen === 'transcription' ? 'Exit fullscreen' : 'Enter fullscreen'}
+                    >
+                      {mobileFullscreen === 'transcription' ? (
+                        <Minimize2 className="w-4 h-4" />
+                      ) : (
+                        <Maximize2 className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
                     type="button"
                     onClick={handleMicClick}
                     disabled={disabled || isConnecting || isStopping}
@@ -432,6 +476,7 @@ export function RecordingInterface({
                   </button>
                 </div>
               </div>
+            </div>
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <Textarea
                   ref={textareaRef}
@@ -452,7 +497,12 @@ export function RecordingInterface({
           </div>
 
           {/* Template Preview panel */}
-          <div className="flex-1 min-h-0 flex flex-col">
+          {/* Mobile: Use min-height. Desktop: Use flex-1 */}
+          <div className={cn(
+            "flex flex-col min-h-[200px] lg:flex-1 lg:min-h-0 shrink-0",
+            mobileFullscreen && mobileFullscreen !== 'template' && "hidden lg:flex",
+            mobileFullscreen === 'template' && "lg:flex flex-1 h-full"
+          )}>
             <TemplatePreview
               content={editedTemplateContent}
               isLoading={isTemplateLoading}
@@ -467,35 +517,60 @@ export function RecordingInterface({
               disabled={disabled}
               isCustom={hasTemplateBeenEdited}
               onCustomStateReset={handleCustomStateReset}
+              isMobileFullscreen={mobileFullscreen === 'template'}
+              onMobileFullscreenToggle={() => setMobileFullscreen(mobileFullscreen === 'template' ? null : 'template')}
             />
           </div>
         </div>
 
         {/* Right column: Generated Report */}
-        <div className="flex-1 lg:max-w-[50%] min-h-0 flex flex-col">
-          <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
+        {/* Mobile: Use min-height. Desktop: Use flex-1 for equal sizing */}
+        <div className={cn(
+          "flex flex-col min-h-[200px] lg:flex-1 lg:max-w-[50%] lg:min-h-0 shrink-0",
+          mobileFullscreen && mobileFullscreen !== 'report' && "hidden lg:flex",
+          mobileFullscreen === 'report' && "lg:flex flex-1 h-full"
+        )}>
+          <div className={cn(
+            "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
+            mobileFullscreen === 'report' ? "h-full" : "min-h-[200px] lg:min-h-0 lg:h-full"
+          )}>
             <div className="p-4 border-b border-border shrink-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
-                  {onUpdateReport && (
+                  {onUpdateReport && currentReportId && (
                     <SaveStatusIndicator
                       status={reportAutoSave.status}
                       error={reportAutoSave.error}
                     />
                   )}
                 </div>
-                {hasAvailableStudyTypes && (
-                  <Button
+                <div className="flex items-center gap-2">
+                  {/* Mobile fullscreen button */}
+                  <button
                     type="button"
-                    className="gap-2 text-base h-10 px-6 shrink-0"
-                    onClick={onUpload}
-                    disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
+                    onClick={() => setMobileFullscreen(mobileFullscreen === 'report' ? null : 'report')}
+                    className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+                    aria-label={mobileFullscreen === 'report' ? 'Exit fullscreen' : 'Enter fullscreen'}
                   >
-                    <Sparkles className="w-4 h-4" aria-hidden="true" />
-                    {uploadLabel}
-                  </Button>
-                )}
+                    {mobileFullscreen === 'report' ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </button>
+                  {hasAvailableStudyTypes && (
+                    <Button
+                      type="button"
+                      className="gap-2 text-base h-10 px-6 shrink-0"
+                      onClick={onUpload}
+                      disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
+                    >
+                      <Sparkles className="w-4 h-4" aria-hidden="true" />
+                      {uploadLabel}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
@@ -539,19 +614,6 @@ export function RecordingInterface({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Mobile: Generate button at the bottom */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center pt-6 pb-4 lg:hidden shrink-0">
-        <Button
-          type="button"
-          className="gap-2 text-base h-12 px-6"
-          onClick={onUpload}
-          disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
-        >
-          <Sparkles className="w-4 h-4" aria-hidden="true" />
-          {uploadLabel}
-        </Button>
       </div>
     </div>
   );
