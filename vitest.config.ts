@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     coverage: {
-      informer: ["text", "html"],
+      reporter: ["text", "html"],
     },
   },
   resolve: {
