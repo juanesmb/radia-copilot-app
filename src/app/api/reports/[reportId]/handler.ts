@@ -42,6 +42,9 @@ export const updateReportHandler = async (
       return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
     }
 
+    // Type payload as Record to allow safe property access
+    const payloadRecord = payload as Record<string, unknown>;
+
     // Build updates object with type-safe field extraction
     const updates: Partial<UpdateReportData> = {};
     
@@ -57,22 +60,22 @@ export const updateReportHandler = async (
     ];
     
     for (const field of stringFields) {
-      if (field in payload && typeof payload[field] === "string") {
-        updates[field] = payload[field] as string;
+      if (field in payloadRecord && typeof payloadRecord[field] === "string") {
+        (updates as Record<string, unknown>)[field] = payloadRecord[field] as string;
       }
     }
     
     // Nullable string fields
-    if ("template_content" in payload && (payload.template_content === null || typeof payload.template_content === "string")) {
-      updates.template_content = payload.template_content;
+    if ("template_content" in payloadRecord && (payloadRecord.template_content === null || typeof payloadRecord.template_content === "string")) {
+      updates.template_content = payloadRecord.template_content as string | null;
     }
-    if ("study_type" in payload && (payload.study_type === null || typeof payload.study_type === "string")) {
-      updates.study_type = payload.study_type;
+    if ("study_type" in payloadRecord && (payloadRecord.study_type === null || typeof payloadRecord.study_type === "string")) {
+      updates.study_type = payloadRecord.study_type as string | null;
     }
     
     // Nullable number field
-    if ("detection_confidence" in payload && (payload.detection_confidence === null || typeof payload.detection_confidence === "number")) {
-      updates.detection_confidence = payload.detection_confidence;
+    if ("detection_confidence" in payloadRecord && (payloadRecord.detection_confidence === null || typeof payloadRecord.detection_confidence === "number")) {
+      updates.detection_confidence = payloadRecord.detection_confidence as number | null;
     }
 
     if (Object.keys(updates).length === 0) {
