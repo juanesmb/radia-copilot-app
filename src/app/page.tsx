@@ -20,7 +20,7 @@ import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
 import { generateReportStream, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
-import { mapReportToHistoryItem } from "@/utils/reportHistory";
+import { mapReportToHistoryItem, extractPatientName } from "@/utils/reportHistory";
 
 type DemoState = "main" | "recording" | "uploading";
 type SidebarView = "home" | "reports";
@@ -445,14 +445,18 @@ export default function HomePage() {
             // Update report history - update existing report or add new one
             setReportHistory((prev) => {
               const existingIndex = prev.findIndex((r) => r.id === metadata.reportId);
-              const updatedReport = {
+              const existingReport = existingIndex >= 0 ? prev[existingIndex] : null;
+              const updatedReport: ReportHistoryItem = {
                 id: metadata.reportId,
                 title: metadata.title,
                 report: accumulatedReport,
                 transcription: trimmed,
-                studyType: metadata.studyType,
                 usedTemplate: metadata.selectedTemplate,
-                createdAt: existingIndex >= 0 ? prev[existingIndex].createdAt : new Date().toISOString(),
+                templateContent: isTemplateCustom ? editedTemplate || null : (existingReport?.templateContent ?? null),
+                createdAt: existingReport?.createdAt ?? new Date(),
+                metadata: {
+                  patientName: extractPatientName(trimmed),
+                },
               };
               
               if (existingIndex >= 0) {
