@@ -119,10 +119,10 @@ export const translations: TranslationMap = {
   es: {
     "app.title": "Graba tu Análisis",
     "app.subtitle":
-      "Dicta tus hallazgos, edita la transcripción y deja que la IA redacte un reporte limpio.",
-    "app.generate": "Generar reporte",
+      "Dicta tus hallazgos, edita la transcripción y deja que la IA redacte un informe limpio.",
+    "app.generate": "Generar informe",
     "app.generateBusy": "Generando...",
-    "app.generatedToast": "Reporte listo",
+    "app.generatedToast": "informe listo",
 
     "language.switcherLabel": "Idioma",
     "language.english": "Inglés",
@@ -143,25 +143,25 @@ export const translations: TranslationMap = {
     "report.template": "Plantilla",
     "report.transcription": "Transcripción",
     "report.transcriptionEmpty": "No hay transcripción disponible.",
-    "report.empty": "El reporte generado aparecerá aquí.",
+    "report.empty": "El informe generado aparecerá aquí.",
     "report.copy": "Copiar al portapapeles",
-    "report.copied": "reporte copiado",
-    "report.disclaimer": "Este reporte ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
+    "report.copied": "informe copiado",
+    "report.disclaimer": "Este informe ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
 
-    "reports.title": "Reportes",
-    "reports.subtitle": "Tus Reportes",
-    "reports.generate": "Nuevo Reporte",
-    "reports.empty": "Todavía no se han generado reportes.",
-    "reports.emptyState": "Selecciona un reporte para mostrarlo aquí. O haz clic en nuevo reporte para generar uno nuevo.",
-    "header.generateReport": "Generar reporte",
-    "header.reportDetails": "Detalles del reporte",
+    "reports.title": "informes",
+    "reports.subtitle": "Tus informes",
+    "reports.generate": "Nuevo informe",
+    "reports.empty": "Todavía no se han generado informes.",
+    "reports.emptyState": "Selecciona un informe para mostrarlo aquí. O haz clic en nuevo informe para generar uno nuevo.",
+    "header.generateReport": "Generar informe",
+    "header.reportDetails": "Detalles del informe",
 
     "recording.title": "Graba tu Análisis",
     "recording.description":
       "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
     "recording.placeholder": "Dicta o menciona los hallazgos positivos...",
     "recording.label": "Dictado",
-    "recording.upload": "Nuevo Reporte",
+    "recording.upload": "Generar informe",
     "recording.recording": "Grabando...",
     "recording.connecting": "Conectando...",
     "recording.stop": "Detener",
@@ -185,13 +185,13 @@ export const translations: TranslationMap = {
 
     "welcome.tagline": "Tu copiloto de Radiología con IA",
     "welcome.greeting": "Bienvenido/a",
-    "welcome.title": "Graba, revisa y comparte reportes estructurados",
-    "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera reportes estructurados en segundos.",
-    "welcome.generate": "Nuevo Reporte",
+    "welcome.title": "Graba, revisa y comparte informes estructurados",
+    "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
+    "welcome.generate": "Nuevo informe",
     "welcome.viewReports": "Ver historial",
 
-    "errors.generic": "No pudimos generar el reporte. Intenta nuevamente.",
-    "errors.requestFailed": "No pudimos contactar el servicio de reportes.",
+    "errors.generic": "No pudimos generar el informe. Intenta nuevamente.",
+    "errors.requestFailed": "No pudimos contactar el servicio de informes.",
     "errors.validation.transcriptionRequired":
       "Agrega una transcripción antes de generar.",
     "errors.validation.templateRequired":
@@ -211,7 +211,7 @@ export const translations: TranslationMap = {
     "studyType.ct-spine-dorsolumbar": "TC Columna Dorsolumbar",
     "studyType.ct-uro": "Urotomografía",
 
-    "feedback.title": "¿Este reporte cumplió con tus expectativas?",
+    "feedback.title": "¿Este informe cumplió con tus expectativas?",
     "feedback.scale1": "Para nada",
     "feedback.scale2": "Poco",
     "feedback.scale3": "Algo",
