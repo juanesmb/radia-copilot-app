@@ -6,6 +6,7 @@ export interface GenerateReportRequest {
   studyType?: string;
   template?: string;
   isCustomTemplate?: boolean;
+  reportId?: string;
 }
 
 export interface GenerateReportResponse {
