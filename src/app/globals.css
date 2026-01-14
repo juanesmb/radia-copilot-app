@@ -116,4 +116,60 @@
     animation: fadeInUp 0.6s ease-out forwards;
     opacity: 0;
   }
+
+  /* Transparent auto-hiding scrollbars */
+  .scrollbar-transparent {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+  }
+
+  .scrollbar-transparent:hover,
+  .scrollbar-transparent:focus-within,
+  .scrollbar-transparent.scrolling {
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+
+  .dark .scrollbar-transparent:hover,
+  .dark .scrollbar-transparent:focus-within,
+  .dark .scrollbar-transparent.scrolling {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  /* Webkit scrollbar styling */
+  .scrollbar-transparent::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+
+  .scrollbar-transparent::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-transparent::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  .scrollbar-transparent:hover::-webkit-scrollbar-thumb,
+  .scrollbar-transparent:focus-within::-webkit-scrollbar-thumb,
+  .scrollbar-transparent.scrolling::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .scrollbar-transparent:hover::-webkit-scrollbar-thumb,
+  .dark .scrollbar-transparent:focus-within::-webkit-scrollbar-thumb,
+  .dark .scrollbar-transparent.scrolling::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .scrollbar-transparent::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .scrollbar-transparent::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }

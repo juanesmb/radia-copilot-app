@@ -172,7 +172,7 @@ export const translations: TranslationMap = {
     "recording.regenerate": "Volver a Generar",
 
     "template.title": "Plantilla",
-    "template.empty": "... O dicta tus hallazgos positivos. La plantilla aparecerá automáticamente después de que termines de grabar",
+    "template.empty": "Selecciona una plantilla o dicta tus hallazgos positivos.",
     "template.detecting": "Detectando tipo de estudio...",
     "template.error": "Error al cargar la plantilla",
 

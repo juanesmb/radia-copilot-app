@@ -10,6 +10,7 @@ import { useTemplateContent } from "@/hooks/useTemplateContent";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
+import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
 import type { STTState } from "@/domain/speech-to-text";
 
 type HistoryEntry = {
@@ -100,6 +101,21 @@ export function RecordingInterface({
   const { t } = useLanguage();
   const [isCopied, setIsCopied] = useState(false);
   const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const transcriptionScrollbarRef = useAutoHideScrollbar();
+  const reportScrollbarRef = useAutoHideScrollbar();
+
+  // Sync scrollbar refs with textarea refs
+  useEffect(() => {
+    if (textareaRef.current) {
+      (transcriptionScrollbarRef as React.MutableRefObject<HTMLElement | null>).current = textareaRef.current;
+    }
+  }, [transcriptionScrollbarRef]);
+
+  useEffect(() => {
+    if (reportTextareaRef.current) {
+      (reportScrollbarRef as React.MutableRefObject<HTMLElement | null>).current = reportTextareaRef.current;
+    }
+  }, [reportScrollbarRef]);
 
   const effectiveStudyType = selectedStudyType || detectedStudyType || null;
   const { content, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
@@ -427,7 +443,7 @@ export function RecordingInterface({
                   onBlur={onUpdateTranscription ? transcriptionAutoSave.onBlur : undefined}
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
-                  className="flex-1 text-base leading-relaxed resize-none"
+                  className="flex-1 text-base leading-relaxed resize-none scrollbar-transparent"
                   readOnly={isRecording || isConnecting}
                   disabled={disabled && !isActive}
                 />
@@ -508,7 +524,7 @@ export function RecordingInterface({
                 } : (event) => onReportChange?.(event.target.value)}
                 onBlur={onUpdateReport ? reportAutoSave.onBlur : undefined}
                 placeholder={isGenerating ? t("app.generateBusy") : t("report.empty")}
-                className={`flex-1 text-base leading-relaxed resize-none transition-all duration-300 ${
+                className={`flex-1 text-base leading-relaxed resize-none transition-all duration-300 scrollbar-transparent ${
                   isGenerating 
                     ? 'opacity-70 pointer-events-none' 
                     : 'opacity-100'

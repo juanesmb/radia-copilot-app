@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
 
 interface StudyTypeOption {
   value: string;
@@ -42,6 +43,15 @@ export function TemplatePreview({
   onCustomStateReset,
 }: TemplatePreviewProps) {
   const { t } = useLanguage();
+  const templateScrollbarRef = useAutoHideScrollbar();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Sync scrollbar ref with textarea ref
+  useEffect(() => {
+    if (textareaRef.current) {
+      (templateScrollbarRef as React.MutableRefObject<HTMLElement | null>).current = textareaRef.current;
+    }
+  }, [templateScrollbarRef]);
   
   // Debug: log when isCustom changes
   useEffect(() => {
@@ -154,9 +164,10 @@ export function TemplatePreview({
       {renderHeader()}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <Textarea
+          ref={textareaRef}
           value={content || ''}
           onChange={(e) => onContentChange?.(e.target.value)}
-          className="flex-1 text-base leading-relaxed resize-none"
+          className="flex-1 text-base leading-relaxed resize-none scrollbar-transparent"
           readOnly={!onContentChange}
           placeholder={!content ? t("template.empty") : undefined}
         />

@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ReportCard } from "@/components/ReportCard";
+import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 
 interface ReportsSubmenuProps {
@@ -32,6 +34,15 @@ export function ReportsSubmenu({
   copyLabel,
   copiedLabel,
 }: ReportsSubmenuProps) {
+  const reportsScrollbarRef = useAutoHideScrollbar();
+  const reportsContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (reportsContainerRef.current) {
+      (reportsScrollbarRef as React.MutableRefObject<HTMLElement | null>).current = reportsContainerRef.current;
+    }
+  }, [reportsScrollbarRef]);
+
   return (
     <div className="w-full lg:w-64 flex flex-col h-full bg-background lg:border-r border-border overflow-hidden">
       <div className="hidden lg:flex flex-shrink-0 px-2 pt-4 pb-2 border-b border-border bg-background/80 backdrop-blur-sm">
@@ -66,7 +77,10 @@ export function ReportsSubmenu({
               {generateLabel}
             </Button>
           </div>
-          <div className="flex-1 p-2 space-y-3 overflow-y-auto min-h-0">
+          <div 
+            ref={reportsContainerRef}
+            className="flex-1 p-2 space-y-3 overflow-y-auto min-h-0 scrollbar-transparent"
+          >
             {reports.map((report) => (
               <ReportCard
                 key={report.id}
