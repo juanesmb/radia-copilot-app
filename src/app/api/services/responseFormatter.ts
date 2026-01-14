@@ -4,15 +4,6 @@ export interface ResponseFormatter {
   format(content: string): GenerateReportResult;
 }
 
-const sanitizeJsonString = (raw: string) => {
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("```")) {
-    const withoutFence = trimmed.replace(/```json|```/g, "");
-    return withoutFence.trim();
-  }
-  return trimmed;
-};
-
 export const createResponseFormatter = (): ResponseFormatter => ({
   format: (content) => {
     const base: GenerateReportResult = {
@@ -24,24 +15,20 @@ export const createResponseFormatter = (): ResponseFormatter => ({
       return base;
     }
 
-    try {
-      const parsed = JSON.parse(sanitizeJsonString(content));
-      return {
-        title: parsed.title ?? base.title,
-        report: parsed.report ?? base.report,
-      };
-    } catch {
-      const cleaned = sanitizeJsonString(content);
-      if (!cleaned) {
-        return base;
-      }
-
-      // Fallback: return the raw content as the report
-      return {
-        title: base.title,
-        report: cleaned,
-      };
+    const trimmed = content.trim();
+    if (!trimmed) {
+      return base;
     }
+
+    // Split by newlines and extract first line as title
+    const lines = trimmed.split('\n');
+    const firstLine = lines[0] || ''; // Always use first line, even if empty
+    const reportBody = lines.slice(1).join('\n').trim();
+
+    return {
+      title: firstLine,
+      report: firstLine ? `${firstLine}\n\n${reportBody}` : reportBody,
+    };
   },
 });
 

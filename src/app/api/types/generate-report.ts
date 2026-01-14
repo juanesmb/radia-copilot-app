@@ -4,6 +4,9 @@ export interface GenerateReportRequest {
   transcription: string;
   language: Language;
   studyType?: string;
+  template?: string;
+  isCustomTemplate?: boolean;
+  reportId?: string;
 }
 
 export interface GenerateReportResult {

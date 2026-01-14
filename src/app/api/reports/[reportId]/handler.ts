@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createSupabaseClient } from "../../clients/supabaseClient";
 import { mapErrorToResponse } from "../../lib/errorHandler";
-import { createReportRepository } from "../../repositories/reportRepository";
+import { createReportRepository, type UpdateReportData } from "../../repositories/reportRepository";
 import { createUpdateReportUseCase } from "./usecase";
 
 const supabaseClient = createSupabaseClient({
@@ -42,15 +42,37 @@ export const updateReportHandler = async (
       return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
     }
 
-    const updates: { report_title?: string; updated_report?: string; updated_transcription?: string } = {};
-    if ("report_title" in payload && typeof payload.report_title === "string") {
-      updates.report_title = payload.report_title;
+    // Build updates object with type-safe field extraction
+    const updates: Partial<UpdateReportData> = {};
+    
+    // String fields
+    const stringFields: Array<keyof UpdateReportData> = [
+      "report_title",
+      "updated_report",
+      "updated_transcription",
+      "generated_report",
+      "generated_transcription",
+      "used_template",
+      "model_used",
+    ];
+    
+    for (const field of stringFields) {
+      if (field in payload && typeof payload[field] === "string") {
+        updates[field] = payload[field] as string;
+      }
     }
-    if ("updated_report" in payload && typeof payload.updated_report === "string") {
-      updates.updated_report = payload.updated_report;
+    
+    // Nullable string fields
+    if ("template_content" in payload && (payload.template_content === null || typeof payload.template_content === "string")) {
+      updates.template_content = payload.template_content;
     }
-    if ("updated_transcription" in payload && typeof payload.updated_transcription === "string") {
-      updates.updated_transcription = payload.updated_transcription;
+    if ("study_type" in payload && (payload.study_type === null || typeof payload.study_type === "string")) {
+      updates.study_type = payload.study_type;
+    }
+    
+    // Nullable number field
+    if ("detection_confidence" in payload && (payload.detection_confidence === null || typeof payload.detection_confidence === "number")) {
+      updates.detection_confidence = payload.detection_confidence;
     }
 
     if (Object.keys(updates).length === 0) {

@@ -17,10 +17,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
-import { generateReport, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
-import type { ApiError, GenerateReportResponse } from "@/types/frontend/api";
+import { generateReportStream, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
+import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
-import { createReportHistoryItem, mapReportToHistoryItem } from "@/utils/reportHistory";
+import { mapReportToHistoryItem } from "@/utils/reportHistory";
 
 type DemoState = "main" | "recording" | "uploading";
 type SidebarView = "home" | "reports";
@@ -58,6 +58,8 @@ export default function HomePage() {
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
   const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
+  const [editedTemplate, setEditedTemplate] = useState<string>("");
+  const [isTemplateCustom, setIsTemplateCustom] = useState(false);
 
   // Study type detection state
   const [isDetectingStudyType, setIsDetectingStudyType] = useState(false);
@@ -161,7 +163,7 @@ export default function HomePage() {
           transcription={transcription}
           placeholder={t("recording.placeholder")}
           label={t("recording.label")}
-          uploadLabel={t("recording.upload")}
+          uploadLabel={currentReportId ? t("recording.regenerate") : t("recording.upload")}
           onChange={setTranscription}
           onUpload={handleStartUpload}
           disabled={isGenerating}
@@ -172,7 +174,11 @@ export default function HomePage() {
           detectedStudyType={detectedStudyType}
           availableStudyTypes={availableStudyTypes}
           selectedStudyType={selectedStudyType}
-          onStudyTypeChange={setSelectedStudyType}
+          onStudyTypeChange={(studyType) => {
+            setSelectedStudyType(studyType);
+            setEditedTemplate(""); // Clear edited template when new study type is selected
+            setIsTemplateCustom(false); // Reset custom flag
+          }}
           isDetectingStudyType={isDetectingStudyType}
           language={language}
           labels={recordingLabels}
@@ -184,6 +190,21 @@ export default function HomePage() {
           onCopyReport={handleCopyReport}
           onUpdateTranscription={handleTranscriptionUpdate}
           onUpdateReport={handleReportUpdate}
+          onTemplateChange={setEditedTemplate}
+          initialTemplateContent={(() => {
+            // Only use custom template content if:
+            // 1. There's a current report
+            // 2. The report has custom template content
+            // 3. The selected study type matches the report's used template
+            // Otherwise, let the hook fetch the template from the API
+            const report = reportHistory.find((r) => r.id === currentReportId);
+            if (report?.templateContent && report.usedTemplate === (selectedStudyType || detectedStudyType)) {
+              return report.templateContent;
+            }
+            return null;
+          })()}
+          onTemplateEditStatusChange={setIsTemplateCustom}
+          isTemplateCustom={isTemplateCustom}
         />
       );
     }
@@ -263,6 +284,8 @@ export default function HomePage() {
     setTranscription("");
     setSelectedReportId(null);
     setIsGenerating(false);
+    setEditedTemplate("");
+    setIsTemplateCustom(false);
     resetSTT();
   }, [resetSTT]);
 
@@ -288,21 +311,6 @@ export default function HomePage() {
   const handleStopRecording = useCallback(async () => {
     await stopSTT();
   }, [stopSTT]);
-
-  const saveReportToDatabase = async (response: GenerateReportResponse, transcriptionText: string) => {
-    const newReport = createReportHistoryItem({
-      response,
-      transcription: transcriptionText,
-      language,
-    });
-    setReportHistory((prev) => [newReport, ...prev]);
-    // Mark this report as newly generated so feedback shows
-    setNewlyGeneratedReportIds((prev) => new Set(prev).add(newReport.id));
-    // Set as current report
-    setCurrentReportId(newReport.id);
-    setCurrentReportTitle(newReport.title);
-    return newReport;
-  };
 
   const handleTranscriptionUpdate = useCallback(async (value: string) => {
     if (!currentReportId) return;
@@ -377,49 +385,110 @@ export default function HomePage() {
   }, [currentReportId, currentReportTitle, generatedReport, reportHistory, t, toast]);
 
   const handleStartUpload = async () => {
-    const trimmed = transcription.trim();
-    if (!trimmed) {
+    // Require study type (template) or custom template instead of transcription
+    if (!selectedStudyType && !detectedStudyType && !isTemplateCustom) {
       toast({
-        title: t("errors.validation.transcriptionRequired"),
+        title: t("errors.validation.templateRequired"),
         variant: "destructive",
       });
       return;
     }
 
-    setPendingTranscription(trimmed);
+    const trimmed = transcription.trim();
+
     setIsGenerating(true);
+    setGeneratedReport(""); // Clear previous report
+    // Don't clear currentReportId when regenerating - preserve it for update
+    if (!currentReportId) {
+      setCurrentReportId(null);
+      setCurrentReportTitle(null);
+    }
+
+    let accumulatedReport = "";
+    let reportTitle = "";
+    let savedReportId: string | null = null;
+
     try {
-      const response = await generateReport({
-        transcription: trimmed,
-        language,
-        studyType: selectedStudyType || undefined,
-      });
-      // Save report to database and update state, but stay in recording mode
-      try {
-        await saveReportToDatabase(response, trimmed);
-        // Set the generated report content to display in the textarea
-        setGeneratedReport(response.report || "");
-        setPendingTranscription("");
-        toast({ title: t("app.generatedToast") });
-      } catch (error) {
-        console.error("Failed to save report:", error);
-        toast({
-          title: t("errors.generic"),
-          description: t("errors.requestFailed"),
-          variant: "destructive",
-        });
-        setGeneratedReport(null);
-      }
+      await generateReportStream(
+        {
+          transcription: trimmed,
+          language,
+          studyType: selectedStudyType || detectedStudyType || undefined,
+          template: editedTemplate || undefined,
+          isCustomTemplate: isTemplateCustom,
+          reportId: currentReportId || undefined,
+        },
+        {
+          onChunk: (chunk: string) => {
+            accumulatedReport += chunk;
+            setGeneratedReport(accumulatedReport);
+
+            // Extract title from first line when we have content
+            if (!reportTitle && accumulatedReport.trim()) {
+              const lines = accumulatedReport.trim().split('\n');
+              if (lines.length > 0) {
+                reportTitle = lines[0];
+                setCurrentReportTitle(reportTitle);
+              }
+            }
+          },
+          onMetadata: (metadata) => {
+            savedReportId = metadata.reportId;
+            reportTitle = metadata.title;
+            setCurrentReportId(metadata.reportId);
+            setCurrentReportTitle(metadata.title);
+
+            // Update report history - update existing report or add new one
+            setReportHistory((prev) => {
+              const existingIndex = prev.findIndex((r) => r.id === metadata.reportId);
+              const updatedReport = {
+                id: metadata.reportId,
+                title: metadata.title,
+                report: accumulatedReport,
+                transcription: trimmed,
+                studyType: metadata.studyType,
+                usedTemplate: metadata.selectedTemplate,
+                createdAt: existingIndex >= 0 ? prev[existingIndex].createdAt : new Date().toISOString(),
+              };
+              
+              if (existingIndex >= 0) {
+                // Update existing report in place, maintaining its position
+                const updated = [...prev];
+                updated[existingIndex] = updatedReport;
+                return updated;
+              } else {
+                // Add new report at the beginning
+                return [updatedReport, ...prev];
+              }
+            });
+            setNewlyGeneratedReportIds((prev) => new Set(prev).add(metadata.reportId));
+          },
+          onComplete: (reportId: string) => {
+            savedReportId = reportId;
+            setIsGenerating(false);
+            toast({ title: t("app.generatedToast") });
+          },
+          onError: (error: Error) => {
+            console.error("Stream error:", error);
+            setIsGenerating(false);
+            setGeneratedReport(null);
+            toast({
+              title: t("errors.generic"),
+              description: error.message || t("errors.requestFailed"),
+              variant: "destructive",
+            });
+          },
+        }
+      );
     } catch (error) {
       const message = (error as ApiError)?.message ?? t("errors.requestFailed");
+      setIsGenerating(false);
+      setGeneratedReport(null);
       toast({
         title: t("errors.generic"),
         description: message,
         variant: "destructive",
       });
-      setGeneratedReport(null);
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -529,6 +598,14 @@ export default function HomePage() {
           if (report.usedTemplate) {
             setSelectedStudyType(report.usedTemplate);
             setDetectedStudyType(report.usedTemplate);
+          }
+          // Set the custom template content if available
+          if (report.templateContent) {
+            setEditedTemplate(report.templateContent);
+            setIsTemplateCustom(true);
+          } else {
+            setEditedTemplate("");
+            setIsTemplateCustom(false);
           }
           setSelectedReportId(id);
           setDemoState("recording");

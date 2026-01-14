@@ -11,7 +11,8 @@ interface UseTemplateContentReturn {
 
 export function useTemplateContent(
   studyType: string | null,
-  language: "en" | "es"
+  language: "en" | "es",
+  customTemplateContent?: string | null
 ): UseTemplateContentReturn {
   const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +20,14 @@ export function useTemplateContent(
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchTemplate = useCallback(async () => {
+    // If custom template content is provided, use it directly (no API call)
+    if (customTemplateContent !== undefined && customTemplateContent !== null && customTemplateContent.trim().length > 0) {
+      setContent(customTemplateContent);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     if (!studyType || studyType.trim().length === 0) {
       setContent(null);
       setError(null);
@@ -62,7 +71,7 @@ export function useTemplateContent(
         setIsLoading(false);
       }
     }
-  }, [studyType, language]);
+  }, [studyType, language, customTemplateContent]);
 
   useEffect(() => {
     fetchTemplate();

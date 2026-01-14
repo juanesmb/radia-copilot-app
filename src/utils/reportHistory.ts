@@ -13,6 +13,7 @@ export interface ReportHistoryItem {
   report: string;
   createdAt: Date;
   usedTemplate?: string;
+  templateContent?: string | null;
   metadata: ReportMetadata;
 }
 
@@ -69,6 +70,7 @@ export const mapReportToHistoryItem = (report: Report): ReportHistoryItem => {
     report: report.updated_report,
     createdAt: new Date(report.created_at),
     usedTemplate: report.used_template,
+    templateContent: report.template_content ?? null,
     metadata: {
       patientName: extractPatientName(report.updated_transcription),
     },

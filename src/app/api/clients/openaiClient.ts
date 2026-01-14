@@ -6,6 +6,7 @@ import type { ModelConfig, ModelInput } from "../types/model";
 export interface OpenAIClient {
   generateReport(input: ModelInput): Promise<string>;
   generateCompletion(messages: Array<{ role: "system" | "user"; content: string }>): Promise<string>;
+  generateReportStream(input: ModelInput): AsyncGenerator<string>;
 }
 
 export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
@@ -19,6 +20,11 @@ export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
         });
       },
       async generateCompletion() {
+        throw new HttpError("OPENAI_API_KEY is not configured.", {
+          status: 500,
+        });
+      },
+      async *generateReportStream() {
         throw new HttpError("OPENAI_API_KEY is not configured.", {
           status: 500,
         });
@@ -81,6 +87,49 @@ export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
     }
   };
 
+  const handleStreamingCompletion = async function* (
+    completionModel: string,
+    completionTemperature: number,
+    completionMessages: Array<{ role: "system" | "user"; content: string }>
+  ): AsyncGenerator<string> {
+    const effectiveTemperature = getEffectiveTemperature(completionModel, completionTemperature);
+    
+    try {
+      const stream = await client.chat.completions.create({
+        model: completionModel,
+        temperature: effectiveTemperature,
+        messages: completionMessages,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          yield content;
+        }
+      }
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      
+      if (error instanceof APIError) {
+        throw new HttpError(
+          `OpenAI API error: ${error.message}`,
+          {
+            status: error.status ?? 502,
+            details: error.code ? `Error code: ${error.code}` : undefined,
+          }
+        );
+      }
+      
+      throw new HttpError("OpenAI streaming request failed.", {
+        status: 502,
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
   return {
     async generateReport({ systemPrompt, userPrompt }) {
       return handleCompletion(model, temperature, [
@@ -90,6 +139,12 @@ export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
     },
     async generateCompletion(messages) {
       return handleCompletion("gpt-4o-mini", 0, messages);
+    },
+    async *generateReportStream({ systemPrompt, userPrompt }) {
+      yield* handleStreamingCompletion(model, temperature, [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ]);
     },
   };
 };

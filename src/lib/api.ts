@@ -16,6 +16,7 @@ export interface Report {
   generated_report: string;
   updated_report: string;
   used_template: string;
+  template_content?: string | null;
   study_type: string | null;
   detection_confidence: number | null;
   model_used: string;
@@ -269,6 +270,109 @@ export async function getTemplateContent(
       message: "Network error",
       details: error instanceof Error ? error.message : undefined,
     };
+  }
+}
+
+// Generate report with streaming
+export interface GenerateReportStreamCallbacks {
+  onChunk: (chunk: string) => void;
+  onMetadata: (metadata: {
+    reportId: string;
+    title: string;
+    studyType?: string;
+    detectionConfidence?: number;
+    modelUsed: string;
+    selectedTemplate: string;
+  }) => void;
+  onComplete: (reportId: string) => void;
+  onError: (error: Error) => void;
+}
+
+export async function generateReportStream(
+  payload: GenerateReportRequest,
+  callbacks: GenerateReportStreamCallbacks
+): Promise<void> {
+  try {
+    const response = await fetch(`${API_PATH}?stream=true`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to start stream",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    if (!response.body) {
+      throw new Error("Response body is null");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              switch (data.type) {
+                case "chunk":
+                  callbacks.onChunk(data.content);
+                  break;
+                case "metadata":
+                  callbacks.onMetadata({
+                    reportId: data.reportId,
+                    title: data.title,
+                    studyType: data.studyType,
+                    detectionConfidence: data.detectionConfidence,
+                    modelUsed: data.modelUsed,
+                    selectedTemplate: data.selectedTemplate,
+                  });
+                  break;
+                case "done":
+                  callbacks.onComplete(data.reportId);
+                  break;
+                case "error":
+                  callbacks.onError(new Error(data.message || "Stream error"));
+                  break;
+              }
+            } catch (parseError) {
+              console.error("Failed to parse SSE data:", parseError);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  } catch (error) {
+    if (error instanceof Error && "message" in error) {
+      callbacks.onError(error as Error);
+    } else {
+      callbacks.onError(
+        new Error("Network error", {
+          cause: error instanceof Error ? error : undefined,
+        })
+      );
+    }
   }
 }
 

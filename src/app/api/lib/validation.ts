@@ -6,10 +6,18 @@ const generateReportSchema = z.object({
   transcription: z
     .string()
     .trim()
-    .min(10, "Transcription must include at least 10 characters.")
-    .max(4000, "Transcription is too long."),
+    .max(4000, "Transcription is too long.")
+    .default(""),
   language: z.enum(["en", "es"]).default("en"),
-  studyType: z.string().optional(),
+  studyType: z.string().min(1, "Study type (template) is required.").optional(),
+  template: z.string().optional(),
+  isCustomTemplate: z.boolean().optional(),
+  reportId: z.string().optional(),
+}).refine((data) => {
+  // Either studyType must be provided, or isCustomTemplate must be true with template provided
+  return data.studyType || (data.isCustomTemplate && data.template && data.template.trim().length > 0);
+}, {
+  message: "Either a study type or a custom template is required.",
 });
 
 export type ValidationSuccess = {

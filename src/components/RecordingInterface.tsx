@@ -58,6 +58,10 @@ interface RecordingInterfaceProps {
   onCopyReport?: () => void;
   onUpdateTranscription?: (value: string) => void;
   onUpdateReport?: (value: string) => void;
+  onTemplateChange?: (value: string) => void;
+  initialTemplateContent?: string | null;
+  onTemplateEditStatusChange?: (isCustom: boolean) => void;
+  isTemplateCustom?: boolean;
 }
 
 export function RecordingInterface({
@@ -87,6 +91,10 @@ export function RecordingInterface({
   onCopyReport,
   onUpdateTranscription,
   onUpdateReport,
+  onTemplateChange,
+  initialTemplateContent,
+  onTemplateEditStatusChange,
+  isTemplateCustom = false,
 }: RecordingInterfaceProps) {
   const { t } = useLanguage();
   const [isCopied, setIsCopied] = useState(false);
@@ -95,18 +103,43 @@ export function RecordingInterface({
   const effectiveStudyType = selectedStudyType || detectedStudyType || null;
   const { content, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
     effectiveStudyType,
-    language
+    language,
+    initialTemplateContent
   );
   
   const [editedTemplateContent, setEditedTemplateContent] = useState<string | null>(null);
+  const [originalTemplateContent, setOriginalTemplateContent] = useState<string | null>(null);
+  const [hasTemplateBeenEdited, setHasTemplateBeenEdited] = useState(false);
 
   useEffect(() => {
     setEditedTemplateContent(content);
-  }, [content]);
+    setOriginalTemplateContent(content);
+    setHasTemplateBeenEdited(false); // Reset when new template loads
+    onTemplateEditStatusChange?.(false); // Notify parent that template is no longer custom
+  }, [content, onTemplateEditStatusChange]);
 
   const handleTemplateChange = useCallback((value: string) => {
     setEditedTemplateContent(value);
-  }, []);
+    
+    // Check if content differs from original (immediately mark as custom if edited)
+    // If originalTemplateContent is null, any non-empty value means it's custom
+    // If originalTemplateContent exists, compare trimmed values
+    const isDifferent = originalTemplateContent === null
+      ? value.trim().length > 0
+      : value.trim() !== originalTemplateContent.trim();
+    
+    setHasTemplateBeenEdited(isDifferent);
+    onTemplateEditStatusChange?.(isDifferent);
+    
+    onTemplateChange?.(value);
+  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange]);
+
+  const handleCustomStateReset = useCallback(() => {
+    // Reset custom state when a new template is selected
+    setHasTemplateBeenEdited(false);
+    onTemplateEditStatusChange?.(false);
+    // The original template content will be updated when the new template loads
+  }, [onTemplateEditStatusChange]);
 
   const handleCopyReport = useCallback(async () => {
     if (!reportTextareaRef.current || !generatedReport) return;
@@ -128,6 +161,15 @@ export function RecordingInterface({
       // Error handling is done in parent via onCopyReport
     }
   }, [generatedReport, reportTitle, onCopyReport]);
+
+  // Auto-scroll to bottom when new content arrives during generation
+  useEffect(() => {
+    if (isGenerating && generatedReport && reportTextareaRef.current) {
+      const textarea = reportTextareaRef.current;
+      // Scroll to bottom
+      textarea.scrollTop = textarea.scrollHeight;
+    }
+  }, [generatedReport, isGenerating]);
 
   // Debounced transcription editor - always call hook, but only use if onUpdateTranscription is provided
   const transcriptionEditor = useDebouncedTextEditor({
@@ -319,7 +361,7 @@ export function RecordingInterface({
             <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
               <div className="p-4 border-b border-border shrink-0">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-foreground">{t("input.title")}</h3>
+                  <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
                   <button
                     type="button"
                     onClick={handleMicClick}
@@ -381,6 +423,8 @@ export function RecordingInterface({
               onStudyTypeChange={onStudyTypeChange}
               isActive={isActive}
               disabled={disabled}
+              isCustom={hasTemplateBeenEdited}
+              onCustomStateReset={handleCustomStateReset}
             />
           </div>
         </div>
@@ -390,13 +434,13 @@ export function RecordingInterface({
           <div className="rounded-xl border-0 shadow-none bg-muted/30 min-h-0 h-full flex flex-col">
             <div className="p-4 border-b border-border shrink-0">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-foreground">{t("report.title")}</h3>
+                <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
                 {hasAvailableStudyTypes && (
                   <Button
                     type="button"
                     className="gap-2 text-base h-10 px-6 shrink-0"
                     onClick={onUpload}
-                    disabled={disabled || isActive || isDetectingStudyType || !effectiveStudyType}
+                    disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
                   >
                     <Sparkles className="w-4 h-4" aria-hidden="true" />
                     {uploadLabel}
@@ -453,7 +497,7 @@ export function RecordingInterface({
           type="button"
           className="gap-2 text-base h-12 px-6"
           onClick={onUpload}
-          disabled={disabled || isActive || isDetectingStudyType || !effectiveStudyType}
+          disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
         >
           <Sparkles className="w-4 h-4" aria-hidden="true" />
           {uploadLabel}

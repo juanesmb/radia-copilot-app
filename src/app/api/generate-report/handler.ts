@@ -7,6 +7,9 @@ import { mapErrorToResponse } from "../lib/errorHandler";
 import { createReportRepository } from "../repositories/reportRepository";
 import { validateGenerateReportRequest } from "../lib/validation";
 import { createPromptBuilder } from "../services/promptBuilder";
+import { createPromptModeDetector } from "../services/promptModeDetector";
+import { createTranscriptionPromptStrategy } from "../services/transcriptionPromptStrategy";
+import { createEnhancementPromptStrategy } from "../services/enhancementPromptStrategy";
 import { createResponseFormatter } from "../services/responseFormatter";
 import { createGenerateReportUseCase } from "./usecase";
 
@@ -28,7 +31,12 @@ const reportRepository = createReportRepository({
 });
 
 const useCase = createGenerateReportUseCase({
-  promptBuilder: createPromptBuilder(openAIClient),
+  promptBuilder: createPromptBuilder({
+    openAIClient,
+    modeDetector: createPromptModeDetector(),
+    transcriptionStrategy: createTranscriptionPromptStrategy(),
+    enhancementStrategy: createEnhancementPromptStrategy(),
+  }),
   responseFormatter: createResponseFormatter(),
   openAIClient,
   modelUsed,

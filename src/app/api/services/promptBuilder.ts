@@ -1,5 +1,4 @@
 import type { OpenAIClient } from "../clients/openaiClient";
-import { getSystemPrompt } from "../lib/prompts";
 import type { GenerateReportRequest } from "../types/generate-report";
 import type { Language } from "../types/language";
 import { detectStudyType, extractModalityAndRegion } from "./studyTypeDetector";
@@ -9,6 +8,8 @@ import {
   templateExists,
 } from "./templateLoader";
 import { findBestMatchByKeywords } from "./templateSearcher";
+import type { PromptModeDetector } from "./promptModeDetector";
+import type { PromptStrategy } from "./promptStrategy";
 
 interface PromptResult {
   systemPrompt: string;
@@ -25,93 +26,11 @@ export interface PromptBuilder {
   build(input: GenerateReportRequest): Promise<PromptResult>;
 }
 
-const buildUserPrompt = (transcription: string, _language: Language): string => {
-  return transcription.trim();
-};
-
-const replaceTemplateInPrompt = (
-  basePrompt: string,
-  template: string,
-  studyType: string,
-  language: Language
-): string => {
-  const title = language === "es"
-    ? `## Plantilla de referencia: ${studyType}`
-    : `## Reference template: ${studyType}`;
-
-  const instruction = language === "es"
-    ? "**ESTRUCTURA OBLIGATORIA A SEGUIR (modifica solo lo mencionado en la transcripción):**"
-    : "**MANDATORY STRUCTURE TO FOLLOW (modify only what is mentioned in the transcription):**";
-
-  if (!template || template.trim().length === 0) {
-    console.error(`❌ Template is empty for studyType: ${studyType}, language: ${language}`);
-  }
-
-  const replacement = `${title}\n\n${instruction}\n\n\`\`\`\n${template}\n\`\`\``;
-
-  if (language === "es") {
-    // Spanish: Replace the section from "PLANTILLA:" through the closing code block
-    const plantillaIndex = basePrompt.indexOf("PLANTILLA:");
-    if (plantillaIndex === -1) {
-      console.error("❌ Could not find 'PLANTILLA:' in prompt");
-      return basePrompt;
-    }
-    
-    // Find the code block that starts after PLANTILLA:
-    const afterPlantilla = basePrompt.substring(plantillaIndex);
-    const codeBlockStart = afterPlantilla.indexOf("```");
-    if (codeBlockStart === -1) {
-      console.error("❌ Could not find code block start after 'PLANTILLA:'");
-      return basePrompt;
-    }
-    
-    // Find the closing ``` of the code block
-    const codeBlockContent = afterPlantilla.substring(codeBlockStart + 3);
-    const codeBlockEnd = codeBlockContent.indexOf("```");
-    if (codeBlockEnd === -1) {
-      console.error("❌ Could not find code block end");
-      return basePrompt;
-    }
-    
-    // Calculate the end position (plantillaIndex + codeBlockStart + 3 + codeBlockEnd + 3)
-    const endIndex = plantillaIndex + codeBlockStart + 3 + codeBlockEnd + 3;
-    
-    // Replace the section
-    const before = basePrompt.substring(0, plantillaIndex);
-    const after = basePrompt.substring(endIndex);
-    return before + replacement + after;
-  }
-  
-  // English: Replace the section from "TEMPLATE:" through the closing code block
-  const templateIndex = basePrompt.indexOf("TEMPLATE:");
-  if (templateIndex === -1) {
-    console.error("❌ Could not find 'TEMPLATE:' in prompt");
-    return basePrompt;
-  }
-  
-  // Find the code block that starts after TEMPLATE:
-  const afterTemplate = basePrompt.substring(templateIndex);
-  const codeBlockStart = afterTemplate.indexOf("```");
-  if (codeBlockStart === -1) {
-    console.error("❌ Could not find code block start after 'TEMPLATE:'");
-    return basePrompt;
-  }
-  
-  // Find the closing ``` of the code block
-  const codeBlockContent = afterTemplate.substring(codeBlockStart + 3);
-  const codeBlockEnd = codeBlockContent.indexOf("```");
-  if (codeBlockEnd === -1) {
-    console.error("❌ Could not find code block end");
-    return basePrompt;
-  }
-  
-  // Calculate the end position (templateIndex + codeBlockStart + 3 + codeBlockEnd + 3)
-  const endIndex = templateIndex + codeBlockStart + 3 + codeBlockEnd + 3;
-  
-  // Replace the section
-  const before = basePrompt.substring(0, templateIndex);
-  const after = basePrompt.substring(endIndex);
-  return before + replacement + after;
+type Dependencies = {
+  openAIClient: OpenAIClient;
+  modeDetector: PromptModeDetector;
+  transcriptionStrategy: PromptStrategy;
+  enhancementStrategy: PromptStrategy;
 };
 
 const getDefaultTemplate = (language: Language): string => {
@@ -167,12 +86,16 @@ const findTemplateWithFallback = async (
 };
 
 export const createPromptBuilder = (
-  openAIClient: OpenAIClient
+  deps: Dependencies
 ): PromptBuilder => ({
   build: async (input) => {
-    const basePrompt = getSystemPrompt(input.language);
-
     try {
+      // Detect which prompt mode to use
+      const mode = deps.modeDetector.detectMode(input.transcription);
+      const strategy = mode === 'transcription' 
+        ? deps.transcriptionStrategy 
+        : deps.enhancementStrategy;
+
       // Use provided studyType if available, otherwise detect
       let detection: { studyType: string; confidence: number; keywords?: string[] };
       
@@ -183,30 +106,58 @@ export const createPromptBuilder = (
           confidence: 1.0,
           keywords: [],
         };
+      } else if (input.isCustomTemplate && input.template) {
+        // Custom template without studyType - use "custom" as studyType
+        detection = {
+          studyType: "custom",
+          confidence: 1.0,
+          keywords: [],
+        };
       } else {
-        // No studyType provided - run detection
-        detection = await detectStudyType(
-          input.transcription,
-          input.language,
-          openAIClient
-        );
+        // For enhancement mode with empty transcription, we still need a studyType
+        // Use provided studyType or try to infer from template if available
+        if (mode === 'enhancement' && input.template) {
+          // In enhancement mode, try to extract studyType from template or use default
+          detection = {
+            studyType: input.studyType?.trim() || "default",
+            confidence: 1.0,
+            keywords: [],
+          };
+        } else {
+          // Run detection (will use empty string for enhancement mode, but that's okay)
+          detection = await detectStudyType(
+            input.transcription || "",
+            input.language,
+            deps.openAIClient
+          );
+        }
       }
 
-      const { studyType, template } = await findTemplateWithFallback(
-        detection,
-        input.language
-      );
+      // Use provided template if available, otherwise load from filesystem
+      let template: string;
+      let studyType: string;
+      
+      if (input.template && input.template.trim()) {
+        // Use the template provided by the user (edited in UI)
+        template = input.template.trim();
+        studyType = detection.studyType;
+      } else {
+        // Load template from filesystem
+        const result = await findTemplateWithFallback(
+          detection,
+          input.language
+        );
+        template = result.template;
+        studyType = result.studyType;
+      }
 
-      const enrichedPrompt = replaceTemplateInPrompt(
-        basePrompt,
-        template,
-        studyType,
-        input.language
-      );
+      // Use strategy to build prompts
+      const systemPrompt = await strategy.buildSystemPrompt(input, template, studyType);
+      const userPrompt = strategy.buildUserPrompt(input, template);
 
       return {
-        systemPrompt: enrichedPrompt,
-        userPrompt: buildUserPrompt(input.transcription, input.language),
+        systemPrompt,
+        userPrompt,
         selectedTemplate: studyType,
         detection: {
           studyType: detection.studyType,
@@ -219,16 +170,21 @@ export const createPromptBuilder = (
         `Template detection failed: ${error instanceof Error ? error.message : String(error)}`
       );
       const defaultTemplate = getDefaultTemplate(input.language);
-      const enrichedPrompt = replaceTemplateInPrompt(
-        basePrompt,
+      const mode = deps.modeDetector.detectMode(input.transcription);
+      const strategy = mode === 'transcription' 
+        ? deps.transcriptionStrategy 
+        : deps.enhancementStrategy;
+
+      const systemPrompt = await strategy.buildSystemPrompt(
+        input,
         defaultTemplate,
-        "default",
-        input.language
+        "default"
       );
+      const userPrompt = strategy.buildUserPrompt(input, defaultTemplate);
 
       return {
-        systemPrompt: enrichedPrompt,
-        userPrompt: buildUserPrompt(input.transcription, input.language),
+        systemPrompt,
+        userPrompt,
         selectedTemplate: "default",
         detection: undefined,
       };

@@ -1,51 +1,65 @@
 import { describe, expect, it } from "vitest";
-
 import { createResponseFormatter } from "../responseFormatter";
 
-const formatter = createResponseFormatter();
+describe("ResponseFormatter", () => {
+  it("should extract title from first line and rest as report", () => {
+    const formatter = createResponseFormatter();
+    const input = "TC DE ABDOMEN CON CONTRASTE\n\nHígado: dentro de límites normales.\nBazo: dentro de límites normales.";
 
-describe("responseFormatter", () => {
-  it("returns parsed JSON content when payload is valid", () => {
-    const result = formatter.format(
-      JSON.stringify({
-        title: "Chest X-Ray",
-        report: "Complete report text here",
-      }),
-    );
+    const result = formatter.format(input);
 
-    expect(result).toEqual({
-      title: "Chest X-Ray",
-      report: "Complete report text here",
-    });
+    expect(result.title).toBe("TC DE ABDOMEN CON CONTRASTE");
+    expect(result.report).toBe("TC DE ABDOMEN CON CONTRASTE\n\nHígado: dentro de límites normales.\nBazo: dentro de límites normales.");
   });
 
-  it("strips markdown fences before parsing", () => {
-    const content = [
-      "```json",
-      '{ "title": "Brain MRI", "report": "Complete report text" }',
-      "```",
-    ].join("\n");
+  it("should handle single line content", () => {
+    const formatter = createResponseFormatter();
+    const input = "ECOGRAFÍA DE TIROIDES";
 
-    const result = formatter.format(content);
-    expect(result.title).toBe("Brain MRI");
-    expect(result.report).toBe("Complete report text");
+    const result = formatter.format(input);
+
+    expect(result.title).toBe("ECOGRAFÍA DE TIROIDES");
+    expect(result.report).toBe("ECOGRAFÍA DE TIROIDES");
   });
 
-  it("falls back to raw content as report when JSON parse fails", () => {
-    const raw = "Some raw text content that is not JSON";
-    const result = formatter.format(raw);
+  it("should handle empty first line", () => {
+    const formatter = createResponseFormatter();
+    const input = "\n\nHígado: dentro de límites normales.";
+
+    const result = formatter.format(input);
 
     expect(result.title).toBe("");
-    expect(result.report).toBe("Some raw text content that is not JSON");
+    expect(result.report).toBe("Hígado: dentro de límites normales.");
   });
 
-  it("handles empty content", () => {
-    const result = formatter.format("");
+  it("should return empty strings for empty input", () => {
+    const formatter = createResponseFormatter();
+    const input = "";
 
-    expect(result).toEqual({
-      title: "",
-      report: "",
-    });
+    const result = formatter.format(input);
+
+    expect(result.title).toBe("");
+    expect(result.report).toBe("");
+  });
+
+  it("should handle whitespace-only input", () => {
+    const formatter = createResponseFormatter();
+    const input = "   \n\n   ";
+
+    const result = formatter.format(input);
+
+    expect(result.title).toBe("");
+    expect(result.report).toBe("");
+  });
+
+  it("should preserve multiple newlines in report body", () => {
+    const formatter = createResponseFormatter();
+    const input = "TC DE ABDOMEN\n\nHígado: normal.\n\nBazo: normal.";
+
+    const result = formatter.format(input);
+
+    expect(result.title).toBe("TC DE ABDOMEN");
+    expect(result.report).toContain("Hígado: normal.");
+    expect(result.report).toContain("Bazo: normal.");
   });
 });
-

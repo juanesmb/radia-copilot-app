@@ -3,6 +3,7 @@ import { join } from "path";
 import type { Language } from "../types/language";
 
 let promptCache: Record<Language, string> | null = null;
+let enhancementPromptCache: Record<Language, string> | null = null;
 
 const loadPrompt = (language: Language): string => {
   if (promptCache?.[language]) {
@@ -28,5 +29,31 @@ const loadPrompt = (language: Language): string => {
   }
 };
 
+const loadEnhancementPrompt = (language: Language): string => {
+  if (enhancementPromptCache?.[language]) {
+    return enhancementPromptCache[language];
+  }
+
+  try {
+    const promptsDir = join(process.cwd(), "src/app/api/prompts");
+    const filePath = join(promptsDir, `${language}-enhance.md`);
+    const content = readFileSync(filePath, "utf-8");
+    const trimmed = content.trim();
+
+    if (!enhancementPromptCache) {
+      enhancementPromptCache = {} as Record<Language, string>;
+    }
+    enhancementPromptCache[language] = trimmed;
+
+    return trimmed;
+  } catch (error) {
+    throw new Error(
+      `Failed to load enhancement prompt file for language "${language}": ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
 export const getSystemPrompt = (language: Language): string => loadPrompt(language);
+
+export const getEnhancementPrompt = (language: Language): string => loadEnhancementPrompt(language);
 

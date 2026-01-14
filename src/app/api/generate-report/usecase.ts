@@ -36,7 +36,24 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
       console.log("=".repeat(80) + "\n");
       
       const rawContent = await deps.openAIClient.generateReport(prompt);
+      
+      // Log the final raw response from OpenAI
+      console.log("\n" + "=".repeat(80));
+      console.log("🤖 OPENAI RAW RESPONSE:");
+      console.log("=".repeat(80));
+      console.log(rawContent);
+      console.log("=".repeat(80));
+      console.log(`📏 Response length: ${rawContent.length} characters\n`);
+
       const formatted = deps.responseFormatter.format(rawContent);
+
+      // Log the formatted response
+      console.log("\n" + "=".repeat(80));
+      console.log("📄 FORMATTED RESPONSE:");
+      console.log("=".repeat(80));
+      console.log("Title:", formatted.title);
+      console.log("Report:", formatted.report);
+      console.log("=".repeat(80) + "\n");
       
       const reportData = {
         ...formatted,
@@ -54,6 +71,7 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
         generated_report: reportData.report,
         updated_report: reportData.report,
         used_template: reportData.selectedTemplate,
+        template_content: input.isCustomTemplate && input.template ? input.template : null,
         study_type: reportData.studyType || null,
         detection_confidence: reportData.detectionConfidence || null,
         model_used: reportData.modelUsed,

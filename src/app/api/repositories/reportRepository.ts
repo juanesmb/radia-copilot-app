@@ -10,6 +10,7 @@ export interface ReportData {
   generated_report: string;
   updated_report: string;
   used_template: string;
+  template_content?: string | null;
   study_type: string | null;
   detection_confidence: number | null;
   model_used: string;
@@ -25,6 +26,7 @@ export interface Report {
   generated_report: string;
   updated_report: string;
   used_template: string;
+  template_content: string | null;
   study_type: string | null;
   detection_confidence: number | null;
   model_used: string;
@@ -37,6 +39,14 @@ export interface UpdateReportData {
   report_title?: string;
   updated_report?: string;
   updated_transcription?: string;
+  // Regeneration fields
+  generated_report?: string;
+  generated_transcription?: string;
+  used_template?: string;
+  template_content?: string | null;
+  study_type?: string | null;
+  detection_confidence?: number | null;
+  model_used?: string;
 }
 
 export interface ReportRepository {

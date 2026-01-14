@@ -55,6 +55,8 @@ export const translations: TranslationMap = {
     "recording.studyType": "Select template",
     "recording.studyTypePlaceholder": "Select a template...",
     "recording.detecting": "Detecting study type...",
+    "recording.customTemplate": "Custom Template",
+    "recording.regenerate": "Regenerate",
 
     "template.title": "Template",
     "template.empty": "Select a study type from the dropdown above, or start recording - the template will appear automatically after you finish recording",
@@ -79,6 +81,8 @@ export const translations: TranslationMap = {
     "errors.requestFailed": "Unable to contact the report service.",
     "errors.validation.transcriptionRequired":
       "Please add a transcription before generating.",
+    "errors.validation.templateRequired":
+      "Please select a template before generating.",
     "errors.microphoneAccess": "Could not access microphone. Please check permissions.",
 
     "studyType.ct-abdomen": "CT Abdomen",
@@ -115,10 +119,10 @@ export const translations: TranslationMap = {
   es: {
     "app.title": "Graba tu Análisis",
     "app.subtitle":
-      "Dicta tus hallazgos, edita la transcripción y deja que la IA redacte un informe limpio.",
-    "app.generate": "Generar informe",
+      "Dicta tus hallazgos, edita la transcripción y deja que la IA redacte un reporte limpio.",
+    "app.generate": "Generar reporte",
     "app.generateBusy": "Generando...",
-    "app.generatedToast": "Informe listo",
+    "app.generatedToast": "Reporte listo",
 
     "language.switcherLabel": "Idioma",
     "language.english": "Inglés",
@@ -139,34 +143,36 @@ export const translations: TranslationMap = {
     "report.template": "Plantilla",
     "report.transcription": "Transcripción",
     "report.transcriptionEmpty": "No hay transcripción disponible.",
-    "report.empty": "El informe generado aparecerá aquí.",
+    "report.empty": "El reporte generado aparecerá aquí.",
     "report.copy": "Copiar al portapapeles",
-    "report.copied": "Informe copiado",
+    "report.copied": "reporte copiado",
     "report.disclaimer": "Este reporte ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
 
-    "reports.title": "Informes",
+    "reports.title": "Reportes",
     "reports.subtitle": "Tus Reportes",
     "reports.generate": "Nuevo Reporte",
-    "reports.empty": "Todavía no se han generado informes.",
-    "reports.emptyState": "Selecciona un informe para mostrarlo aquí. O haz clic en nuevo informe para generar uno nuevo.",
+    "reports.empty": "Todavía no se han generado reportes.",
+    "reports.emptyState": "Selecciona un reporte para mostrarlo aquí. O haz clic en nuevo reporte para generar uno nuevo.",
     "header.generateReport": "Generar reporte",
-    "header.reportDetails": "Detalles del informe",
+    "header.reportDetails": "Detalles del reporte",
 
     "recording.title": "Graba tu Análisis",
     "recording.description":
       "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
     "recording.placeholder": "Dicta o menciona los hallazgos positivos...",
     "recording.label": "Dictado",
-    "recording.upload": "Generar reporte",
+    "recording.upload": "Nuevo Reporte",
     "recording.recording": "Grabando...",
     "recording.connecting": "Conectando...",
     "recording.stop": "Detener",
     "recording.studyType": "Seleccionar plantilla",
     "recording.studyTypePlaceholder": "Selecciona una plantilla...",
     "recording.detecting": "Detectando tipo de estudio...",
+    "recording.customTemplate": "Plantilla Personalizada",
+    "recording.regenerate": "Volver a Generar",
 
     "template.title": "Plantilla",
-    "template.empty": "Selecciona un tipo de estudio del menú desplegable arriba, o comienza a grabar - la plantilla aparecerá automáticamente después de que termines de grabar",
+    "template.empty": "... O dicta tus hallazgos positivos. La plantilla aparecerá automáticamente después de que termines de grabar",
     "template.detecting": "Detectando tipo de estudio...",
     "template.error": "Error al cargar la plantilla",
 
@@ -180,14 +186,16 @@ export const translations: TranslationMap = {
     "welcome.tagline": "Tu copiloto de Radiología con IA",
     "welcome.greeting": "Bienvenido/a",
     "welcome.title": "Graba, revisa y comparte reportes estructurados",
-    "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
+    "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera reportes estructurados en segundos.",
     "welcome.generate": "Nuevo Reporte",
     "welcome.viewReports": "Ver historial",
 
-    "errors.generic": "No pudimos generar el informe. Intenta nuevamente.",
-    "errors.requestFailed": "No pudimos contactar el servicio de informes.",
+    "errors.generic": "No pudimos generar el reporte. Intenta nuevamente.",
+    "errors.requestFailed": "No pudimos contactar el servicio de reportes.",
     "errors.validation.transcriptionRequired":
       "Agrega una transcripción antes de generar.",
+    "errors.validation.templateRequired":
+      "Por favor selecciona una plantilla antes de generar.",
     "errors.microphoneAccess": "No se pudo acceder al micrófono. Verifica los permisos.",
 
     "studyType.ct-abdomen": "TC Abdomen",
@@ -203,7 +211,7 @@ export const translations: TranslationMap = {
     "studyType.ct-spine-dorsolumbar": "TC Columna Dorsolumbar",
     "studyType.ct-uro": "Urotomografía",
 
-    "feedback.title": "¿Este informe cumplió con tus expectativas?",
+    "feedback.title": "¿Este reporte cumplió con tus expectativas?",
     "feedback.scale1": "Para nada",
     "feedback.scale2": "Poco",
     "feedback.scale3": "Algo",
