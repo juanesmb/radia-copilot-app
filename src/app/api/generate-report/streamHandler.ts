@@ -1,9 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 
-import { createOpenAIClient } from "../clients/openaiClient";
+import { createAIClient } from "../clients/aiClient";
 import { createSupabaseClient } from "../clients/supabaseClient";
 import { mapErrorToResponse } from "../lib/errorHandler";
+import { getAIConfig } from "../lib/config";
 import { createReportRepository } from "../repositories/reportRepository";
 import { validateGenerateReportRequest } from "../lib/validation";
 import { createPromptBuilder } from "../services/promptBuilder";
@@ -14,13 +15,15 @@ import { createResponseFormatter } from "../services/responseFormatter";
 import { createStreamFormatter } from "../services/streamFormatter";
 import { createStreamingReportUseCase } from "./streamingUsecase";
 
-const openAIClient = createOpenAIClient({
-  apiKey: process.env.OPENAI_API_KEY,
-  model: process.env.OPENAI_MODEL,
-  temperature: 0.2,
+const aiConfig = getAIConfig();
+const aiClient = createAIClient({
+  gatewayApiKey: aiConfig.gatewayApiKey,
+  model: aiConfig.model,
+  baseUrl: aiConfig.baseUrl,
+  temperature: aiConfig.temperature,
 });
 
-const modelUsed = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const modelUsed = aiConfig.model;
 
 const supabaseClient = createSupabaseClient({
   url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -33,13 +36,13 @@ const reportRepository = createReportRepository({
 
 const streamingUseCase = createStreamingReportUseCase({
   promptBuilder: createPromptBuilder({
-    openAIClient,
+    aiClient,
     modeDetector: createPromptModeDetector(),
     transcriptionStrategy: createTranscriptionPromptStrategy(),
     enhancementStrategy: createEnhancementPromptStrategy(),
   }),
   responseFormatter: createResponseFormatter(),
-  openAIClient,
+  aiClient,
   modelUsed,
   reportRepository,
   streamFormatter: createStreamFormatter(),
