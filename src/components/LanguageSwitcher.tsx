@@ -9,15 +9,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export function LanguageSwitcher() {
-  const { language, setLanguage } = useLanguage();
+interface LanguageSwitcherProps {
+  showFullLabel?: boolean;
+}
+
+export function LanguageSwitcher({ showFullLabel = false }: LanguageSwitcherProps) {
+  const { language, setLanguage, t } = useLanguage();
+
+  const currentLabel = showFullLabel
+    ? language === "en"
+      ? t("language.english")
+      : t("language.spanish")
+    : language;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <span className="uppercase" suppressHydrationWarning>
-            {language}
+          <span className={showFullLabel ? "" : "uppercase"} suppressHydrationWarning>
+            {currentLabel}
           </span>
         </Button>
       </DropdownMenuTrigger>
@@ -26,13 +36,13 @@ export function LanguageSwitcher() {
           onClick={() => setLanguage('en')}
           className={language === 'en' ? 'bg-accent' : ''}
         >
-          English
+          {t("language.english")}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => setLanguage('es')}
           className={language === 'es' ? 'bg-accent' : ''}
         >
-          Español
+          {t("language.spanish")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

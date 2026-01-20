@@ -61,6 +61,7 @@ export const translations: TranslationMap = {
     "template.title": "Template",
     "template.empty": "Select a study type from the dropdown above, or start recording - the template will appear automatically after you finish recording",
     "template.detecting": "Detecting study type...",
+    "template.autoDetect": "Automatic detection",
     "template.error": "Error loading template",
 
     "upload.title": "Processing transcription",
@@ -115,6 +116,13 @@ export const translations: TranslationMap = {
     "feedback.minimized": "Feedback",
     "feedback.submitted": "Thank you for your feedback!",
     "feedback.error": "Failed to submit feedback",
+
+    "sidebar.expand": "Expand sidebar",
+    "sidebar.collapse": "Collapse sidebar",
+    "sidebar.home": "Home",
+    "sidebar.homeDescription": "Create a new report",
+    "sidebar.reports": "Reports",
+    "sidebar.reportsDescription": "Browse your report history",
   },
   es: {
     "app.title": "Graba tu Análisis",
@@ -174,6 +182,7 @@ export const translations: TranslationMap = {
     "template.title": "Plantilla",
     "template.empty": "Selecciona una plantilla o dicta tus hallazgos positivos.",
     "template.detecting": "Detectando tipo de estudio...",
+    "template.autoDetect": "Detección automática",
     "template.error": "Error al cargar la plantilla",
 
     "upload.title": "Procesando transcripción",
@@ -226,6 +235,13 @@ export const translations: TranslationMap = {
     "feedback.minimized": "Comentarios",
     "feedback.submitted": "¡Gracias por tu comentario!",
     "feedback.error": "Error al enviar el comentario",
+
+    "sidebar.expand": "Expandir barra lateral",
+    "sidebar.collapse": "Contraer barra lateral",
+    "sidebar.home": "Inicio",
+    "sidebar.homeDescription": "Crear un nuevo informe",
+    "sidebar.reports": "Informes",
+    "sidebar.reportsDescription": "Ver historial de informes",
   },
 };
 

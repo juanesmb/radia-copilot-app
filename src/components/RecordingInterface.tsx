@@ -37,6 +37,9 @@ interface RecordingInterfaceProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   sttError?: string | null;
+  // Template detection toggle
+  isAutoDetectTemplate?: boolean;
+  onAutoDetectTemplateChange?: (isEnabled: boolean) => void;
   // Study type detection
   detectedStudyType?: string | null;
   availableStudyTypes?: StudyTypeOption[];
@@ -79,6 +82,8 @@ export function RecordingInterface({
   onStartRecording,
   onStopRecording,
   sttError,
+  isAutoDetectTemplate = true,
+  onAutoDetectTemplateChange,
   detectedStudyType,
   availableStudyTypes,
   selectedStudyType,
@@ -513,6 +518,8 @@ export function RecordingInterface({
               availableStudyTypes={availableStudyTypes}
               selectedStudyType={selectedStudyType || detectedStudyType || ''}
               onStudyTypeChange={onStudyTypeChange}
+              isAutoDetectTemplate={isAutoDetectTemplate}
+              onAutoDetectTemplateChange={onAutoDetectTemplateChange}
               isActive={isActive}
               disabled={disabled}
               isCustom={hasTemplateBeenEdited}
