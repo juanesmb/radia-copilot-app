@@ -75,7 +75,7 @@ export function TemplatePreview({
           </h3>
 
           {availableStudyTypes && availableStudyTypes.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <label className="flex items-center gap-2 text-sm text-foreground select-none shrink-0">
                 <input
                   type="checkbox"
@@ -108,7 +108,7 @@ export function TemplatePreview({
                   }
                 }}
                 disabled={isActive || disabled || isAutoDetectTemplate || isDetectingStudyType}
-                className="w-full sm:w-auto flex-1 min-w-0 max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto sm:ml-auto min-w-0 max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">{t("recording.studyTypePlaceholder")}</option>
                 <option value="custom" disabled={!isCustom}>

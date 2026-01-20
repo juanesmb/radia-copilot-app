@@ -61,7 +61,7 @@ export const translations: TranslationMap = {
     "template.title": "Template",
     "template.empty": "Select a study type from the dropdown above, or start recording - the template will appear automatically after you finish recording",
     "template.detecting": "Detecting study type...",
-    "template.autoDetect": "Automatic template detection",
+    "template.autoDetect": "Automatic detection",
     "template.error": "Error loading template",
 
     "upload.title": "Processing transcription",
@@ -182,7 +182,7 @@ export const translations: TranslationMap = {
     "template.title": "Plantilla",
     "template.empty": "Selecciona una plantilla o dicta tus hallazgos positivos.",
     "template.detecting": "Detectando tipo de estudio...",
-    "template.autoDetect": "Detección automática de plantilla",
+    "template.autoDetect": "Detección automática",
     "template.error": "Error al cargar la plantilla",
 
     "upload.title": "Procesando transcripción",
