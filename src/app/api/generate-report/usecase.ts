@@ -1,4 +1,4 @@
-import type { OpenAIClient } from "../clients/openaiClient";
+import type { AIClient } from "../clients/aiClient";
 import type { ResponseFormatter } from "../services/responseFormatter";
 import type { PromptBuilder } from "../services/promptBuilder";
 import type { ReportRepository } from "../repositories/reportRepository";
@@ -7,7 +7,7 @@ import type { GenerateReportRequest, GenerateReportResult } from "../types/gener
 type Dependencies = {
   promptBuilder: PromptBuilder;
   responseFormatter: ResponseFormatter;
-  openAIClient: OpenAIClient;
+  aiClient: AIClient;
   modelUsed: string;
   reportRepository: ReportRepository;
 };
@@ -35,11 +35,11 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
       console.log("-".repeat(80));
       console.log("=".repeat(80) + "\n");
       
-      const rawContent = await deps.openAIClient.generateReport(prompt);
+      const rawContent = await deps.aiClient.generateReport(prompt);
       
-      // Log the final raw response from OpenAI
+      // Log the final raw response from AI Gateway
       console.log("\n" + "=".repeat(80));
-      console.log("🤖 OPENAI RAW RESPONSE:");
+      console.log("🤖 AI GATEWAY RAW RESPONSE:");
       console.log("=".repeat(80));
       console.log(rawContent);
       console.log("=".repeat(80));

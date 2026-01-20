@@ -1,4 +1,4 @@
-import type { OpenAIClient } from "../clients/openaiClient";
+import type { AIClient } from "../clients/aiClient";
 import type { GenerateReportRequest } from "../types/generate-report";
 import type { Language } from "../types/language";
 import { detectStudyType, extractModalityAndRegion } from "./studyTypeDetector";
@@ -27,7 +27,7 @@ export interface PromptBuilder {
 }
 
 type Dependencies = {
-  openAIClient: OpenAIClient;
+  aiClient: AIClient;
   modeDetector: PromptModeDetector;
   transcriptionStrategy: PromptStrategy;
   enhancementStrategy: PromptStrategy;
@@ -128,7 +128,7 @@ export const createPromptBuilder = (
           detection = await detectStudyType(
             input.transcription || "",
             input.language,
-            deps.openAIClient
+            deps.aiClient
           );
         }
       }
