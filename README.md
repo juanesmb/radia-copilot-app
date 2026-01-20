@@ -26,10 +26,13 @@ Visit [http://localhost:3000](http://localhost:3000) to use the app.
 
 | Variable | Description |
 | --- | --- |
-| `OPENAI_API_KEY` | Server-side key for the Chat Completions API. |
-| `OPENAI_MODEL` | Optional override (defaults to `gpt-4o-mini`). |
+| `AI_GATEWAY_API_KEY` | Server-side key for Vercel AI Gateway. Get your key from [Vercel AI Gateway](https://vercel.com/ai-gateway). |
+| `AI_MODEL` | Model name in format `{provider}/{model}` (e.g., `openai/gpt-4o-mini`). Defaults to `openai/gpt-4o-mini`. If no provider prefix is provided, `openai/` will be added automatically. |
+| `AI_GATEWAY_BASE_URL` | Optional. AI Gateway base URL (defaults to `https://ai-gateway.vercel.sh/v1`). |
 
-Both variables are read inside `app/api/generate-report`. Only keep them in `.env.local` (never commit real credentials).
+All variables are read via the centralized config module (`src/app/api/lib/config.ts`). Only keep them in `.env.local` (never commit real credentials).
+
+**Note**: This application uses [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) for AI model access, which provides a unified API to access multiple AI providers with monitoring, fallbacks, and cost management.
 
 ## Architecture
 
@@ -58,7 +61,10 @@ src/app/api/
 │   ├── templateSearcher.ts      # Keyword-based template search
 │   └── promptBuilder.ts         # Dynamic prompt construction
 ├── clients/               # External service clients
-│   └── openaiClient.ts    # OpenAI API wrapper
+│   └── openaiClient.ts    # AI Gateway client (OpenAI-compatible)
+├── lib/                   # Shared utilities
+│   ├── config.ts          # Centralized configuration management
+│   └── modelUtils.ts      # Model name formatting utilities
 └── prompts/               # Base system prompts
     ├── es.md
     └── en.md
@@ -191,6 +197,7 @@ Once you create the template files, the system will:
 ## Notes
 
 - The language selector persists preference (localStorage + query param) and hydrates on load.
-- `/api/generate-report` validates payloads, detects study type using LLM, loads appropriate template, builds a bilingual prompt, and uses an OpenAI client wrapper to produce a JSON report. A defensive formatter guards against malformed model responses.
+- `/api/generate-report` validates payloads, detects study type using LLM, loads appropriate template, builds a bilingual prompt, and uses an AI Gateway client to produce a JSON report. A defensive formatter guards against malformed model responses.
+- **AI Gateway Integration**: The application uses Vercel AI Gateway for AI model access. Configuration is centralized in `src/app/api/lib/config.ts`, and model names are automatically formatted with provider prefixes via `src/app/api/lib/modelUtils.ts`.
 - UI components live in `src/components` and reuse the shared Tailwind design tokens defined in `src/app/globals.css`.
 - Templates are cached in memory for performance. Restart the server after adding new templates.

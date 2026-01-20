@@ -1,4 +1,4 @@
-import type { OpenAIClient } from "../clients/openaiClient";
+import type { AIClient } from "../clients/aiClient";
 import type { Language } from "../types/language";
 import type { StudyTypeDetection } from "../types/template";
 import { listAvailableTemplates } from "./templateLoader";
@@ -127,7 +127,7 @@ const extractRegionFromKeywords = (keywords: string[] | undefined): string | und
 export const detectStudyType = async (
   transcription: string,
   language: Language,
-  openAIClient: OpenAIClient
+  aiClient: AIClient
 ): Promise<StudyTypeDetection> => {
   const availableTemplates = listAvailableTemplates(language);
 
@@ -141,7 +141,7 @@ export const detectStudyType = async (
     ? "Eres un clasificador experto de tipos de estudios radiológicos. Debes distinguir cuidadosamente entre estudios completos del abdomen (ct-abdomen) y estudios específicos del tracto urinario (ct-uro). Si la transcripción menciona múltiples órganos abdominales (hígado, bazo, páncreas, etc.), es ct-abdomen. Solo elige ct-uro si el estudio se enfoca exclusivamente en el sistema urinario. Responde únicamente con JSON válido."
     : "You are an expert radiological study type classifier. You must carefully distinguish between comprehensive abdomen studies (ct-abdomen) and specific urinary tract studies (ct-uro). If the transcription mentions multiple abdominal organs (liver, spleen, pancreas, etc.), it's ct-abdomen. Only choose ct-uro if the study focuses exclusively on the urinary system. Respond only with valid JSON.";
 
-  const response = await openAIClient.generateCompletion([
+  const response = await aiClient.generateCompletion([
     { role: "system", content: systemMessage },
     { role: "user", content: prompt },
   ]);

@@ -4,8 +4,9 @@ export interface ModelInput {
 }
 
 export interface ModelConfig {
-  apiKey?: string;
+  gatewayApiKey?: string;
   model?: string;
+  baseUrl?: string;
   temperature?: number;
 }
 

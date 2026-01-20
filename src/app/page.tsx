@@ -60,6 +60,7 @@ export default function HomePage() {
   const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
   const [editedTemplate, setEditedTemplate] = useState<string>("");
   const [isTemplateCustom, setIsTemplateCustom] = useState(false);
+  const [isAutoDetectTemplate, setIsAutoDetectTemplate] = useState(true);
 
   // Study type detection state
   const [isDetectingStudyType, setIsDetectingStudyType] = useState(false);
@@ -81,6 +82,45 @@ export default function HomePage() {
   const hasScrolledPastThreshold = useReportScroll(shouldTrackScroll, 0.3);
   
   const prevSttStateRef = useRef<typeof sttState>(sttState);
+  const lastStudyTypeDetectionTextRef = useRef<string>("");
+
+  const runStudyTypeDetection = useCallback((textToDetect: string) => {
+    const normalizedText = textToDetect.trim();
+
+    if (!normalizedText || isDetectingStudyType) {
+      return;
+    }
+
+    if (lastStudyTypeDetectionTextRef.current === normalizedText) {
+      return;
+    }
+
+    lastStudyTypeDetectionTextRef.current = normalizedText;
+
+    setIsDetectingStudyType(true);
+
+    detectStudyType({
+      transcription: normalizedText,
+      language,
+    })
+      .then((result) => {
+        setDetectedStudyType(result.studyType);
+        setSelectedStudyType(result.studyType);
+        setAvailableStudyTypes(
+          result.availableTemplates.map((templateId: string) => ({
+            value: templateId,
+            label: t(`studyType.${templateId}`) || templateId,
+          }))
+        );
+      })
+      .catch((error) => {
+        console.error('[StudyType] Detection failed:', error);
+        lastStudyTypeDetectionTextRef.current = "";
+      })
+      .finally(() => {
+        setIsDetectingStudyType(false);
+      });
+  }, [detectedStudyType, isDetectingStudyType, language, t]);
 
   useEffect(() => {
     setTranscription(transcript);
@@ -88,6 +128,10 @@ export default function HomePage() {
 
   // Auto-detect study type when recording stops
   useEffect(() => {
+    if (!isAutoDetectTemplate) {
+      return;
+    }
+
     const prevState = prevSttStateRef.current;
     const currentState = sttState;
     prevSttStateRef.current = currentState;
@@ -100,28 +144,8 @@ export default function HomePage() {
 
     const textToDetect = transcription.trim() || transcript.trim();
     
-    if (textToDetect && !isDetectingStudyType && !detectedStudyType) {
-      setIsDetectingStudyType(true);
-      
-      detectStudyType({
-        transcription: textToDetect,
-        language,
-      })
-        .then((result) => {
-          setDetectedStudyType(result.studyType);
-          setSelectedStudyType(result.studyType);
-          setAvailableStudyTypes(
-            result.availableTemplates.map((templateId: string) => ({ value: templateId, label: t(`studyType.${templateId}`) || templateId }))
-          );
-        })
-        .catch((error) => {
-          console.error('[StudyType] Detection failed:', error);
-        })
-        .finally(() => {
-          setIsDetectingStudyType(false);
-        });
-    }
-  }, [sttState, transcript, transcription, language, detectedStudyType, isDetectingStudyType, t]);
+    runStudyTypeDetection(textToDetect);
+  }, [isAutoDetectTemplate, sttState, transcript, transcription, runStudyTypeDetection]);
 
   // Load available templates when entering recording state
   useEffect(() => {
@@ -178,6 +202,25 @@ export default function HomePage() {
             setSelectedStudyType(studyType);
             setEditedTemplate(""); // Clear edited template when new study type is selected
             setIsTemplateCustom(false); // Reset custom flag
+          }}
+          isAutoDetectTemplate={isAutoDetectTemplate}
+          onAutoDetectTemplateChange={(isEnabled: boolean) => {
+            setIsAutoDetectTemplate(isEnabled);
+
+            if (isEnabled) {
+              const normalizedText = (transcription.trim() || transcript.trim()).trim();
+
+              if (normalizedText && lastStudyTypeDetectionTextRef.current === normalizedText) {
+                return;
+              }
+
+              setDetectedStudyType(null);
+              setSelectedStudyType("");
+              runStudyTypeDetection(normalizedText);
+              return;
+            }
+
+            setSelectedStudyType((prev) => prev || detectedStudyType || "");
           }}
           isDetectingStudyType={isDetectingStudyType}
           language={language}
@@ -286,13 +329,12 @@ export default function HomePage() {
     setIsGenerating(false);
     setEditedTemplate("");
     setIsTemplateCustom(false);
+    setIsAutoDetectTemplate(true);
+    lastStudyTypeDetectionTextRef.current = "";
     resetSTT();
   }, [resetSTT]);
 
   const handleStartRecording = useCallback(async () => {
-    setDetectedStudyType(null);
-    setSelectedStudyType("");
-    
     try {
       await startSTT({
         language,
@@ -390,6 +432,14 @@ export default function HomePage() {
 
   const handleStartUpload = async () => {
     // Require study type (template) or custom template instead of transcription
+    if (!isAutoDetectTemplate && !selectedStudyType) {
+      toast({
+        title: t("errors.validation.templateRequired"),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!selectedStudyType && !detectedStudyType && !isTemplateCustom) {
       toast({
         title: t("errors.validation.templateRequired"),
@@ -417,7 +467,9 @@ export default function HomePage() {
         {
           transcription: trimmed,
           language,
-          studyType: selectedStudyType || detectedStudyType || undefined,
+          studyType: isAutoDetectTemplate
+            ? selectedStudyType || detectedStudyType || undefined
+            : selectedStudyType || undefined,
           template: editedTemplate || undefined,
           isCustomTemplate: isTemplateCustom,
           reportId: currentReportId || undefined,

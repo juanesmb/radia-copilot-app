@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createOpenAIClient } from '../clients/openaiClient';
+import { createAIClient } from '../clients/aiClient';
+import { getAIConfig } from '../lib/config';
+import { HttpError } from '../lib/errorHandler';
 import { detectStudyType } from '../services/studyTypeDetector';
 import { listAvailableTemplates } from '../services/templateLoader';
 import type { Language } from '../types/language';
@@ -23,15 +25,17 @@ export async function POST(request: NextRequest) {
     }
 
     const { transcription, language } = parsed.data;
-    const openAIClient = createOpenAIClient({
-      apiKey: process.env.OPENAI_API_KEY,
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    const aiConfig = getAIConfig();
+    const aiClient = createAIClient({
+      gatewayApiKey: aiConfig.gatewayApiKey,
+      model: aiConfig.model,
+      baseUrl: aiConfig.baseUrl,
     });
 
     const detection = await detectStudyType(
       transcription,
       language as Language,
-      openAIClient
+      aiClient
     );
 
     const availableTemplates = listAvailableTemplates(language as Language);
@@ -45,8 +49,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Study type detection error:', error);
+    
+    // Preserve status code from HttpError if available
+    if (error instanceof HttpError) {
+      return NextResponse.json(
+        { 
+          error: error.message,
+          details: error.details 
+        },
+        { status: error.status }
+      );
+    }
+    
+    // Fallback for unknown errors
+    const errorMessage = error instanceof Error ? error.message : 'Failed to detect study type';
     return NextResponse.json(
-      { error: 'Failed to detect study type' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
