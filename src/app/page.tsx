@@ -82,16 +82,25 @@ export default function HomePage() {
   const hasScrolledPastThreshold = useReportScroll(shouldTrackScroll, 0.3);
   
   const prevSttStateRef = useRef<typeof sttState>(sttState);
+  const lastStudyTypeDetectionTextRef = useRef<string>("");
 
   const runStudyTypeDetection = useCallback((textToDetect: string) => {
-    if (!textToDetect.trim() || isDetectingStudyType || detectedStudyType) {
+    const normalizedText = textToDetect.trim();
+
+    if (!normalizedText || isDetectingStudyType) {
       return;
     }
+
+    if (lastStudyTypeDetectionTextRef.current === normalizedText) {
+      return;
+    }
+
+    lastStudyTypeDetectionTextRef.current = normalizedText;
 
     setIsDetectingStudyType(true);
 
     detectStudyType({
-      transcription: textToDetect,
+      transcription: normalizedText,
       language,
     })
       .then((result) => {
@@ -106,6 +115,7 @@ export default function HomePage() {
       })
       .catch((error) => {
         console.error('[StudyType] Detection failed:', error);
+        lastStudyTypeDetectionTextRef.current = "";
       })
       .finally(() => {
         setIsDetectingStudyType(false);
@@ -198,9 +208,15 @@ export default function HomePage() {
             setIsAutoDetectTemplate(isEnabled);
 
             if (isEnabled) {
+              const normalizedText = (transcription.trim() || transcript.trim()).trim();
+
+              if (normalizedText && lastStudyTypeDetectionTextRef.current === normalizedText) {
+                return;
+              }
+
               setDetectedStudyType(null);
               setSelectedStudyType("");
-              runStudyTypeDetection(transcription.trim() || transcript.trim());
+              runStudyTypeDetection(normalizedText);
               return;
             }
 
@@ -314,15 +330,11 @@ export default function HomePage() {
     setEditedTemplate("");
     setIsTemplateCustom(false);
     setIsAutoDetectTemplate(true);
+    lastStudyTypeDetectionTextRef.current = "";
     resetSTT();
   }, [resetSTT]);
 
   const handleStartRecording = useCallback(async () => {
-    if (isAutoDetectTemplate) {
-      setDetectedStudyType(null);
-      setSelectedStudyType("");
-    }
-    
     try {
       await startSTT({
         language,
@@ -336,7 +348,7 @@ export default function HomePage() {
         variant: "destructive",
       });
     }
-  }, [isAutoDetectTemplate, startSTT, language, toast, t, transcription]);
+  }, [startSTT, language, toast, t, transcription]);
 
   const handleStopRecording = useCallback(async () => {
     await stopSTT();
