@@ -116,6 +116,13 @@ export const translations: TranslationMap = {
     "feedback.minimized": "Feedback",
     "feedback.submitted": "Thank you for your feedback!",
     "feedback.error": "Failed to submit feedback",
+
+    "sidebar.expand": "Expand sidebar",
+    "sidebar.collapse": "Collapse sidebar",
+    "sidebar.home": "Home",
+    "sidebar.homeDescription": "Create a new report",
+    "sidebar.reports": "Reports",
+    "sidebar.reportsDescription": "Browse your report history",
   },
   es: {
     "app.title": "Graba tu Análisis",
@@ -228,6 +235,13 @@ export const translations: TranslationMap = {
     "feedback.minimized": "Comentarios",
     "feedback.submitted": "¡Gracias por tu comentario!",
     "feedback.error": "Error al enviar el comentario",
+
+    "sidebar.expand": "Expandir barra lateral",
+    "sidebar.collapse": "Contraer barra lateral",
+    "sidebar.home": "Inicio",
+    "sidebar.homeDescription": "Crear un nuevo informe",
+    "sidebar.reports": "Informes",
+    "sidebar.reportsDescription": "Ver historial de informes",
   },
 };
 
