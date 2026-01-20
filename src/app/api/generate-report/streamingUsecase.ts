@@ -1,4 +1,4 @@
-import type { OpenAIClient } from "../clients/openaiClient";
+import type { AIClient } from "../clients/aiClient";
 import type { ResponseFormatter } from "../services/responseFormatter";
 import type { PromptBuilder } from "../services/promptBuilder";
 import type { ReportRepository, Report } from "../repositories/reportRepository";
@@ -7,7 +7,7 @@ import type { GenerateReportRequest } from "../types/generate-report";
 
 type Dependencies = {
   promptBuilder: PromptBuilder;
-  openAIClient: OpenAIClient;
+  aiClient: AIClient;
   responseFormatter: ResponseFormatter;
   reportRepository: ReportRepository;
   streamFormatter: StreamFormatter;
@@ -43,9 +43,9 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
         console.log("-".repeat(80));
         console.log("=".repeat(80) + "\n");
 
-        // Stream from OpenAI
+        // Stream from AI Gateway
         let accumulatedContent = "";
-        const stream = deps.openAIClient.generateReportStream({
+        const stream = deps.aiClient.generateReportStream({
           systemPrompt: prompt.systemPrompt,
           userPrompt: prompt.userPrompt,
         });
@@ -55,9 +55,9 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
           yield { type: "chunk", content: chunk };
         }
 
-        // Log the final raw response from OpenAI
+        // Log the final raw response from AI Gateway
         console.log("\n" + "=".repeat(80));
-        console.log("🤖 OPENAI RAW RESPONSE:");
+        console.log("🤖 AI GATEWAY RAW RESPONSE:");
         console.log("=".repeat(80));
         console.log(accumulatedContent);
         console.log("=".repeat(80));

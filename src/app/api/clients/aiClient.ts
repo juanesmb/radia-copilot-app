@@ -1,47 +1,92 @@
+// Using OpenAI SDK for AI Gateway compatibility (AI Gateway uses OpenAI-compatible API format)
+// This SDK is used only for the API interface, not for direct OpenAI calls
 import OpenAI, { APIError } from "openai";
 
 import { HttpError } from "../lib/errorHandler";
+import { getAIConfig } from "../lib/config";
+import { formatModelName } from "../lib/modelUtils";
 import type { ModelConfig, ModelInput } from "../types/model";
 
-export interface OpenAIClient {
+// Alias the OpenAI SDK to a generic name to avoid provider-specific naming
+const AIGatewaySDK = OpenAI;
+
+export interface AIClient {
   generateReport(input: ModelInput): Promise<string>;
   generateCompletion(messages: Array<{ role: "system" | "user"; content: string }>): Promise<string>;
   generateReportStream(input: ModelInput): AsyncGenerator<string>;
 }
 
-export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
-  const { apiKey, model = "gpt-4o-mini", temperature = 0.2 } = config;
+export const createAIClient = (config: ModelConfig = {}): AIClient => {
+  // Merge provided config with defaults from environment
+  const defaultConfig = getAIConfig();
+  
+  const gatewayApiKey = config.gatewayApiKey || defaultConfig.gatewayApiKey;
+  const model = config.model || defaultConfig.model;
+  const baseUrl = config.baseUrl || defaultConfig.baseUrl;
+  const temperature = config.temperature ?? defaultConfig.temperature;
 
-  if (!apiKey) {
+  if (!gatewayApiKey) {
     return {
       async generateReport() {
-        throw new HttpError("OPENAI_API_KEY is not configured.", {
+        throw new HttpError("AI_GATEWAY_API_KEY is not configured.", {
           status: 500,
         });
       },
       async generateCompletion() {
-        throw new HttpError("OPENAI_API_KEY is not configured.", {
+        throw new HttpError("AI_GATEWAY_API_KEY is not configured.", {
           status: 500,
         });
       },
       async *generateReportStream() {
-        throw new HttpError("OPENAI_API_KEY is not configured.", {
+        throw new HttpError("AI_GATEWAY_API_KEY is not configured.", {
           status: 500,
         });
       },
     };
   }
 
-  const client = new OpenAI({ apiKey });
+  // Format model name to include provider prefix if needed
+  const formattedModel = formatModelName(model);
+
+  // Initialize AI Gateway client
+  // Using OpenAI-compatible SDK because AI Gateway uses OpenAI-compatible API format
+  // All requests go through AI Gateway, not directly to any provider
+  const client = new AIGatewaySDK({
+    apiKey: gatewayApiKey,
+    baseURL: baseUrl,
+  });
 
   // Models that only support default temperature (1.0)
+  // Check for both prefixed (e.g., "provider/model-name") and non-prefixed model names
   const modelsWithFixedTemperature = ["gpt-5-mini", "gpt-5-nano"];
 
   const getEffectiveTemperature = (modelName: string, requestedTemp: number): number => {
-    if (modelsWithFixedTemperature.includes(modelName)) {
-      return 1.0; // Default temperature for gpt-5 models
+    // Extract model name without provider prefix for comparison
+    const modelWithoutPrefix = modelName.includes("/") 
+      ? modelName.split("/")[1] 
+      : modelName;
+    
+    if (modelsWithFixedTemperature.includes(modelWithoutPrefix)) {
+      return 1.0; // Default temperature for specific models
     }
     return requestedTemp;
+  };
+
+  const createAPIError = (error: APIError): HttpError => {
+    // Extract status code - SDK uses 'status' property (number)
+    const statusCode = 
+      typeof error.status === 'number' ? error.status 
+      : (error as unknown as { statusCode?: number }).statusCode ?? 502;
+    
+    const errorMessage = error.message || "AI Gateway API error";
+    
+    return new HttpError(
+      errorMessage,
+      {
+        status: statusCode,
+        details: error.code ? `Error code: ${error.code}` : undefined,
+      }
+    );
   };
 
   const handleCompletion = async (
@@ -69,18 +114,11 @@ export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
         throw error;
       }
       
-      // Better error handling for OpenAI API errors
       if (error instanceof APIError) {
-        throw new HttpError(
-          `OpenAI API error: ${error.message}`,
-          {
-            status: error.status ?? 502,
-            details: error.code ? `Error code: ${error.code}` : undefined,
-          }
-        );
+        throw createAPIError(error);
       }
       
-      throw new HttpError("OpenAI request failed.", {
+      throw new HttpError("AI Gateway request failed.", {
         status: 502,
         details: error instanceof Error ? error.message : String(error),
       });
@@ -114,16 +152,10 @@ export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
       }
       
       if (error instanceof APIError) {
-        throw new HttpError(
-          `OpenAI API error: ${error.message}`,
-          {
-            status: error.status ?? 502,
-            details: error.code ? `Error code: ${error.code}` : undefined,
-          }
-        );
+        throw createAPIError(error);
       }
       
-      throw new HttpError("OpenAI streaming request failed.", {
+      throw new HttpError("AI Gateway streaming request failed.", {
         status: 502,
         details: error instanceof Error ? error.message : String(error),
       });
@@ -132,20 +164,21 @@ export const createOpenAIClient = (config: ModelConfig): OpenAIClient => {
 
   return {
     async generateReport({ systemPrompt, userPrompt }) {
-      return handleCompletion(model, temperature, [
+      return handleCompletion(formattedModel, temperature, [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ]);
     },
     async generateCompletion(messages) {
-      return handleCompletion("gpt-4o-mini", 0, messages);
+      // Use the configured model for completion (study type detection)
+      // Model name should already be formatted with provider prefix from config
+      return handleCompletion(formattedModel, 0, messages);
     },
     async *generateReportStream({ systemPrompt, userPrompt }) {
-      yield* handleStreamingCompletion(model, temperature, [
+      yield* handleStreamingCompletion(formattedModel, temperature, [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ]);
     },
   };
 };
-
