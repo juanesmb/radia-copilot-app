@@ -69,58 +69,58 @@ export function TemplatePreview({
   const renderHeader = () => (
     <div className="p-4 border-b border-border shrink-0">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2 lg:gap-3 min-w-0 flex-1">
           <h3 className="text-base font-semibold text-foreground shrink-0">
             {t("template.title")}
           </h3>
 
           {availableStudyTypes && availableStudyTypes.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <label className="flex items-center gap-2 text-sm text-foreground select-none shrink-0">
-                <input
-                  type="checkbox"
-                  checked={isAutoDetectTemplate}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    onAutoDetectTemplateChange?.(e.target.checked)
-                  }
-                  disabled={isActive || disabled}
-                  className="h-4 w-4 rounded border border-input bg-background"
-                />
-                {t("template.autoDetect")}
-              </label>
+            <label className="flex items-center gap-2 text-sm text-foreground select-none shrink-0">
+              <input
+                type="checkbox"
+                checked={isAutoDetectTemplate}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  onAutoDetectTemplateChange?.(e.target.checked)
+                }
+                disabled={isActive || disabled}
+                className="h-4 w-4 rounded border border-input bg-background"
+              />
+              {t("template.autoDetect")}
+            </label>
+          )}
 
-              <select
-                id="study-type"
-                value={isCustom ? 'custom' : (selectedStudyType || '')}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                  const value = e.target.value;
-                  if (value === 'custom') {
-                    // Don't allow selecting custom - it's just a display value
-                    return;
-                  }
-                  if (value) {
-                    onStudyTypeChange?.(value);
-                    // Reset custom state when a new template is selected
-                    onCustomStateReset?.();
-                  } else {
-                    onStudyTypeChange?.('');
-                    onCustomStateReset?.();
-                  }
-                }}
-                disabled={isActive || disabled || isAutoDetectTemplate || isDetectingStudyType}
-                className="w-full sm:w-auto sm:ml-auto min-w-0 max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">{t("recording.studyTypePlaceholder")}</option>
-                <option value="custom" disabled={!isCustom}>
-                  {t("recording.customTemplate")}
+          {availableStudyTypes && availableStudyTypes.length > 0 && (
+            <select
+              id="study-type"
+              value={isCustom ? 'custom' : (selectedStudyType || '')}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                const value = e.target.value;
+                if (value === 'custom') {
+                  // Don't allow selecting custom - it's just a display value
+                  return;
+                }
+                if (value) {
+                  onStudyTypeChange?.(value);
+                  // Reset custom state when a new template is selected
+                  onCustomStateReset?.();
+                } else {
+                  onStudyTypeChange?.('');
+                  onCustomStateReset?.();
+                }
+              }}
+              disabled={isActive || disabled || isAutoDetectTemplate || isDetectingStudyType}
+              className="basis-full w-full sm:basis-auto sm:w-auto sm:ml-auto min-w-0 max-w-full sm:max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">{t("recording.studyTypePlaceholder")}</option>
+              <option value="custom" disabled={!isCustom}>
+                {t("recording.customTemplate")}
+              </option>
+              {availableStudyTypes.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
-                {availableStudyTypes.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </select>
           )}
         </div>
 
