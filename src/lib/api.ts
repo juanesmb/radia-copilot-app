@@ -25,6 +25,34 @@ export interface Report {
   updated_at: string;
 }
 
+export interface ChatSession {
+  id: string;
+  user_id: string;
+  title: string | null;
+  model: string;
+  message_count: number | null;
+  token_count: number | null;
+  max_tokens: number | null;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  token_count: number | null;
+  created_at: string;
+}
+
+export interface CreateChatSessionRequest {
+  title?: string;
+  model: string;
+  max_tokens?: number | null;
+}
+
 export interface UpdateReportRequest {
   report_title?: string;
   updated_report?: string;
@@ -53,6 +81,208 @@ export async function generateReport(
     }
 
     const data = (await response.json()) as GenerateReportResponse;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createReportChatSession(payload: {
+  reportId: string;
+  title: string;
+  model: string;
+  initialPrompt?: string;
+}): Promise<{ sessionId: string }> {
+  try {
+    const response = await fetch("/api/chat/report-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to create report chat",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return (await response.json()) as { sessionId: string };
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function updateChatSession(
+  sessionId: string,
+  updates: Partial<CreateChatSessionRequest>
+): Promise<ChatSession> {
+  try {
+    const response = await fetch(`/api/chats/${sessionId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to update chat session",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as ChatSession;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function getChatSessions(): Promise<ChatSession[]> {
+  try {
+    const response = await fetch("/api/chats", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to fetch chat sessions",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as ChatSession[];
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createChatSession(
+  payload: CreateChatSessionRequest
+): Promise<ChatSession> {
+  try {
+    const response = await fetch("/api/chats", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to create chat session",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as ChatSession;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function getChatMessages(sessionId: string): Promise<ChatMessage[]> {
+  try {
+    const response = await fetch(`/api/chats/${sessionId}/messages`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to fetch chat messages",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as ChatMessage[];
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createChatMessage(
+  sessionId: string,
+  payload: Pick<ChatMessage, "role" | "content"> & { token_count?: number | null }
+): Promise<ChatMessage> {
+  try {
+    const response = await fetch(`/api/chats/${sessionId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to create chat message",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as ChatMessage;
     return data;
   } catch (error) {
     if ((error as ApiError)?.message) {

@@ -1,0 +1,975 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  CheckIcon,
+  GlobeIcon,
+  MessageCircleIcon,
+  MicIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
+import { nanoid } from "nanoid";
+
+import {
+  Attachment,
+  AttachmentPreview,
+  AttachmentRemove,
+  Attachments,
+} from "@/components/ai-elements/attachments";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import {
+  Message,
+  MessageBranch,
+  MessageBranchContent,
+  MessageBranchNext,
+  MessageBranchPage,
+  MessageBranchPrevious,
+  MessageBranchSelector,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message";
+import {
+  ModelSelector,
+  ModelSelectorContent,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorInput,
+  ModelSelectorItem,
+  ModelSelectorList,
+  ModelSelectorLogo,
+  ModelSelectorLogoGroup,
+  ModelSelectorName,
+  ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector";
+import {
+  PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputBody,
+  PromptInputButton,
+  PromptInputFooter,
+  PromptInputHeader,
+  type PromptInputMessage,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+  usePromptInputAttachments,
+} from "@/components/ai-elements/prompt-input";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from "@/components/ai-elements/sources";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  createChatMessage,
+  createChatSession,
+  getChatMessages,
+  getChatSessions,
+  getReports,
+  updateChatSession,
+  type ChatMessage,
+  type ChatSession,
+  type Report,
+} from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
+
+interface MessageType {
+  key: string;
+  from: "user" | "assistant";
+  content: string;
+  sources?: { href: string; title: string }[];
+  reasoning?: {
+    content: string;
+    duration: number;
+  };
+}
+
+const DEFAULT_POSITION = { x: 0, y: 0 };
+const DRAG_OFFSET = 16;
+const DRAG_THRESHOLD = 4;
+const PANEL_WIDTH = 520;
+const PANEL_HEIGHT = 600;
+const MOBILE_BREAKPOINT = 640;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const models = [
+  {
+    id: "openai/gpt-4o",
+    name: "GPT-4o",
+    chef: "OpenAI",
+    chefSlug: "openai",
+    providers: ["openai", "azure"],
+  },
+  {
+    id: "anthropic/claude-sonnet-4-20250514",
+    name: "Claude 4 Sonnet",
+    chef: "Anthropic",
+    chefSlug: "anthropic",
+    providers: ["anthropic", "azure"],
+  },
+  {
+    id: "google/gemini-2.0-flash-exp",
+    name: "Gemini 2.0 Flash",
+    chef: "Google",
+    chefSlug: "google",
+    providers: ["google"],
+  },
+];
+
+const PromptInputAttachmentsDisplay = () => {
+  const attachments = usePromptInputAttachments();
+
+  if (attachments.files.length === 0) {
+    return null;
+  }
+
+  return (
+    <Attachments variant="inline">
+      {attachments.files.map((attachment) => (
+        <Attachment
+          data={attachment}
+          key={attachment.id}
+          onRemove={() => attachments.remove(attachment.id)}
+        >
+          <AttachmentPreview />
+          <AttachmentRemove />
+        </Attachment>
+      ))}
+    </Attachments>
+  );
+};
+
+export function ChatWidget() {
+  const { t } = useLanguage();
+  const [isOpen, setIsOpen] = useState(false);
+  const [panelPosition, setPanelPosition] = useState(DEFAULT_POSITION);
+  const [bubblePosition, setBubblePosition] = useState(DEFAULT_POSITION);
+  const [draggingPanel, setDraggingPanel] = useState(false);
+  const [draggingBubble, setDraggingBubble] = useState(false);
+  const draggingBubbleRef = useRef(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const bubbleMovedRef = useRef(false);
+  const [model, setModel] = useState<string>(models[0].id);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
+  const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
+  const modelRef = useRef(model);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [reportChatBadge, setReportChatBadge] = useState(false);
+  const autoOpenedRef = useRef(false);
+  const streamingQueueRef = useRef<string[]>([]);
+  const streamingIntervalRef = useRef<number | null>(null);
+  const streamingTextRef = useRef("");
+  const [text, setText] = useState<string>("");
+  const [status, setStatus] = useState<
+    "submitted" | "streaming" | "ready" | "error"
+  >("ready");
+  const [messages, setMessages] = useState<MessageType[]>([]);
+  const [_streamingMessageId, setStreamingMessageId] = useState<string | null>(
+    null
+  );
+  const messagesRef = useRef<MessageType[]>([]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
+
+  useEffect(() => {
+    const updateIsMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    };
+
+    updateIsMobile();
+    window.addEventListener("resize", updateIsMobile);
+    return () => window.removeEventListener("resize", updateIsMobile);
+  }, []);
+
+  useEffect(() => {
+    const handleReportChatCreated = async (event: Event) => {
+      const detail = (event as CustomEvent).detail as
+        | { sessionId: string; reportId: string }
+        | undefined;
+      if (!detail) {
+        return;
+      }
+      setReportChatBadge(true);
+      setSelectedReportId(detail.reportId);
+      try {
+        const sessionData = await getChatSessions();
+        setSessions(sessionData);
+        const history = await getChatMessages(detail.sessionId);
+        setMessages(history.map(mapStoredMessage));
+      } catch (error) {
+        console.error("[ChatWidget] Failed to load report chat", error);
+      }
+      setActiveSessionId(detail.sessionId);
+      autoOpenedRef.current = true;
+      setIsOpen(true);
+    };
+
+    window.addEventListener("report-chat-created", handleReportChatCreated);
+    return () => {
+      window.removeEventListener("report-chat-created", handleReportChatCreated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleChatToggle = () => {
+      setIsOpen((prev) => {
+        const next = !prev;
+        if (!prev && next) {
+          positionPanelNearBubble();
+        }
+        if (prev && !next && autoOpenedRef.current) {
+          setReportChatBadge(false);
+          autoOpenedRef.current = false;
+        }
+        return next;
+      });
+    };
+
+    window.addEventListener("chat-toggle", handleChatToggle);
+    return () => {
+      window.removeEventListener("chat-toggle", handleChatToggle);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const loadSessions = async () => {
+      setLoadingSessions(true);
+      try {
+        const [sessionData, reportData] = await Promise.all([
+          getChatSessions(),
+          getReports(),
+        ]);
+        setSessions(sessionData);
+        setReports(reportData);
+        if (sessionData.length > 0) {
+          const first = sessionData[0];
+          setActiveSessionId(first.id);
+          const history = await getChatMessages(first.id);
+          setMessages(history.map(mapStoredMessage));
+        }
+      } catch (error) {
+        console.error("[ChatWidget] Failed to load sessions", error);
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+
+    void loadSessions();
+  }, [isOpen]);
+
+  const positionPanelNearBubble = useCallback(() => {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const bubbleX = bubblePosition.x || viewportWidth - DRAG_OFFSET - 56;
+    const bubbleY = bubblePosition.y || viewportHeight - DRAG_OFFSET - 56;
+
+    const targetX = clamp(
+      bubbleX - PANEL_WIDTH + 56,
+      DRAG_OFFSET,
+      viewportWidth - PANEL_WIDTH - DRAG_OFFSET
+    );
+    const targetY = clamp(
+      bubbleY - PANEL_HEIGHT - 12,
+      DRAG_OFFSET,
+      viewportHeight - PANEL_HEIGHT - DRAG_OFFSET
+    );
+
+    setPanelPosition({ x: targetX, y: targetY });
+  }, [bubblePosition]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    positionPanelNearBubble();
+  }, [isOpen, positionPanelNearBubble]);
+
+  useEffect(() => {
+    if (!draggingPanel) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setPanelPosition({
+        x: event.clientX - dragOffsetRef.current.x,
+        y: event.clientY - dragOffsetRef.current.y,
+      });
+    };
+
+    const handlePointerUp = () => {
+      setDraggingPanel(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [draggingPanel]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!draggingBubbleRef.current) {
+        return;
+      }
+      const next = {
+        x: event.clientX - dragOffsetRef.current.x,
+        y: event.clientY - dragOffsetRef.current.y,
+      };
+      setBubblePosition(next);
+      const deltaX = event.clientX - dragStartRef.current.x;
+      const deltaY = event.clientY - dragStartRef.current.y;
+      if (Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
+        bubbleMovedRef.current = true;
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (!draggingBubbleRef.current) {
+        return;
+      }
+      draggingBubbleRef.current = false;
+      setDraggingBubble(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, []);
+
+  const streamResponse = useCallback(async (messageId: string, content: string) => {
+    setStatus("streaming");
+    setStreamingMessageId(messageId);
+
+    const words = content.split(" ");
+    let currentContent = "";
+
+    for (let i = 0; i < words.length; i++) {
+      currentContent += (i > 0 ? " " : "") + words[i];
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.key === messageId ? { ...msg, content: currentContent } : msg
+        )
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    setStatus("ready");
+    setStreamingMessageId(null);
+  }, []);
+
+  const selectedModelData = models.find((modelOption) => modelOption.id === model);
+
+  const mapStoredMessage = (message: ChatMessage): MessageType => ({
+    key: message.id,
+    from: message.role === "assistant" ? "assistant" : "user",
+    content: message.content,
+  });
+
+  const handleSelectSession = async (sessionId: string) => {
+    setActiveSessionId(sessionId);
+    try {
+      const history = await getChatMessages(sessionId);
+      setMessages(history.map(mapStoredMessage));
+    } catch (error) {
+      console.error("[ChatWidget] Failed to load messages", error);
+    }
+  };
+
+  const handleNewChat = async () => {
+    try {
+      const session = await createChatSession({
+        model: modelRef.current,
+        title: t("chat.newTitle"),
+      });
+      setSessions((prev) => [session, ...prev]);
+      setActiveSessionId(session.id);
+      setMessages([]);
+    } catch (error) {
+      console.error("[ChatWidget] Failed to create chat", error);
+    }
+  };
+
+  const addUserMessage = useCallback(
+    async (content: string) => {
+      let sessionId = activeSessionId;
+      if (!sessionId) {
+        const newSession = await createChatSession({
+          model: modelRef.current,
+          title: content.slice(0, 48),
+        });
+        setSessions((prev) => [newSession, ...prev]);
+        sessionId = newSession.id;
+        setActiveSessionId(newSession.id);
+      } else {
+        const activeSession = sessions.find((session) => session.id === sessionId);
+        if (
+          activeSession &&
+          (!activeSession.title || activeSession.title === t("chat.newTitle"))
+        ) {
+          const nextTitle = content.slice(0, 48);
+          try {
+            const updated = await updateChatSession(sessionId, { title: nextTitle });
+            setSessions((prev) =>
+              prev.map((session) =>
+                session.id === updated.id ? updated : session
+              )
+            );
+          } catch (error) {
+            console.error("[ChatWidget] Failed to update chat title", error);
+          }
+        }
+      }
+
+      const userMessage: MessageType = {
+        key: `user-${Date.now()}`,
+        from: "user",
+        content,
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+      try {
+        await createChatMessage(sessionId, {
+          role: "user",
+          content,
+        });
+      } catch (error) {
+        console.error("[ChatWidget] Failed to save user message", error);
+      }
+
+      const assistantMessageId = `assistant-${Date.now()}`;
+      const assistantMessage: MessageType = {
+        key: assistantMessageId,
+        from: "assistant",
+        content: "",
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      setStatus("streaming");
+      setStreamingMessageId(assistantMessageId);
+
+      const enqueueStreamingText = (nextChunk: string) => {
+        if (!nextChunk) {
+          return;
+        }
+        streamingQueueRef.current.push(...nextChunk.split(""));
+        if (streamingIntervalRef.current) {
+          return;
+        }
+        streamingIntervalRef.current = window.setInterval(() => {
+          const nextChar = streamingQueueRef.current.shift();
+          if (!nextChar) {
+            if (streamingIntervalRef.current) {
+              window.clearInterval(streamingIntervalRef.current);
+            }
+            streamingIntervalRef.current = null;
+            return;
+          }
+          streamingTextRef.current += nextChar;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.key === assistantMessageId
+                ? { ...msg, content: streamingTextRef.current }
+                : msg
+            )
+          );
+        }, 18);
+      };
+
+      try {
+        const response = await fetch("/api/chat?stream=true", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify({
+            messages: [...messagesRef.current, userMessage].map((msg) => ({
+              role: msg.from,
+              content: msg.content,
+            })),
+            model: modelRef.current,
+            reportId: selectedReportId ?? undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch response");
+        }
+
+        let finalAssistantText = "";
+        streamingTextRef.current = "";
+        streamingQueueRef.current = [];
+
+        if (response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() || "";
+
+            for (const chunk of chunks) {
+              const line = chunk.trim();
+              if (!line.startsWith("data:")) {
+                continue;
+              }
+              const payload = line.replace("data:", "").trim();
+              if (payload === "[DONE]") {
+                buffer = "";
+                break;
+              }
+              try {
+                const parsed = JSON.parse(payload) as { text?: string };
+                if (parsed.text) {
+                  finalAssistantText += parsed.text;
+                  enqueueStreamingText(parsed.text);
+                }
+              } catch {
+                // ignore malformed chunks
+              }
+            }
+          }
+        } else {
+          const data = (await response.json()) as { response: string };
+          finalAssistantText = data.response;
+          enqueueStreamingText(data.response);
+        }
+
+        if (streamingIntervalRef.current) {
+          await new Promise<void>((resolve) => {
+            const timer = window.setInterval(() => {
+              if (!streamingIntervalRef.current && streamingQueueRef.current.length === 0) {
+                window.clearInterval(timer);
+                resolve();
+              }
+            }, 20);
+          });
+        }
+
+        if (finalAssistantText) {
+          try {
+            await createChatMessage(sessionId, {
+              role: "assistant",
+              content: finalAssistantText,
+            });
+          } catch (error) {
+            console.error("[ChatWidget] Failed to save assistant message", error);
+          }
+        }
+      } catch (error) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.key === assistantMessageId
+              ? {
+                  ...msg,
+                  content: t("chat.error.response"),
+                }
+              : msg
+          )
+        );
+        setStatus("error");
+        setStreamingMessageId(null);
+        return;
+      }
+
+      setStatus("ready");
+      setStreamingMessageId(null);
+    },
+    [activeSessionId, streamResponse]
+  );
+
+  const handleSubmit = (message: PromptInputMessage) => {
+    const hasText = Boolean(message.text);
+    const hasAttachments = Boolean(message.files?.length);
+
+    if (!(hasText || hasAttachments)) {
+      return;
+    }
+
+    setStatus("submitted");
+
+    void addUserMessage(message.text || t("chat.input.attachments"));
+    setText("");
+  };
+
+  const handleDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (isMobile) {
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+    setDraggingPanel(true);
+  };
+
+  const handleBubblePointerDown = (
+    event: React.PointerEvent<HTMLButtonElement>
+  ) => {
+    if (isOpen) {
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    bubbleMovedRef.current = false;
+    draggingBubbleRef.current = true;
+    setDraggingBubble(true);
+  };
+
+  const handleBubbleClick = () => {
+    if (bubbleMovedRef.current) {
+      bubbleMovedRef.current = false;
+      return;
+    }
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (!prev && next) {
+        positionPanelNearBubble();
+        setReportChatBadge(false);
+      }
+      if (prev && !next && autoOpenedRef.current) {
+        setReportChatBadge(false);
+        autoOpenedRef.current = false;
+      }
+      return next;
+    });
+  };
+
+  return (
+    <>
+      <button
+        className={cn(
+          "fixed z-50 flex size-14 items-center justify-center rounded-full",
+          "bg-gradient-to-br from-white via-slate-200 to-slate-400 text-slate-900",
+          "shadow-[0_12px_30px_rgba(0,0,0,0.35)] ring-2 ring-white/70",
+          "transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        )}
+        onClick={handleBubbleClick}
+        onPointerDown={handleBubblePointerDown}
+        style={{
+          left: bubblePosition.x || undefined,
+          top: bubblePosition.y || undefined,
+          right: bubblePosition.x ? undefined : 24,
+          bottom: bubblePosition.y ? undefined : 24,
+        }}
+        type="button"
+      >
+        <MessageCircleIcon className="size-6" />
+        {reportChatBadge && (
+          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white shadow ring-2 ring-white">
+            1
+          </span>
+        )}
+        <span className="sr-only">{t("chat.open")}</span>
+      </button>
+
+      {isOpen && (
+        <div
+          className={cn(
+            "fixed z-50 flex flex-col rounded-2xl border",
+            "bg-background shadow-[0_20px_60px_rgba(0,0,0,0.4)]"
+          )}
+          style={
+            isMobile
+              ? {
+                  left: 0,
+                  top: 0,
+                  width: "100vw",
+                  height: "100vh",
+                  borderRadius: 0,
+                  resize: "none",
+                  overflow: "auto",
+                }
+              : {
+                  left: panelPosition.x,
+                  top: panelPosition.y,
+                  width: PANEL_WIDTH,
+                  height: PANEL_HEIGHT,
+                  resize: "both",
+                  overflow: "auto",
+                  minWidth: 340,
+                  minHeight: 420,
+                }
+          }
+        >
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/50 px-4 py-3"
+            onPointerDown={handleDragStart}
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                {t("chat.title")}
+                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
+                  {t("chat.status.online")}
+                </span>
+              </div>
+              <div className="min-w-[140px] flex-1">
+                <Select
+                  disabled={loadingSessions}
+                  onValueChange={handleSelectSession}
+                  value={activeSessionId ?? undefined}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder={t("chat.sessionPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sessions.map((session) => (
+                      <SelectItem key={session.id} value={session.id}>
+                        {session.title || t("chat.untitled")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <button
+                className="rounded-md p-1 text-muted-foreground transition hover:text-foreground"
+                onClick={handleNewChat}
+                type="button"
+              >
+                <PlusIcon className="size-4" />
+                <span className="sr-only">{t("chat.new")}</span>
+              </button>
+            </div>
+            <button
+              className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
+              onClick={() => setIsOpen(false)}
+              type="button"
+            >
+              <XIcon className="size-4" />
+              <span className="sr-only">{t("chat.close")}</span>
+            </button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col divide-y">
+            <Conversation>
+              <ConversationContent>
+                {messages.map((message) => (
+                  <MessageBranch defaultBranch={0} key={message.key}>
+                    <MessageBranchContent>
+                      <Message from={message.from} key={message.key}>
+                        <div>
+                          {message.sources?.length && (
+                            <Sources>
+                              <SourcesTrigger count={message.sources.length} />
+                              <SourcesContent>
+                                {message.sources.map((source) => (
+                                  <Source
+                                    href={source.href}
+                                    key={source.href}
+                                    title={source.title}
+                                  />
+                                ))}
+                              </SourcesContent>
+                            </Sources>
+                          )}
+                          {message.reasoning && (
+                            <Reasoning duration={message.reasoning.duration}>
+                              <ReasoningTrigger />
+                              <ReasoningContent>
+                                {message.reasoning.content}
+                              </ReasoningContent>
+                            </Reasoning>
+                          )}
+                          <MessageContent>
+                            <MessageResponse>{message.content}</MessageResponse>
+                          </MessageContent>
+                        </div>
+                      </Message>
+                    </MessageBranchContent>
+                    <MessageBranchSelector from={message.from}>
+                      <MessageBranchPrevious />
+                      <MessageBranchPage />
+                      <MessageBranchNext />
+                    </MessageBranchSelector>
+                  </MessageBranch>
+                ))}
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
+
+            <div className="w-full px-4 pb-4 pt-3">
+              <PromptInput globalDrop multiple onSubmit={handleSubmit}>
+                <PromptInputHeader>
+                  <PromptInputAttachmentsDisplay />
+                </PromptInputHeader>
+                <PromptInputBody>
+                  <PromptInputTextarea
+                    onChange={(event) => setText(event.target.value)}
+                    placeholder={t("chat.input.placeholder")}
+                    value={text}
+                  />
+                </PromptInputBody>
+                <PromptInputFooter>
+                  <PromptInputTools className="flex flex-wrap items-center gap-2">
+                    <PromptInputActionMenu>
+                      <PromptInputActionMenuTrigger />
+                      <PromptInputActionMenuContent>
+                        <PromptInputActionAddAttachments />
+                      </PromptInputActionMenuContent>
+                    </PromptInputActionMenu>
+                    <PromptInputButton
+                      onClick={() => setUseMicrophone(!useMicrophone)}
+                      variant={useMicrophone ? "default" : "ghost"}
+                    >
+                      <MicIcon size={16} />
+                      <span className="sr-only">Microphone</span>
+                    </PromptInputButton>
+                    <PromptInputButton
+                      onClick={() => setUseWebSearch(!useWebSearch)}
+                      variant={useWebSearch ? "default" : "ghost"}
+                    >
+                      <GlobeIcon size={16} />
+                      <span>Search</span>
+                    </PromptInputButton>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ModelSelector
+                        onOpenChange={setModelSelectorOpen}
+                        open={modelSelectorOpen}
+                      >
+                        <ModelSelectorTrigger asChild>
+                          <PromptInputButton>
+                            {selectedModelData?.chefSlug && (
+                              <ModelSelectorLogo provider={selectedModelData.chefSlug} />
+                            )}
+                            {selectedModelData?.name && (
+                              <ModelSelectorName>
+                                {selectedModelData.name}
+                              </ModelSelectorName>
+                            )}
+                          </PromptInputButton>
+                        </ModelSelectorTrigger>
+                        <ModelSelectorContent>
+                          <ModelSelectorInput placeholder="Search models..." />
+                          <ModelSelectorList>
+                            <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                            {["OpenAI", "Anthropic", "Google"].map((chef) => (
+                              <ModelSelectorGroup heading={chef} key={chef}>
+                                {models
+                                  .filter((modelItem) => modelItem.chef === chef)
+                                  .map((modelItem) => (
+                                    <ModelSelectorItem
+                                      className={cn(
+                                        "flex cursor-pointer items-center gap-2 hover:bg-muted/60 hover:text-foreground data-[selected=true]:bg-muted/60 data-[selected=true]:text-foreground",
+                                        model === modelItem.id &&
+                                          "bg-accent text-accent-foreground"
+                                      )}
+                                      key={modelItem.id}
+                                      onSelect={() => {
+                                        setModel(modelItem.id);
+                                        setModelSelectorOpen(false);
+                                      }}
+                                      value={modelItem.id}
+                                    >
+                                      <ModelSelectorLogo provider={modelItem.chefSlug} />
+                                      <ModelSelectorName>{modelItem.name}</ModelSelectorName>
+                                      <ModelSelectorLogoGroup>
+                                        {modelItem.providers.map((provider) => (
+                                          <ModelSelectorLogo key={provider} provider={provider} />
+                                        ))}
+                                      </ModelSelectorLogoGroup>
+                                      {model === modelItem.id ? (
+                                        <CheckIcon className="ml-auto size-4" />
+                                      ) : (
+                                        <div className="ml-auto size-4" />
+                                      )}
+                                    </ModelSelectorItem>
+                                  ))}
+                              </ModelSelectorGroup>
+                            ))}
+                          </ModelSelectorList>
+                        </ModelSelectorContent>
+                      </ModelSelector>
+                      <Select
+                        onValueChange={(value) =>
+                          setSelectedReportId(value === "none" ? null : value)
+                        }
+                        value={selectedReportId ?? "none"}
+                      >
+                        <SelectTrigger className="h-8 w-[150px] text-xs">
+                          <SelectValue placeholder={t("chat.report.placeholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">{t("chat.report.none")}</SelectItem>
+                          {reports.map((report) => (
+                            <SelectItem key={report.report_id} value={report.report_id}>
+                              {report.report_title || t("chat.untitled")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </PromptInputTools>
+                  <PromptInputSubmit
+                    disabled={!(text.trim() || status) || status === "streaming"}
+                    status={status}
+                  />
+                </PromptInputFooter>
+              </PromptInput>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

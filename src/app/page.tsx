@@ -17,7 +17,14 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
-import { generateReportStream, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
+import {
+  createReportChatSession,
+  generateReportStream,
+  getReports,
+  updateReport,
+  detectStudyType,
+  getAvailableTemplates,
+} from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { mapReportToHistoryItem, extractPatientName } from "@/utils/reportHistory";
@@ -354,6 +361,10 @@ export default function HomePage() {
     await stopSTT();
   }, [stopSTT]);
 
+  const handleToggleChat = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("chat-toggle"));
+  }, []);
+
   /**
    * Handles auto-save of transcription updates
    * Errors are handled by the useAutoSave hook and displayed in the status indicator
@@ -523,10 +534,28 @@ export default function HomePage() {
             });
             setNewlyGeneratedReportIds((prev) => new Set(prev).add(metadata.reportId));
           },
-          onComplete: (reportId: string) => {
+          onComplete: async (reportId: string) => {
             savedReportId = reportId;
             setIsGenerating(false);
             toast({ title: t("app.generatedToast") });
+
+            if (reportTitle) {
+              try {
+                const { sessionId } = await createReportChatSession({
+                  reportId,
+                  title: reportTitle,
+                  model: process.env.NEXT_PUBLIC_DEFAULT_CHAT_MODEL || "openai/gpt-4o",
+                  initialPrompt: t("chat.report.initialPrompt"),
+                });
+                window.dispatchEvent(
+                  new CustomEvent("report-chat-created", {
+                    detail: { sessionId, reportId },
+                  })
+                );
+              } catch (error) {
+                console.error("[ReportChat] Failed to create report chat", error);
+              }
+            }
           },
           onError: (error: Error) => {
             console.error("Stream error:", error);
@@ -744,6 +773,10 @@ export default function HomePage() {
               handleSidebarReports();
               setIsMobileMenuOpen(false);
             }}
+            onToggleChat={() => {
+              handleToggleChat();
+              setIsMobileMenuOpen(false);
+            }}
             className="flex"
           />
         </SheetContent>
@@ -755,6 +788,7 @@ export default function HomePage() {
           isReportsOpen={isReportsOpen}
           onSelectHome={handleSidebarHome}
           onToggleReports={handleSidebarReports}
+          onToggleChat={handleToggleChat}
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen" data-report-container>
