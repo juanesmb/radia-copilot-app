@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckIcon,
   GlobeIcon,
+  HistoryIcon,
   MessageCircleIcon,
   MicIcon,
   PlusIcon,
@@ -33,19 +34,6 @@ import {
   MessageContent,
   MessageResponse,
 } from "@/components/ai-elements/message";
-import {
-  ModelSelector,
-  ModelSelectorContent,
-  ModelSelectorEmpty,
-  ModelSelectorGroup,
-  ModelSelectorInput,
-  ModelSelectorItem,
-  ModelSelectorList,
-  ModelSelectorLogo,
-  ModelSelectorLogoGroup,
-  ModelSelectorName,
-  ModelSelectorTrigger,
-} from "@/components/ai-elements/model-selector";
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -117,22 +105,22 @@ const clamp = (value: number, min: number, max: number) =>
 
 const models = [
   {
-    id: "openai/gpt-4o",
-    name: "GPT-4o",
+    id: "openai/gpt-5.1",
+    name: "GPT-5.1",
     chef: "OpenAI",
     chefSlug: "openai",
     providers: ["openai", "azure"],
   },
   {
-    id: "anthropic/claude-sonnet-4-20250514",
-    name: "Claude 4 Sonnet",
+    id: "anthropic/claude-4.5-sonnet",
+    name: "Claude 4.5 Sonnet",
     chef: "Anthropic",
     chefSlug: "anthropic",
     providers: ["anthropic", "azure"],
   },
   {
-    id: "google/gemini-2.0-flash-exp",
-    name: "Gemini 2.0 Flash",
+    id: "google/gemini-3.0-flash",
+    name: "Gemini 3.0 Flash",
     chef: "Google",
     chefSlug: "google",
     providers: ["google"],
@@ -174,7 +162,6 @@ export function ChatWidget() {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const bubbleMovedRef = useRef(false);
   const [model, setModel] = useState<string>(models[0].id);
-  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
   const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
   const modelRef = useRef(model);
@@ -185,6 +172,9 @@ export function ChatWidget() {
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [reportChatBadge, setReportChatBadge] = useState(false);
+  const [recentSessionIds, setRecentSessionIds] = useState<string[]>([]);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState<string>("");
   const autoOpenedRef = useRef(false);
   const streamingQueueRef = useRef<string[]>([]);
   const streamingIntervalRef = useRef<number | null>(null);
@@ -282,9 +272,12 @@ export function ChatWidget() {
         setSessions(sessionData);
         setReports(reportData);
         if (sessionData.length > 0) {
-          const first = sessionData[0];
-          setActiveSessionId(first.id);
-          const history = await getChatMessages(first.id);
+          const preferredSessionId =
+            activeSessionId && sessionData.some((session) => session.id === activeSessionId)
+              ? activeSessionId
+              : sessionData[0].id;
+          setActiveSessionId(preferredSessionId);
+          const history = await getChatMessages(preferredSessionId);
           setMessages(history.map(mapStoredMessage));
         }
       } catch (error) {
@@ -296,6 +289,18 @@ export function ChatWidget() {
 
     void loadSessions();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      return;
+    }
+    setRecentSessionIds((prev) => {
+      if (prev.includes(activeSessionId)) {
+        return prev;
+      }
+      return [activeSessionId, ...prev].slice(0, 6);
+    });
+  }, [activeSessionId]);
 
   const positionPanelNearBubble = useCallback(() => {
     const viewportWidth = window.innerWidth;
@@ -415,6 +420,9 @@ export function ChatWidget() {
   });
 
   const handleSelectSession = async (sessionId: string) => {
+    if (editingSessionId) {
+      return;
+    }
     setActiveSessionId(sessionId);
     try {
       const history = await getChatMessages(sessionId);
@@ -433,8 +441,37 @@ export function ChatWidget() {
       setSessions((prev) => [session, ...prev]);
       setActiveSessionId(session.id);
       setMessages([]);
+      setSelectedReportId(null);
     } catch (error) {
       console.error("[ChatWidget] Failed to create chat", error);
+    }
+  };
+
+  const startEditingSession = (session: ChatSession) => {
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title || "");
+  };
+
+  const cancelEditingSession = () => {
+    setEditingSessionId(null);
+    setEditingTitle("");
+  };
+
+  const saveEditingSession = async (sessionId: string) => {
+    const nextTitle = editingTitle.trim();
+    if (!nextTitle) {
+      cancelEditingSession();
+      return;
+    }
+    try {
+      const updated = await updateChatSession(sessionId, { title: nextTitle });
+      setSessions((prev) =>
+        prev.map((session) => (session.id === updated.id ? updated : session))
+      );
+    } catch (error) {
+      console.error("[ChatWidget] Failed to update chat title", error);
+    } finally {
+      cancelEditingSession();
     }
   };
 
@@ -754,51 +791,103 @@ export function ChatWidget() {
           }
         >
           <div
-            className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/50 px-4 py-3"
+            className="flex flex-col gap-2 border-b bg-muted/50 px-4 py-3"
             onPointerDown={handleDragStart}
           >
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                {t("chat.title")}
-                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
-                  {t("chat.status.online")}
-                </span>
-              </div>
-              <div className="min-w-[140px] flex-1">
-                <Select
-                  disabled={loadingSessions}
-                  onValueChange={handleSelectSession}
-                  value={activeSessionId ?? undefined}
+            <div className="scrollbar-subtle flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-muted-foreground">
+              {recentSessionIds
+                .map((sessionId) => sessions.find((session) => session.id === sessionId))
+                .filter((session): session is ChatSession => Boolean(session))
+                .map((session) => (
+                  <button
+                    className={cn(
+                      "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition",
+                      session.id === activeSessionId
+                        ? "border-primary/60 bg-primary/10 text-foreground"
+                        : "border-transparent bg-background/60 text-muted-foreground hover:text-foreground"
+                    )}
+                    key={session.id}
+                    onClick={() => handleSelectSession(session.id)}
+                    onDoubleClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      startEditingSession(session);
+                    }}
+                    type="button"
+                  >
+                    {editingSessionId === session.id ? (
+                      <input
+                        autoFocus
+                        className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
+                        onBlur={() => saveEditingSession(session.id)}
+                        onChange={(event) => setEditingTitle(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void saveEditingSession(session.id);
+                          }
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelEditingSession();
+                          }
+                        }}
+                        value={editingTitle}
+                      />
+                    ) : (
+                      session.title || t("chat.untitled")
+                    )}
+                  </button>
+                ))}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  {t("chat.title")}
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
+                    {t("chat.status.online")}
+                  </span>
+                </div>
+                <div className="flex-none">
+                  <Select
+                    disabled={loadingSessions}
+                    onValueChange={handleSelectSession}
+                    value={activeSessionId ?? undefined}
+                  >
+                    <SelectTrigger className="h-8 w-10 justify-center gap-0 px-0 text-xs [&>svg:last-child]:hidden [&>span]:hidden">
+                      <HistoryIcon className="size-4" />
+                      <SelectValue
+                        className="hidden"
+                        placeholder={t("chat.sessionPlaceholder")}
+                      />
+                      <span className="sr-only">{t("chat.sessionPlaceholder")}</span>
+                    </SelectTrigger>
+                    <SelectContent className="min-w-[260px]">
+                      {sessions.map((session) => (
+                        <SelectItem key={session.id} value={session.id}>
+                          {session.title || t("chat.untitled")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <button
+                  className="rounded-md p-1 text-muted-foreground transition hover:text-foreground"
+                  onClick={handleNewChat}
+                  type="button"
                 >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder={t("chat.sessionPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sessions.map((session) => (
-                      <SelectItem key={session.id} value={session.id}>
-                        {session.title || t("chat.untitled")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <PlusIcon className="size-4" />
+                  <span className="sr-only">{t("chat.new")}</span>
+                </button>
               </div>
               <button
-                className="rounded-md p-1 text-muted-foreground transition hover:text-foreground"
-                onClick={handleNewChat}
+                className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
+                onClick={() => setIsOpen(false)}
                 type="button"
               >
-                <PlusIcon className="size-4" />
-                <span className="sr-only">{t("chat.new")}</span>
+                <XIcon className="size-4" />
+                <span className="sr-only">{t("chat.close")}</span>
               </button>
             </div>
-            <button
-              className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
-              onClick={() => setIsOpen(false)}
-              type="button"
-            >
-              <XIcon className="size-4" />
-              <span className="sr-only">{t("chat.close")}</span>
-            </button>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col divide-y">
@@ -862,84 +951,35 @@ export function ChatWidget() {
                 </PromptInputBody>
                 <PromptInputFooter>
                   <PromptInputTools className="flex flex-wrap items-center gap-2">
-                    <PromptInputActionMenu>
-                      <PromptInputActionMenuTrigger />
-                      <PromptInputActionMenuContent>
-                        <PromptInputActionAddAttachments />
-                      </PromptInputActionMenuContent>
-                    </PromptInputActionMenu>
-                    <PromptInputButton
-                      onClick={() => setUseMicrophone(!useMicrophone)}
-                      variant={useMicrophone ? "default" : "ghost"}
-                    >
-                      <MicIcon size={16} />
-                      <span className="sr-only">Microphone</span>
-                    </PromptInputButton>
-                    <PromptInputButton
-                      onClick={() => setUseWebSearch(!useWebSearch)}
-                      variant={useWebSearch ? "default" : "ghost"}
-                    >
-                      <GlobeIcon size={16} />
-                      <span>Search</span>
-                    </PromptInputButton>
+                    <div className="hidden">
+                      <PromptInputActionMenu>
+                        <PromptInputActionMenuTrigger disabled />
+                        <PromptInputActionMenuContent>
+                          <PromptInputActionAddAttachments />
+                        </PromptInputActionMenuContent>
+                      </PromptInputActionMenu>
+                      <PromptInputButton disabled variant="ghost">
+                        <MicIcon size={16} />
+                        <span className="sr-only">Microphone</span>
+                      </PromptInputButton>
+                      <PromptInputButton disabled variant="ghost">
+                        <GlobeIcon size={16} />
+                        <span>Search</span>
+                      </PromptInputButton>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <ModelSelector
-                        onOpenChange={setModelSelectorOpen}
-                        open={modelSelectorOpen}
-                      >
-                        <ModelSelectorTrigger asChild>
-                          <PromptInputButton>
-                            {selectedModelData?.chefSlug && (
-                              <ModelSelectorLogo provider={selectedModelData.chefSlug} />
-                            )}
-                            {selectedModelData?.name && (
-                              <ModelSelectorName>
-                                {selectedModelData.name}
-                              </ModelSelectorName>
-                            )}
-                          </PromptInputButton>
-                        </ModelSelectorTrigger>
-                        <ModelSelectorContent>
-                          <ModelSelectorInput placeholder="Search models..." />
-                          <ModelSelectorList>
-                            <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-                            {["OpenAI", "Anthropic", "Google"].map((chef) => (
-                              <ModelSelectorGroup heading={chef} key={chef}>
-                                {models
-                                  .filter((modelItem) => modelItem.chef === chef)
-                                  .map((modelItem) => (
-                                    <ModelSelectorItem
-                                      className={cn(
-                                        "flex cursor-pointer items-center gap-2 hover:bg-muted/60 hover:text-foreground data-[selected=true]:bg-muted/60 data-[selected=true]:text-foreground",
-                                        model === modelItem.id &&
-                                          "bg-accent text-accent-foreground"
-                                      )}
-                                      key={modelItem.id}
-                                      onSelect={() => {
-                                        setModel(modelItem.id);
-                                        setModelSelectorOpen(false);
-                                      }}
-                                      value={modelItem.id}
-                                    >
-                                      <ModelSelectorLogo provider={modelItem.chefSlug} />
-                                      <ModelSelectorName>{modelItem.name}</ModelSelectorName>
-                                      <ModelSelectorLogoGroup>
-                                        {modelItem.providers.map((provider) => (
-                                          <ModelSelectorLogo key={provider} provider={provider} />
-                                        ))}
-                                      </ModelSelectorLogoGroup>
-                                      {model === modelItem.id ? (
-                                        <CheckIcon className="ml-auto size-4" />
-                                      ) : (
-                                        <div className="ml-auto size-4" />
-                                      )}
-                                    </ModelSelectorItem>
-                                  ))}
-                              </ModelSelectorGroup>
-                            ))}
-                          </ModelSelectorList>
-                        </ModelSelectorContent>
-                      </ModelSelector>
+                      <Select onValueChange={setModel} value={model}>
+                        <SelectTrigger className="h-8 w-[180px] text-xs">
+                          <SelectValue placeholder={t("chat.model.placeholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {models.map((modelItem) => (
+                            <SelectItem key={modelItem.id} value={modelItem.id}>
+                              {modelItem.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Select
                         onValueChange={(value) =>
                           setSelectedReportId(value === "none" ? null : value)

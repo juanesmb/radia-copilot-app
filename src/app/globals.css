@@ -172,4 +172,31 @@
   .dark .scrollbar-transparent::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
   }
+
+  .scrollbar-subtle {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+  }
+
+  .dark .scrollbar-subtle {
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+
+  .scrollbar-subtle::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-subtle::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-subtle::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.6);
+    border-radius: 999px;
+  }
+
+  .dark .scrollbar-subtle::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+  }
 }
