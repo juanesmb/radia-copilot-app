@@ -19,6 +19,7 @@
     "@speechmatics/browser-audio-input": "^2.0.3",
     "@speechmatics/real-time-client": "^8.2.0",
     "@supabase/supabase-js": "^2.88.0",
+    "ai": "^6.0.42",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.555.0",

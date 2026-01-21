@@ -1,14 +1,11 @@
-// Using OpenAI SDK for AI Gateway compatibility (AI Gateway uses OpenAI-compatible API format)
-// This SDK is used only for the API interface, not for direct OpenAI calls
-import OpenAI, { APIError } from "openai";
+// Using Vercel AI SDK for AI Gateway compatibility
+// This SDK is used only for the API interface, generally agnostic of specific provider
+import { createGateway, generateText, streamText } from "ai";
 
 import { HttpError } from "../lib/errorHandler";
 import { getAIConfig } from "../lib/config";
 import { formatModelName } from "../lib/modelUtils";
 import type { ModelConfig, ModelInput } from "../types/model";
-
-// Alias the OpenAI SDK to a generic name to avoid provider-specific naming
-const AIGatewaySDK = OpenAI;
 
 export interface AIClient {
   generateReport(input: ModelInput): Promise<string>;
@@ -19,7 +16,7 @@ export interface AIClient {
 export const createAIClient = (config: ModelConfig = {}): AIClient => {
   // Merge provided config with defaults from environment
   const defaultConfig = getAIConfig();
-  
+
   const gatewayApiKey = config.gatewayApiKey || defaultConfig.gatewayApiKey;
   const model = config.model || defaultConfig.model;
   const baseUrl = config.baseUrl || defaultConfig.baseUrl;
@@ -48,12 +45,12 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
   // Format model name to include provider prefix if needed
   const formattedModel = formatModelName(model);
 
-  // Initialize AI Gateway client
-  // Using OpenAI-compatible SDK because AI Gateway uses OpenAI-compatible API format
-  // All requests go through AI Gateway, not directly to any provider
-  const client = new AIGatewaySDK({
-    apiKey: gatewayApiKey,
+  // Initialize AI Gateway client via Vercel AI SDK
+  const gateway = createGateway({
     baseURL: baseUrl,
+    headers: {
+      Authorization: `Bearer ${gatewayApiKey}`,
+    },
   });
 
   // Models that only support default temperature (1.0)
@@ -62,31 +59,31 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
 
   const getEffectiveTemperature = (modelName: string, requestedTemp: number): number => {
     // Extract model name without provider prefix for comparison
-    const modelWithoutPrefix = modelName.includes("/") 
-      ? modelName.split("/")[1] 
+    const modelWithoutPrefix = modelName.includes("/")
+      ? modelName.split("/")[1]
       : modelName;
-    
+
     if (modelsWithFixedTemperature.includes(modelWithoutPrefix)) {
       return 1.0; // Default temperature for specific models
     }
     return requestedTemp;
   };
 
-  const createAPIError = (error: APIError): HttpError => {
-    // Extract status code - SDK uses 'status' property (number)
-    const statusCode = 
-      typeof error.status === 'number' ? error.status 
-      : (error as unknown as { statusCode?: number }).statusCode ?? 502;
-    
-    const errorMessage = error.message || "AI Gateway API error";
-    
-    return new HttpError(
-      errorMessage,
-      {
-        status: statusCode,
-        details: error.code ? `Error code: ${error.code}` : undefined,
-      }
-    );
+  const handleError = (error: unknown): never => {
+    if (error instanceof HttpError) {
+      throw error;
+    }
+
+    // Vercel AI SDK might throw various errors. 
+    // We try to extract meaningful info similar to original implementation.
+    const errorMessage = error instanceof Error ? error.message : "AI Gateway request failed";
+
+    // Basic mapping of common error-like shapes or default to 502
+    // If it's a specific API error from the provider, it might be wrapped.
+    throw new HttpError(errorMessage, {
+      status: 502,
+      details: String(error),
+    });
   };
 
   const handleCompletion = async (
@@ -95,33 +92,26 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
     completionMessages: Array<{ role: "system" | "user"; content: string }>
   ): Promise<string> => {
     const effectiveTemperature = getEffectiveTemperature(completionModel, completionTemperature);
-    
+
     try {
-      const completion = await client.chat.completions.create({
-        model: completionModel,
+      // Cast the messages to any for Vercel AI SDK
+      // The types are compatible: { role: 'user' | 'system', content: string }
+      const messages = completionMessages as any[];
+
+      const { text } = await generateText({
+        model: gateway(completionModel),
         temperature: effectiveTemperature,
-        messages: completionMessages,
+        messages: messages,
       });
 
-      const content = completion.choices.at(0)?.message?.content;
-      if (!content) {
+      if (!text) {
         throw new HttpError("Model returned an empty response.", { status: 502 });
       }
 
-      return content;
+      return text;
     } catch (error) {
-      if (error instanceof HttpError) {
-        throw error;
-      }
-      
-      if (error instanceof APIError) {
-        throw createAPIError(error);
-      }
-      
-      throw new HttpError("AI Gateway request failed.", {
-        status: 502,
-        details: error instanceof Error ? error.message : String(error),
-      });
+      handleError(error);
+      return ""; // Unreachable due to handleError throwing
     }
   };
 
@@ -131,34 +121,23 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
     completionMessages: Array<{ role: "system" | "user"; content: string }>
   ): AsyncGenerator<string> {
     const effectiveTemperature = getEffectiveTemperature(completionModel, completionTemperature);
-    
+
     try {
-      const stream = await client.chat.completions.create({
-        model: completionModel,
+      const messages = completionMessages as any[];
+
+      const result = await streamText({
+        model: gateway(completionModel),
         temperature: effectiveTemperature,
-        messages: completionMessages,
-        stream: true,
+        messages: messages,
       });
 
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content;
-        if (content) {
-          yield content;
+      for await (const chunk of result.textStream) {
+        if (chunk) {
+          yield chunk;
         }
       }
     } catch (error) {
-      if (error instanceof HttpError) {
-        throw error;
-      }
-      
-      if (error instanceof APIError) {
-        throw createAPIError(error);
-      }
-      
-      throw new HttpError("AI Gateway streaming request failed.", {
-        status: 502,
-        details: error instanceof Error ? error.message : String(error),
-      });
+      handleError(error);
     }
   };
 
