@@ -92,11 +92,18 @@ interface MessageType {
   };
 }
 
-const DEFAULT_POSITION = { x: 0, y: 0 };
+const DEFAULT_PANEL_POSITION = { x: 0, y: 0 };
+const DEFAULT_BUBBLE_POSITION: { x: number | null; y: number | null } = {
+  x: null,
+  y: null,
+};
 const DRAG_OFFSET = 16;
 const DRAG_THRESHOLD = 4;
 const PANEL_WIDTH = 580;
 const PANEL_HEIGHT = 680;
+const BUBBLE_SIZE = 56;
+const BUBBLE_DEFAULT_LEFT = 88;
+const BUBBLE_DEFAULT_BOTTOM = 24;
 const MOBILE_BREAKPOINT = 640;
 const TEMP_SESSION_ID = "temp-chat";
 
@@ -153,8 +160,8 @@ const PromptInputAttachmentsDisplay = () => {
 export function ChatWidget() {
   const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [panelPosition, setPanelPosition] = useState(DEFAULT_POSITION);
-  const [bubblePosition, setBubblePosition] = useState(DEFAULT_POSITION);
+  const [panelPosition, setPanelPosition] = useState(DEFAULT_PANEL_POSITION);
+  const [bubblePosition, setBubblePosition] = useState(DEFAULT_BUBBLE_POSITION);
   const [draggingPanel, setDraggingPanel] = useState(false);
   const [draggingBubble, setDraggingBubble] = useState(false);
   const draggingBubbleRef = useRef(false);
@@ -339,8 +346,9 @@ export function ChatWidget() {
   const positionPanelNearBubble = useCallback(() => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const bubbleX = bubblePosition.x || viewportWidth - DRAG_OFFSET - 56;
-    const bubbleY = bubblePosition.y || viewportHeight - DRAG_OFFSET - 56;
+    const bubbleX = bubblePosition.x ?? BUBBLE_DEFAULT_LEFT;
+    const bubbleY =
+      bubblePosition.y ?? viewportHeight - BUBBLE_DEFAULT_BOTTOM - BUBBLE_SIZE;
 
     const targetX = clamp(
       bubbleX - PANEL_WIDTH + 56,
@@ -768,10 +776,10 @@ export function ChatWidget() {
         onClick={handleBubbleClick}
         onPointerDown={handleBubblePointerDown}
         style={{
-          left: bubblePosition.x || undefined,
-          top: bubblePosition.y || undefined,
-          right: bubblePosition.x ? undefined : 24,
-          bottom: bubblePosition.y ? undefined : 24,
+          left: bubblePosition.x ?? BUBBLE_DEFAULT_LEFT,
+          top: bubblePosition.y ?? undefined,
+          right: undefined,
+          bottom: bubblePosition.y == null ? BUBBLE_DEFAULT_BOTTOM : undefined,
         }}
         type="button"
       >
