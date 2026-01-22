@@ -27,7 +27,7 @@ export function ReportCard({
 }: ReportCardProps) {
   const handleCopy = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-  onCopy(report);
+    onCopy(report);
   };
 
   return (

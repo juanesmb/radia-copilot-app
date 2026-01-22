@@ -53,6 +53,7 @@ export interface ReportRepository {
   createReport(data: ReportData): Promise<Report>;
   updateReport(reportId: string, userId: string, updates: UpdateReportData): Promise<Report>;
   getUserReports(userId: string): Promise<Report[]>;
+  getReportById(reportId: string, userId: string): Promise<Report>;
 }
 
 type Dependencies = {
@@ -90,6 +91,33 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
           throw error;
         }
         throw new HttpError("Failed to create report", {
+          status: 500,
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+
+    async getReportById(reportId: string, userId: string): Promise<Report> {
+      try {
+        const { data: report, error } = await supabaseClient
+          .from("reports")
+          .select("*")
+          .eq("report_id", reportId)
+          .eq("user_id", userId)
+          .single();
+
+        if (error || !report) {
+          throw new HttpError("Report not found", {
+            status: 404,
+          });
+        }
+
+        return report as Report;
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+        throw new HttpError("Failed to fetch report", {
           status: 500,
           details: error instanceof Error ? error.message : String(error),
         });

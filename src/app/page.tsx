@@ -17,7 +17,15 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
-import { generateReportStream, getReports, updateReport, detectStudyType, getAvailableTemplates } from "@/lib/api";
+import {
+  createReportChatSession,
+  generateReportStream,
+  getChatSessions,
+  getReports,
+  updateReport,
+  detectStudyType,
+  getAvailableTemplates,
+} from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { mapReportToHistoryItem, extractPatientName } from "@/utils/reportHistory";
@@ -49,6 +57,7 @@ export default function HomePage() {
   const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
+  const [reportChatSessions, setReportChatSessions] = useState<Record<string, string>>({});
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -230,7 +239,11 @@ export default function HomePage() {
           isGenerating={isGenerating}
           currentReportId={currentReportId}
           reportTitle={currentReportTitle}
+          reportChatSessionId={
+            currentReportId ? reportChatSessions[currentReportId] ?? null : null
+          }
           onCopyReport={handleCopyReport}
+          onOpenReportChat={handleOpenReportChat}
           onUpdateTranscription={handleTranscriptionUpdate}
           onUpdateReport={handleReportUpdate}
           onTemplateChange={setEditedTemplate}
@@ -270,9 +283,16 @@ export default function HomePage() {
   useEffect(() => {
     const loadReports = async () => {
       try {
-        const reports = await getReports();
+        const [reports, sessions] = await Promise.all([getReports(), getChatSessions()]);
         const historyItems = reports.map(mapReportToHistoryItem);
+        const sessionMap = sessions.reduce<Record<string, string>>((acc, session) => {
+          if (session.report_id) {
+            acc[session.report_id] = session.id;
+          }
+          return acc;
+        }, {});
         setReportHistory(historyItems);
+        setReportChatSessions(sessionMap);
       } catch (error) {
         const message = (error as ApiError)?.message ?? t("errors.requestFailed");
         toast({
@@ -353,6 +373,10 @@ export default function HomePage() {
   const handleStopRecording = useCallback(async () => {
     await stopSTT();
   }, [stopSTT]);
+
+  const handleToggleChat = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("chat-toggle"));
+  }, []);
 
   /**
    * Handles auto-save of transcription updates
@@ -523,10 +547,39 @@ export default function HomePage() {
             });
             setNewlyGeneratedReportIds((prev) => new Set(prev).add(metadata.reportId));
           },
-          onComplete: (reportId: string) => {
+          onComplete: async (reportId: string) => {
             savedReportId = reportId;
             setIsGenerating(false);
             toast({ title: t("app.generatedToast") });
+
+            if (reportTitle) {
+              const existingSessionId = reportChatSessions[reportId];
+              if (existingSessionId) {
+                window.dispatchEvent(
+                  new CustomEvent("report-chat-open", {
+                    detail: { sessionId: existingSessionId, reportId },
+                  })
+                );
+              } else {
+                try {
+                  const normalizedChatTitle = reportTitle.trim().slice(0, 48);
+                  const { sessionId } = await createReportChatSession({
+                    reportId,
+                    title: normalizedChatTitle,
+                    model: process.env.NEXT_PUBLIC_DEFAULT_CHAT_MODEL || "openai/gpt-4o",
+                    initialPrompt: t("chat.report.initialPrompt"),
+                  });
+                  setReportChatSessions((prev) => ({ ...prev, [reportId]: sessionId }));
+                  window.dispatchEvent(
+                    new CustomEvent("report-chat-created", {
+                      detail: { sessionId, reportId },
+                    })
+                  );
+                } catch (error) {
+                  console.error("[ReportChat] Failed to create report chat", error);
+                }
+              }
+            }
           },
           onError: (error: Error) => {
             console.error("Stream error:", error);
@@ -620,6 +673,14 @@ export default function HomePage() {
     }
   }, [toast, t]);
 
+  const handleOpenReportChat = useCallback((reportId: string, sessionId: string) => {
+    window.dispatchEvent(
+      new CustomEvent("report-chat-open", {
+        detail: { sessionId, reportId },
+      })
+    );
+  }, []);
+
   const handleSidebarHome = useCallback(() => {
     setSidebarView("home");
     setDemoState("main");
@@ -647,6 +708,7 @@ export default function HomePage() {
       reports: reportHistory,
       selectedReportId: currentReportId,
       copiedReportId,
+      reportChatSessions,
       onSelectReport: (id: string) => {
         const report = reportHistory.find((r) => r.id === id);
         if (report) {
@@ -674,10 +736,11 @@ export default function HomePage() {
         }
       },
       onCopyReport: handleCopyReportCard,
+      onOpenReportChat: handleOpenReportChat,
       onGenerateReport: handleGenerateReport,
       generateLabel: t("reports.generate"),
-      subtitleLabel: t("reports.subtitle"),
-      emptyLabel: t("reports.empty"),
+      subtitleLabel: t("reports.title"),
+      emptyLabel: t("reports.emptyState"),
       copyLabel: t("report.copy"),
       copiedLabel: t("report.copied"),
     }),
@@ -685,9 +748,11 @@ export default function HomePage() {
       reportHistory,
       currentReportId,
       copiedReportId,
-      t,
+      reportChatSessions,
+      handleOpenReportChat,
       handleCopyReportCard,
       handleGenerateReport,
+      t,
     ]
   );
 
@@ -744,6 +809,10 @@ export default function HomePage() {
               handleSidebarReports();
               setIsMobileMenuOpen(false);
             }}
+            onToggleChat={() => {
+              handleToggleChat();
+              setIsMobileMenuOpen(false);
+            }}
             className="flex"
           />
         </SheetContent>
@@ -755,6 +824,7 @@ export default function HomePage() {
           isReportsOpen={isReportsOpen}
           onSelectHome={handleSidebarHome}
           onToggleReports={handleSidebarReports}
+          onToggleChat={handleToggleChat}
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen" data-report-container>

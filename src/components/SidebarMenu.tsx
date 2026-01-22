@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { BookOpen, ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Home, MessageCircle } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 
@@ -16,6 +16,7 @@ interface SidebarMenuProps {
   isReportsOpen: boolean;
   onSelectHome: () => void;
   onToggleReports: () => void;
+  onToggleChat: () => void;
   className?: string;
 }
 
@@ -24,6 +25,7 @@ export function SidebarMenu({
   isReportsOpen,
   onSelectHome,
   onToggleReports,
+  onToggleChat,
   className = "",
 }: SidebarMenuProps) {
   const { t } = useLanguage();
@@ -125,6 +127,24 @@ export function SidebarMenu({
             <span className="ml-3 text-left">
               <span className="block text-sm font-medium">{t("sidebar.reports")}</span>
               <span className="block text-xs text-muted-foreground">{t("sidebar.reportsDescription")}</span>
+            </span>
+          )}
+        </Button>
+
+        <Button
+          variant="ghost"
+          onClick={onToggleChat}
+          className={`w-12 h-12 hover:bg-muted transition-colors rounded-xl border border-transparent ${
+            isExpanded ? "w-full justify-start px-3" : ""
+          }`}
+          title={t("sidebar.chat")}
+          aria-label={t("sidebar.chat")}
+        >
+          <MessageCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
+          {isExpanded && (
+            <span className="ml-3 text-left">
+              <span className="block text-sm font-medium">{t("sidebar.chat")}</span>
+              <span className="block text-xs text-muted-foreground">{t("sidebar.chatDescription")}</span>
             </span>
           )}
         </Button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useCallback, useState } from "react";
-import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2 } from "lucide-react";
+import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,7 +61,9 @@ interface RecordingInterfaceProps {
   // Report management props
   currentReportId?: string | null;
   reportTitle?: string | null;
+  reportChatSessionId?: string | null;
   onCopyReport?: () => void;
+  onOpenReportChat?: (reportId: string, sessionId: string) => void;
   onUpdateTranscription?: (value: string) => void;
   onUpdateReport?: (value: string) => void;
   onTemplateChange?: (value: string) => void;
@@ -96,7 +98,9 @@ export function RecordingInterface({
   isGenerating = false,
   currentReportId,
   reportTitle,
+  reportChatSessionId,
   onCopyReport,
+  onOpenReportChat,
   onUpdateTranscription,
   onUpdateReport,
   onTemplateChange,
@@ -566,6 +570,16 @@ export function RecordingInterface({
                       <Maximize2 className="w-4 h-4" />
                     )}
                   </button>
+                  {currentReportId && reportChatSessionId && onOpenReportChat && (
+                    <Button
+                      type="button"
+                      className="h-10 w-10 shrink-0"
+                      onClick={() => onOpenReportChat(currentReportId, reportChatSessionId)}
+                      aria-label="Open report chat"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                   {hasAvailableStudyTypes && (
                     <Button
                       type="button"
