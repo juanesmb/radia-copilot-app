@@ -99,6 +99,7 @@ const DRAG_THRESHOLD = 4;
 const PANEL_WIDTH = 520;
 const PANEL_HEIGHT = 600;
 const MOBILE_BREAKPOINT = 640;
+const TEMP_SESSION_ID = "temp-chat";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -173,6 +174,7 @@ export function ChatWidget() {
   const [isMobile, setIsMobile] = useState(false);
   const [reportChatBadge, setReportChatBadge] = useState(false);
   const [recentSessionIds, setRecentSessionIds] = useState<string[]>([]);
+  const [hasTemporaryChat, setHasTemporaryChat] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>("");
   const autoOpenedRef = useRef(false);
@@ -217,6 +219,7 @@ export function ChatWidget() {
       }
       setReportChatBadge(true);
       setSelectedReportId(detail.reportId);
+      setHasTemporaryChat(false);
       try {
         const sessionData = await getChatSessions();
         setSessions(sessionData);
@@ -299,6 +302,7 @@ export function ChatWidget() {
         setSessions(sessionData);
         setReports(reportData);
         if (sessionData.length > 0) {
+          setHasTemporaryChat(false);
           const preferredSessionId =
             activeSessionId && sessionData.some((session) => session.id === activeSessionId)
               ? activeSessionId
@@ -306,6 +310,10 @@ export function ChatWidget() {
           setActiveSessionId(preferredSessionId);
           const history = await getChatMessages(preferredSessionId);
           setMessages(history.map(mapStoredMessage));
+        } else {
+          setActiveSessionId(null);
+          setMessages([]);
+          setHasTemporaryChat(true);
         }
       } catch (error) {
         console.error("[ChatWidget] Failed to load sessions", error);
@@ -450,6 +458,7 @@ export function ChatWidget() {
     if (editingSessionId) {
       return;
     }
+    setHasTemporaryChat(false);
     setActiveSessionId(sessionId);
     try {
       const history = await getChatMessages(sessionId);
@@ -460,18 +469,10 @@ export function ChatWidget() {
   };
 
   const handleNewChat = async () => {
-    try {
-      const session = await createChatSession({
-        model: modelRef.current,
-        title: t("chat.newTitle"),
-      });
-      setSessions((prev) => [session, ...prev]);
-      setActiveSessionId(session.id);
-      setMessages([]);
-      setSelectedReportId(null);
-    } catch (error) {
-      console.error("[ChatWidget] Failed to create chat", error);
-    }
+    setHasTemporaryChat(true);
+    setActiveSessionId(null);
+    setMessages([]);
+    setSelectedReportId(null);
   };
 
   const startEditingSession = (session: ChatSession) => {
@@ -502,6 +503,28 @@ export function ChatWidget() {
     }
   };
 
+  const handleCloseRecentSession = (sessionId: string) => {
+    if (sessionId === TEMP_SESSION_ID) {
+      setHasTemporaryChat(true);
+      setActiveSessionId(null);
+      setMessages([]);
+      return;
+    }
+    setRecentSessionIds((prev) => {
+      const remaining = prev.filter((id) => id !== sessionId);
+      if (activeSessionId === sessionId) {
+        if (remaining.length > 0) {
+          void handleSelectSession(remaining[0]);
+        } else {
+          setActiveSessionId(null);
+          setMessages([]);
+          setHasTemporaryChat(true);
+        }
+      }
+      return remaining;
+    });
+  };
+
   const addUserMessage = useCallback(
     async (content: string) => {
       let sessionId = activeSessionId;
@@ -513,6 +536,7 @@ export function ChatWidget() {
         setSessions((prev) => [newSession, ...prev]);
         sessionId = newSession.id;
         setActiveSessionId(newSession.id);
+        setHasTemporaryChat(false);
       } else {
         const activeSession = sessions.find((session) => session.id === sessionId);
         if (
@@ -822,11 +846,21 @@ export function ChatWidget() {
             onPointerDown={handleDragStart}
           >
             <div className="scrollbar-subtle flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-muted-foreground">
-              {recentSessionIds
-                .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                .filter((session): session is ChatSession => Boolean(session))
-                .map((session) => (
-                  <button
+              {(
+                hasTemporaryChat
+                  ? ([
+                      { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
+                      ...recentSessionIds
+                        .map((sessionId) => sessions.find((session) => session.id === sessionId))
+                        .filter((session): session is ChatSession => Boolean(session)),
+                    ] as Array<ChatSession & { isTemp?: boolean }>)
+                  : recentSessionIds
+                      .map((sessionId) => sessions.find((session) => session.id === sessionId))
+                      .filter((session): session is ChatSession => Boolean(session))
+              ).map((session) => (
+                  <div
+                    role="button"
+                    tabIndex={0}
                     className={cn(
                       "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition",
                       session.id === activeSessionId
@@ -834,36 +868,77 @@ export function ChatWidget() {
                         : "border-transparent bg-background/60 text-muted-foreground hover:text-foreground"
                     )}
                     key={session.id}
-                    onClick={() => handleSelectSession(session.id)}
+                    onClick={() => {
+                      if (session.id === TEMP_SESSION_ID) {
+                        setHasTemporaryChat(true);
+                        setActiveSessionId(null);
+                        setMessages([]);
+                        setSelectedReportId(null);
+                        return;
+                      }
+                      void handleSelectSession(session.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        if (session.id === TEMP_SESSION_ID) {
+                          setHasTemporaryChat(true);
+                          setActiveSessionId(null);
+                          setMessages([]);
+                          setSelectedReportId(null);
+                          return;
+                        }
+                        void handleSelectSession(session.id);
+                      }
+                    }}
                     onDoubleClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
-                      startEditingSession(session);
+                      if (session.id !== TEMP_SESSION_ID) {
+                        startEditingSession(session);
+                      }
                     }}
-                    type="button"
                   >
-                    {editingSessionId === session.id ? (
-                      <input
-                        autoFocus
-                        className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
-                        onBlur={() => saveEditingSession(session.id)}
-                        onChange={(event) => setEditingTitle(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
+                    <span className="flex items-center gap-2">
+                      {editingSessionId === session.id ? (
+                        <input
+                          autoFocus
+                          className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
+                          onBlur={() => saveEditingSession(session.id)}
+                          onChange={(event) => setEditingTitle(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void saveEditingSession(session.id);
+                            }
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              cancelEditingSession();
+                            }
+                          }}
+                          value={editingTitle}
+                        />
+                      ) : (
+                        <span className="max-w-[220px] truncate">
+                          {session.title || t("chat.untitled")}
+                        </span>
+                      )}
+                      {editingSessionId !== session.id && session.id !== TEMP_SESSION_ID && (
+                        <button
+                          className="text-muted-foreground transition hover:text-foreground"
+                          onClick={(event) => {
                             event.preventDefault();
-                            void saveEditingSession(session.id);
-                          }
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            cancelEditingSession();
-                          }
-                        }}
-                        value={editingTitle}
-                      />
-                    ) : (
-                      session.title || t("chat.untitled")
-                    )}
-                  </button>
+                            event.stopPropagation();
+                            handleCloseRecentSession(session.id);
+                          }}
+                          type="button"
+                        >
+                          <XIcon className="size-3" />
+                          <span className="sr-only">Close tab</span>
+                        </button>
+                      )}
+                    </span>
+                  </div>
                 ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -891,7 +966,9 @@ export function ChatWidget() {
                     <SelectContent className="min-w-[260px]">
                       {sessions.map((session) => (
                         <SelectItem key={session.id} value={session.id}>
-                          {session.title || t("chat.untitled")}
+                          <span className="block max-w-[220px] truncate">
+                            {session.title || t("chat.untitled")}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>

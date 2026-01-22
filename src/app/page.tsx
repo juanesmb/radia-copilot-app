@@ -554,9 +554,10 @@ export default function HomePage() {
 
             if (reportTitle) {
               try {
+                const normalizedChatTitle = reportTitle.trim().slice(0, 48);
                 const { sessionId } = await createReportChatSession({
                   reportId,
-                  title: reportTitle,
+                  title: normalizedChatTitle,
                   model: process.env.NEXT_PUBLIC_DEFAULT_CHAT_MODEL || "openai/gpt-4o",
                   initialPrompt: t("chat.report.initialPrompt"),
                 });
