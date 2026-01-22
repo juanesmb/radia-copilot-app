@@ -153,22 +153,6 @@ const config: Config = {
   				'100%': {
   					transform: 'translateX(100%)'
   				}
-  			},
-  			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
-  			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
   			}
   		},
   		animation: {
@@ -180,9 +164,7 @@ const config: Config = {
   			'pulse-ring': 'pulse-ring 2s ease-out infinite',
   			'slide-in-left': 'slide-in-left 0.4s ease-out',
   			'slide-in-right': 'slide-in-right 0.4s ease-out',
-  			shimmer: 'shimmer 2s ease-in-out infinite',
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			shimmer: 'shimmer 2s ease-in-out infinite'
   		}
   	}
   },
@@ -190,4 +172,3 @@ const config: Config = {
 };
 
 export default config;
-
