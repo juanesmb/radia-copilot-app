@@ -96,8 +96,8 @@ interface MessageType {
 const DEFAULT_POSITION = { x: 0, y: 0 };
 const DRAG_OFFSET = 16;
 const DRAG_THRESHOLD = 4;
-const PANEL_WIDTH = 520;
-const PANEL_HEIGHT = 600;
+const PANEL_WIDTH = 580;
+const PANEL_HEIGHT = 680;
 const MOBILE_BREAKPOINT = 640;
 const TEMP_SESSION_ID = "temp-chat";
 
@@ -827,7 +827,7 @@ export function ChatWidget() {
                   height: "100vh",
                   borderRadius: 0,
                   resize: "none",
-                  overflow: "auto",
+                  overflow: "hidden",
                 }
               : {
                   left: panelPosition.x,
@@ -835,7 +835,7 @@ export function ChatWidget() {
                   width: PANEL_WIDTH,
                   height: PANEL_HEIGHT,
                   resize: "both",
-                  overflow: "auto",
+                  overflow: "hidden",
                   minWidth: 340,
                   minHeight: 420,
                 }
@@ -845,7 +845,8 @@ export function ChatWidget() {
             className="flex flex-col gap-2 border-b bg-muted/50 px-4 py-3"
             onPointerDown={handleDragStart}
           >
-            <div className="scrollbar-subtle flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-muted-foreground">
+            <div className="flex items-center justify-between gap-3">
+              <div className="scrollbar-subtle flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-muted-foreground">
               {(
                 hasTemporaryChat
                   ? ([
@@ -858,17 +859,29 @@ export function ChatWidget() {
                       .map((sessionId) => sessions.find((session) => session.id === sessionId))
                       .filter((session): session is ChatSession => Boolean(session))
               ).map((session) => (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className={cn(
-                      "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition",
-                      session.id === activeSessionId
-                        ? "border-primary/60 bg-primary/10 text-foreground"
-                        : "border-transparent bg-background/60 text-muted-foreground hover:text-foreground"
-                    )}
-                    key={session.id}
-                    onClick={() => {
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className={cn(
+                    "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition",
+                    session.id === activeSessionId
+                      ? "border-primary/60 bg-primary/10 text-foreground"
+                      : "border-transparent bg-background/60 text-muted-foreground hover:text-foreground"
+                  )}
+                  key={session.id}
+                  onClick={() => {
+                    if (session.id === TEMP_SESSION_ID) {
+                      setHasTemporaryChat(true);
+                      setActiveSessionId(null);
+                      setMessages([]);
+                      setSelectedReportId(null);
+                      return;
+                    }
+                    void handleSelectSession(session.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
                       if (session.id === TEMP_SESSION_ID) {
                         setHasTemporaryChat(true);
                         setActiveSessionId(null);
@@ -877,103 +890,82 @@ export function ChatWidget() {
                         return;
                       }
                       void handleSelectSession(session.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        if (session.id === TEMP_SESSION_ID) {
-                          setHasTemporaryChat(true);
-                          setActiveSessionId(null);
-                          setMessages([]);
-                          setSelectedReportId(null);
-                          return;
-                        }
-                        void handleSelectSession(session.id);
-                      }
-                    }}
-                    onDoubleClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      if (session.id !== TEMP_SESSION_ID) {
-                        startEditingSession(session);
-                      }
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      {editingSessionId === session.id ? (
-                        <input
-                          autoFocus
-                          className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
-                          onBlur={() => saveEditingSession(session.id)}
-                          onChange={(event) => setEditingTitle(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              void saveEditingSession(session.id);
-                            }
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              cancelEditingSession();
-                            }
-                          }}
-                          value={editingTitle}
-                        />
-                      ) : (
-                        <span className="max-w-[220px] truncate">
-                          {session.title || t("chat.untitled")}
-                        </span>
-                      )}
-                      {editingSessionId !== session.id && session.id !== TEMP_SESSION_ID && (
-                        <button
-                          className="text-muted-foreground transition hover:text-foreground"
-                          onClick={(event) => {
+                    }
+                  }}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (session.id !== TEMP_SESSION_ID) {
+                      startEditingSession(session);
+                    }
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    {editingSessionId === session.id ? (
+                      <input
+                        autoFocus
+                        className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
+                        onBlur={() => saveEditingSession(session.id)}
+                        onChange={(event) => setEditingTitle(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
                             event.preventDefault();
-                            event.stopPropagation();
-                            handleCloseRecentSession(session.id);
-                          }}
-                          type="button"
-                        >
-                          <XIcon className="size-3" />
-                          <span className="sr-only">Close tab</span>
-                        </button>
-                      )}
-                    </span>
-                  </div>
-                ))}
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {t("chat.title")}
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300">
-                    {t("chat.status.online")}
+                            void saveEditingSession(session.id);
+                          }
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelEditingSession();
+                          }
+                        }}
+                        value={editingTitle}
+                      />
+                    ) : (
+                      <span className="max-w-[220px] truncate">
+                        {session.title || t("chat.untitled")}
+                      </span>
+                    )}
+                    {editingSessionId !== session.id && session.id !== TEMP_SESSION_ID && (
+                      <button
+                        className="text-muted-foreground transition hover:text-foreground"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleCloseRecentSession(session.id);
+                        }}
+                        type="button"
+                      >
+                        <XIcon className="size-3" />
+                        <span className="sr-only">Close tab</span>
+                      </button>
+                    )}
                   </span>
                 </div>
-                <div className="flex-none">
-                  <Select
-                    disabled={loadingSessions}
-                    onValueChange={handleSelectSession}
-                    value={activeSessionId ?? undefined}
-                  >
-                    <SelectTrigger className="h-8 w-10 justify-center gap-0 px-0 text-xs [&>svg:last-child]:hidden [&>span]:hidden">
-                      <HistoryIcon className="size-4" />
-                      <SelectValue
-                        className="hidden"
-                        placeholder={t("chat.sessionPlaceholder")}
-                      />
-                      <span className="sr-only">{t("chat.sessionPlaceholder")}</span>
-                    </SelectTrigger>
-                    <SelectContent className="min-w-[260px]">
-                      {sessions.map((session) => (
-                        <SelectItem key={session.id} value={session.id}>
-                          <span className="block max-w-[220px] truncate">
-                            {session.title || t("chat.untitled")}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  disabled={loadingSessions}
+                  onValueChange={handleSelectSession}
+                  value={activeSessionId ?? undefined}
+                >
+                  <SelectTrigger className="h-7 w-9 justify-center gap-0 px-0 text-xs [&>svg:last-child]:hidden [&>span]:hidden">
+                    <HistoryIcon className="size-4" />
+                    <SelectValue
+                      className="hidden"
+                      placeholder={t("chat.sessionPlaceholder")}
+                    />
+                    <span className="sr-only">{t("chat.sessionPlaceholder")}</span>
+                  </SelectTrigger>
+                  <SelectContent className="min-w-[260px]">
+                    {sessions.map((session) => (
+                      <SelectItem key={session.id} value={session.id}>
+                        <span className="block max-w-[220px] truncate">
+                          {session.title || t("chat.untitled")}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <button
                   className="rounded-md p-1 text-muted-foreground transition hover:text-foreground"
                   onClick={handleNewChat}
@@ -982,20 +974,20 @@ export function ChatWidget() {
                   <PlusIcon className="size-4" />
                   <span className="sr-only">{t("chat.new")}</span>
                 </button>
+                <button
+                  className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
+                  onClick={() => setIsOpen(false)}
+                  type="button"
+                >
+                  <XIcon className="size-4" />
+                  <span className="sr-only">{t("chat.close")}</span>
+                </button>
               </div>
-              <button
-                className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
-                onClick={() => setIsOpen(false)}
-                type="button"
-              >
-                <XIcon className="size-4" />
-                <span className="sr-only">{t("chat.close")}</span>
-              </button>
             </div>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col divide-y">
-            <Conversation>
+            <Conversation className="scrollbar-subtle overflow-x-hidden overflow-y-auto">
               <ConversationContent>
                 {messages.map((message) => (
                   <MessageBranch defaultBranch={0} key={message.key}>
@@ -1048,7 +1040,13 @@ export function ChatWidget() {
                 </PromptInputHeader>
                 <PromptInputBody>
                   <PromptInputTextarea
-                    onChange={(event) => setText(event.target.value)}
+                    className="min-h-8 max-h-[280px] overflow-y-auto"
+                    onChange={(event) => {
+                      const textarea = event.currentTarget;
+                      textarea.style.height = "auto";
+                      textarea.style.height = `${textarea.scrollHeight}px`;
+                      setText(event.target.value);
+                    }}
                     placeholder={t("chat.input.placeholder")}
                     value={text}
                   />
