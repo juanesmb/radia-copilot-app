@@ -1,14 +1,26 @@
 import { HttpError } from "./errorHandler";
 
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+
 export interface AIConfig {
   gatewayApiKey: string;
   model: string;
   baseUrl: string;
   temperature: number;
+  reasoningEffort: ReasoningEffort;
 }
 
 const DEFAULT_BASE_URL = "https://ai-gateway.vercel.sh/v3/ai";
 const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_REASONING_EFFORT: ReasoningEffort = "low";
+const VALID_REASONING_VALUES: readonly ReasoningEffort[] = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
 
 /**
  * Gets AI Gateway configuration from environment variables.
@@ -27,24 +39,63 @@ export function getAIConfig(): AIConfig {
     );
   }
 
-  // Model should include provider prefix (e.g., "provider/model-name")
-  // If not provided, user must specify in AI_MODEL env var
-  const model = process.env.AI_MODEL;
+  const model = process.env.AI_REPORT_MODEL;
 
   if (!model) {
     throw new HttpError(
-      "AI_MODEL is not configured. Please set AI_MODEL in your environment variables with format: {provider}/{model-name} (e.g., provider/model-name).",
+      "AI_REPORT_MODEL is not configured. Please set AI_REPORT_MODEL in your environment variables with format: {provider}/{model-name} (e.g., provider/model-name).",
       { status: 500 }
     );
   }
-  // Prioritize configured DEFAULT_BASE_URL (v3) for AI SDK Gateway compatibility
-  // ignoring potential legacy v1 env var
+
   const baseUrl = DEFAULT_BASE_URL;
+
+  const reasoningEnv = process.env.AI_REASONING;
+  let reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT;
+
+  if (reasoningEnv) {
+    const normalizedReasoning = reasoningEnv.toLowerCase() as ReasoningEffort;
+    if (VALID_REASONING_VALUES.includes(normalizedReasoning)) {
+      reasoningEffort = normalizedReasoning;
+    } else {
+      console.warn(
+        `Invalid AI_REASONING="${reasoningEnv}". Valid values: ${VALID_REASONING_VALUES.join(", ")}. Using default: "${DEFAULT_REASONING_EFFORT}"`
+      );
+    }
+  }
 
   return {
     gatewayApiKey,
     model,
     baseUrl,
     temperature: DEFAULT_TEMPERATURE,
+    reasoningEffort,
   };
+}
+
+/**
+ * Gets the model to use for study type detection.
+ * Falls back to AI_REPORT_MODEL if AI_DETECTION_MODEL is not set.
+ *
+ * @returns Model name for detection
+ * @throws {HttpError} If neither AI_DETECTION_MODEL nor AI_REPORT_MODEL is configured
+ */
+export function getDetectionModel(): string {
+  const detectionModel = process.env.AI_DETECTION_MODEL;
+  
+  if (detectionModel) {
+    return detectionModel;
+  }
+
+  // Fallback to report model if detection model is not set
+  const model = process.env.AI_REPORT_MODEL;
+
+  if (!model) {
+    throw new HttpError(
+      "AI_REPORT_MODEL is not configured. Please set AI_REPORT_MODEL in your environment variables with format: {provider}/{model-name} (e.g., provider/model-name). You can also set AI_DETECTION_MODEL for a separate detection model.",
+      { status: 500 }
+    );
+  }
+
+  return model;
 }

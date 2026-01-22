@@ -4,13 +4,10 @@ COMPARISON: [yes, no]
  
 Image quality: [satisfactory, not satisfactory]
 
-Bony structures: morphology, position and density preserved. No fractures.
-Joint spaces: preserved.
-Intra-articular fluid: normal amount.
-Soft tissues: no evident alterations by this method.
-
-// Add this line if the study is with contrast
-No pathological enhancement observed following intravenous contrast administration.
+Bony structures morphology, position and density preserved. No fractures.
+Joint spaces preserved.
+Intra-articular fluid normal amount.
+Soft tissues no evident alterations by this method.
 
 CONCLUSIONS
 - Study within normal limits.
