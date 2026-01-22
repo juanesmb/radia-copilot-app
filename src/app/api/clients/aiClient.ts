@@ -116,7 +116,7 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
 
       return text;
     } catch (error) {
-      handleError(error);
+      return handleError(error);
     }
   };
 
