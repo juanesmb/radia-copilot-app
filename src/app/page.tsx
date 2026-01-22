@@ -20,6 +20,7 @@ import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
 import {
   createReportChatSession,
   generateReportStream,
+  getChatSessions,
   getReports,
   updateReport,
   detectStudyType,
@@ -56,6 +57,7 @@ export default function HomePage() {
   const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
+  const [reportChatSessions, setReportChatSessions] = useState<Record<string, string>>({});
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -237,7 +239,11 @@ export default function HomePage() {
           isGenerating={isGenerating}
           currentReportId={currentReportId}
           reportTitle={currentReportTitle}
+          reportChatSessionId={
+            currentReportId ? reportChatSessions[currentReportId] ?? null : null
+          }
           onCopyReport={handleCopyReport}
+          onOpenReportChat={handleOpenReportChat}
           onUpdateTranscription={handleTranscriptionUpdate}
           onUpdateReport={handleReportUpdate}
           onTemplateChange={setEditedTemplate}
@@ -277,9 +283,16 @@ export default function HomePage() {
   useEffect(() => {
     const loadReports = async () => {
       try {
-        const reports = await getReports();
+        const [reports, sessions] = await Promise.all([getReports(), getChatSessions()]);
         const historyItems = reports.map(mapReportToHistoryItem);
+        const sessionMap = sessions.reduce<Record<string, string>>((acc, session) => {
+          if (session.report_id) {
+            acc[session.report_id] = session.id;
+          }
+          return acc;
+        }, {});
         setReportHistory(historyItems);
+        setReportChatSessions(sessionMap);
       } catch (error) {
         const message = (error as ApiError)?.message ?? t("errors.requestFailed");
         toast({
@@ -547,6 +560,7 @@ export default function HomePage() {
                   model: process.env.NEXT_PUBLIC_DEFAULT_CHAT_MODEL || "openai/gpt-4o",
                   initialPrompt: t("chat.report.initialPrompt"),
                 });
+                setReportChatSessions((prev) => ({ ...prev, [reportId]: sessionId }));
                 window.dispatchEvent(
                   new CustomEvent("report-chat-created", {
                     detail: { sessionId, reportId },
@@ -649,6 +663,14 @@ export default function HomePage() {
     }
   }, [toast, t]);
 
+  const handleOpenReportChat = useCallback((reportId: string, sessionId: string) => {
+    window.dispatchEvent(
+      new CustomEvent("report-chat-open", {
+        detail: { sessionId, reportId },
+      })
+    );
+  }, []);
+
   const handleSidebarHome = useCallback(() => {
     setSidebarView("home");
     setDemoState("main");
@@ -676,6 +698,7 @@ export default function HomePage() {
       reports: reportHistory,
       selectedReportId: currentReportId,
       copiedReportId,
+      reportChatSessions,
       onSelectReport: (id: string) => {
         const report = reportHistory.find((r) => r.id === id);
         if (report) {
@@ -703,10 +726,11 @@ export default function HomePage() {
         }
       },
       onCopyReport: handleCopyReportCard,
+      onOpenReportChat: handleOpenReportChat,
       onGenerateReport: handleGenerateReport,
       generateLabel: t("reports.generate"),
-      subtitleLabel: t("reports.subtitle"),
-      emptyLabel: t("reports.empty"),
+      subtitleLabel: t("reports.title"),
+      emptyLabel: t("reports.emptyState"),
       copyLabel: t("report.copy"),
       copiedLabel: t("report.copied"),
     }),
@@ -714,9 +738,11 @@ export default function HomePage() {
       reportHistory,
       currentReportId,
       copiedReportId,
-      t,
+      reportChatSessions,
+      handleOpenReportChat,
       handleCopyReportCard,
       handleGenerateReport,
+      t,
     ]
   );
 

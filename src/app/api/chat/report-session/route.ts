@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       title: parsed.data.title,
       model: parsed.data.model,
+      report_id: parsed.data.reportId,
     });
 
     const aiConfig = getAIConfig();

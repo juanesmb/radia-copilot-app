@@ -237,6 +237,33 @@ export function ChatWidget() {
   }, []);
 
   useEffect(() => {
+    const handleReportChatOpen = async (event: Event) => {
+      const detail = (event as CustomEvent).detail as
+        | { sessionId: string; reportId: string }
+        | undefined;
+      if (!detail) {
+        return;
+      }
+      setSelectedReportId(detail.reportId);
+      try {
+        const sessionData = await getChatSessions();
+        setSessions(sessionData);
+        const history = await getChatMessages(detail.sessionId);
+        setMessages(history.map(mapStoredMessage));
+      } catch (error) {
+        console.error("[ChatWidget] Failed to load report chat", error);
+      }
+      setActiveSessionId(detail.sessionId);
+      setIsOpen(true);
+    };
+
+    window.addEventListener("report-chat-open", handleReportChatOpen);
+    return () => {
+      window.removeEventListener("report-chat-open", handleReportChatOpen);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleChatToggle = () => {
       setIsOpen((prev) => {
         const next = !prev;

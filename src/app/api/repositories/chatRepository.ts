@@ -6,6 +6,7 @@ export interface ChatSessionData {
   user_id: string;
   title?: string | null;
   model: string;
+  report_id?: string | null;
   message_count?: number;
   token_count?: number;
   max_tokens?: number | null;
@@ -17,6 +18,7 @@ export interface ChatSession {
   user_id: string;
   title: string | null;
   model: string;
+  report_id: string | null;
   message_count: number | null;
   token_count: number | null;
   max_tokens: number | null;
