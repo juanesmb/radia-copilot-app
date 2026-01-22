@@ -8,6 +8,8 @@ import { getAIConfig } from "../../lib/config";
 import { mapErrorToResponse } from "../../lib/errorHandler";
 import { createChatRepository } from "../../repositories/chatRepository";
 import { createReportRepository } from "../../repositories/reportRepository";
+import { getChatReportContextPrompt, getChatSystemPrompt } from "../../lib/prompts";
+import type { Language } from "../../types/language";
 
 const requestSchema = z.object({
   reportId: z.string().min(1),
@@ -59,14 +61,11 @@ export async function POST(request: NextRequest) {
       temperature: aiConfig.temperature,
     });
 
-    const systemPrompt =
-      "Eres un asistente clínico que revisa reportes y ofrece impresiones iniciales claras y breves.";
-    const contextPrompt =
-      "Contexto del informe seleccionado:\n" +
-      `Título: ${report.report_title ?? "(sin título)"}\n` +
-      `Transcripción: ${report.updated_transcription}\n` +
-      `Informe: ${report.updated_report}`;
-    const userPrompt = parsed.data.initialPrompt ?? "Da tus primeras impresiones sobre este informe.";
+    const chatLanguage: Language = report.language === "es" ? "es" : "en";
+    const systemPrompt = getChatSystemPrompt(chatLanguage);
+    const contextPrompt = getChatReportContextPrompt(report, chatLanguage);
+    const userPrompt =
+      parsed.data.initialPrompt ?? "Da tus primeras impresiones sobre este informe.";
 
     const response = await aiClient.generateCompletion([
       { role: "system", content: systemPrompt },

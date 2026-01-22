@@ -152,7 +152,7 @@ const PromptInputAttachmentsDisplay = () => {
 };
 
 export function ChatWidget() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState(DEFAULT_POSITION);
   const [bubblePosition, setBubblePosition] = useState(DEFAULT_POSITION);
@@ -171,6 +171,7 @@ export function ChatWidget() {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const selectedReportIdRef = useRef<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [reportChatBadge, setReportChatBadge] = useState(false);
   const [recentSessionIds, setRecentSessionIds] = useState<string[]>([]);
@@ -198,6 +199,10 @@ export function ChatWidget() {
   useEffect(() => {
     modelRef.current = model;
   }, [model]);
+
+  useEffect(() => {
+    selectedReportIdRef.current = selectedReportId;
+  }, [selectedReportId]);
 
   useEffect(() => {
     const updateIsMobile = () => {
@@ -625,7 +630,8 @@ export function ChatWidget() {
               content: msg.content,
             })),
             model: modelRef.current,
-            reportId: selectedReportId ?? undefined,
+            reportId: selectedReportIdRef.current ?? undefined,
+            language,
           }),
         });
 
@@ -1069,37 +1075,41 @@ export function ChatWidget() {
                         <span>Search</span>
                       </PromptInputButton>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Select onValueChange={setModel} value={model}>
-                        <SelectTrigger className="h-8 w-[180px] text-xs">
-                          <SelectValue placeholder={t("chat.model.placeholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {models.map((modelItem) => (
-                            <SelectItem key={modelItem.id} value={modelItem.id}>
-                              {modelItem.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        onValueChange={(value) =>
-                          setSelectedReportId(value === "none" ? null : value)
-                        }
-                        value={selectedReportId ?? "none"}
-                      >
-                        <SelectTrigger className="h-8 w-[150px] text-xs">
-                          <SelectValue placeholder={t("chat.report.placeholder")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">{t("chat.report.none")}</SelectItem>
-                          {reports.map((report) => (
-                            <SelectItem key={report.report_id} value={report.report_id}>
-                              {report.report_title || t("chat.untitled")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex w-full flex-nowrap items-center gap-2 sm:flex-wrap">
+                      <div className="flex-1 min-w-0 sm:flex-none">
+                        <Select onValueChange={setModel} value={model}>
+                          <SelectTrigger className="h-8 w-full text-xs sm:w-[180px]">
+                            <SelectValue placeholder={t("chat.model.placeholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {models.map((modelItem) => (
+                              <SelectItem key={modelItem.id} value={modelItem.id}>
+                                {modelItem.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex-1 min-w-0 sm:flex-none">
+                        <Select
+                          onValueChange={(value) =>
+                            setSelectedReportId(value === "none" ? null : value)
+                          }
+                          value={selectedReportId ?? "none"}
+                        >
+                          <SelectTrigger className="h-8 w-full text-xs sm:w-[150px]">
+                            <SelectValue placeholder={t("chat.report.placeholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{t("chat.report.none")}</SelectItem>
+                            {reports.map((report) => (
+                              <SelectItem key={report.report_id} value={report.report_id}>
+                                {report.report_title || t("chat.untitled")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </PromptInputTools>
                   <PromptInputSubmit

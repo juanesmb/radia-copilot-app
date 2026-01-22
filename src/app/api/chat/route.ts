@@ -8,6 +8,11 @@ import { getAIConfig } from "../lib/config";
 import { HttpError } from "../lib/errorHandler";
 import { createSupabaseClient } from "../clients/supabaseClient";
 import { createReportRepository } from "../repositories/reportRepository";
+import type { Language } from "../types/language";
+import {
+  getChatReportContextPrompt,
+  getChatSystemPrompt,
+} from "../lib/prompts";
 
 const requestSchema = z.object({
   messages: z.array(
@@ -18,6 +23,7 @@ const requestSchema = z.object({
   ),
   model: z.string().optional(),
   reportId: z.string().optional(),
+  language: z.enum(["en", "es"]).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -44,13 +50,8 @@ export async function POST(request: NextRequest) {
       baseUrl: aiConfig.baseUrl,
     });
 
-    const systemMessage = {
-      role: "system" as const,
-      content:
-        "Eres un asistente general y útil. Responde en el idioma del usuario con claridad y brevedad.",
-    };
-
-    const systemMessages = [systemMessage];
+    const systemMessages: Array<{ role: "system"; content: string }> = [];
+    let chatLanguage: Language = parsed.data.language ?? "en";
 
     if (parsed.data.reportId) {
       const supabaseClient = createSupabaseClient({
@@ -65,15 +66,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       }
       const report = await reportRepository.getReportById(parsed.data.reportId, userId);
+      chatLanguage = report.language === "es" ? "es" : "en";
       systemMessages.push({
         role: "system" as const,
-        content:
-          "Contexto del informe seleccionado:\n" +
-          `Título: ${report.report_title ?? "(sin título)"}\n` +
-          `Transcripción: ${report.updated_transcription}\n` +
-          `Informe: ${report.updated_report}`,
+        content: getChatReportContextPrompt(report, chatLanguage),
       });
     }
+
+    systemMessages.unshift({
+      role: "system",
+      content: getChatSystemPrompt(chatLanguage),
+    });
 
     const normalizedMessages: Array<{ role: "user" | "system"; content: string }> =
       parsed.data.messages.map((message) => {
