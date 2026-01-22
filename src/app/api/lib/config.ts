@@ -39,11 +39,11 @@ export function getAIConfig(): AIConfig {
     );
   }
 
-  const model = process.env.AI_MODEL;
+  const model = process.env.AI_REPORT_MODEL;
 
   if (!model) {
     throw new HttpError(
-      "AI_MODEL is not configured. Please set AI_MODEL in your environment variables with format: {provider}/{model-name} (e.g., provider/model-name).",
+      "AI_REPORT_MODEL is not configured. Please set AI_REPORT_MODEL in your environment variables with format: {provider}/{model-name} (e.g., provider/model-name).",
       { status: 500 }
     );
   }
@@ -71,4 +71,31 @@ export function getAIConfig(): AIConfig {
     temperature: DEFAULT_TEMPERATURE,
     reasoningEffort,
   };
+}
+
+/**
+ * Gets the model to use for study type detection.
+ * Falls back to AI_REPORT_MODEL if AI_DETECTION_MODEL is not set.
+ *
+ * @returns Model name for detection
+ * @throws {HttpError} If neither AI_DETECTION_MODEL nor AI_REPORT_MODEL is configured
+ */
+export function getDetectionModel(): string {
+  const detectionModel = process.env.AI_DETECTION_MODEL;
+  
+  if (detectionModel) {
+    return detectionModel;
+  }
+
+  // Fallback to report model if detection model is not set
+  const model = process.env.AI_REPORT_MODEL;
+
+  if (!model) {
+    throw new HttpError(
+      "AI_REPORT_MODEL is not configured. Please set AI_REPORT_MODEL in your environment variables with format: {provider}/{model-name} (e.g., provider/model-name). You can also set AI_DETECTION_MODEL for a separate detection model.",
+      { status: 500 }
+    );
+  }
+
+  return model;
 }
