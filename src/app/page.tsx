@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ReportsSubmenu } from "@/components/ReportsSubmenu";
-import { SidebarMenu } from "@/components/SidebarMenu";
+import { SidebarMenu, type SidebarView } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
 import { WelcomeSection } from "@/components/WelcomeSection";
@@ -25,13 +26,15 @@ import {
   updateReport,
   detectStudyType,
   getAvailableTemplates,
+  createSubscription,
+  getCurrentSubscription,
 } from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
+import type { SubscriptionRecord } from "@/lib/api";
 import { mapReportToHistoryItem, extractPatientName } from "@/utils/reportHistory";
 
 type DemoState = "main" | "recording" | "uploading";
-type SidebarView = "home" | "reports";
 
 interface StudyTypeOption {
   value: string;
@@ -39,6 +42,12 @@ interface StudyTypeOption {
 }
 
 const COPY_FEEDBACK_DURATION_MS = 2000;
+
+const subscriptionPlans = [
+  { id: "pro", price: 20000 },
+  { id: "business", price: 50000 },
+  { id: "enterprise", price: 100000 },
+] as const;
 
 const sttProvider = createSpeechToTextProvider('speechmatics');
 
@@ -61,6 +70,9 @@ export default function HomePage() {
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentSubscription, setCurrentSubscription] = useState<SubscriptionRecord | null>(null);
+  const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(false);
+  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
   const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -132,6 +144,30 @@ export default function HomePage() {
   }, [detectedStudyType, isDetectingStudyType, language, t]);
 
   useEffect(() => {
+    if (sidebarView !== "subscriptions") {
+      return;
+    }
+
+    const loadSubscription = async () => {
+      try {
+        setIsSubscriptionLoading(true);
+        const subscription = await getCurrentSubscription();
+        setCurrentSubscription(subscription);
+      } catch (error) {
+        toast({
+          title: t("errors.generic"),
+          description: (error as ApiError)?.message ?? t("errors.requestFailed"),
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubscriptionLoading(false);
+      }
+    };
+
+    loadSubscription();
+  }, [sidebarView, t, toast]);
+
+  useEffect(() => {
     setTranscription(transcript);
   }, [transcript]);
 
@@ -185,11 +221,66 @@ export default function HomePage() {
   const showWelcome = sidebarView === "home" && demoState === "main" && !currentReportId;
 
   const headerSubtitle = useMemo(() => {
+    if (sidebarView === "subscriptions") return t("subscriptions.title");
     if (demoState === "recording") return t("header.generateReport");
     return null;
-  }, [demoState, t]);
+  }, [demoState, sidebarView, t]);
 
   const renderContentPanel = () => {
+    if (sidebarView === "subscriptions") {
+      return (
+        <div className="h-full flex flex-col gap-6 px-4 pb-10 lg:px-8">
+          <div className="pt-6">
+            <h1 className="text-2xl font-semibold text-foreground">{t("subscriptions.title")}</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              {t("subscriptions.subtitle")}
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {subscriptionPlans.map((plan) => {
+              const isCurrentPlan = currentSubscription?.plan === plan.id;
+              const planLabel = t(`subscriptions.plan.${plan.id}`);
+              const priceLabel = t("subscriptions.plan.price").replace("{price}", plan.price.toLocaleString("es-CO"));
+              return (
+                <Card key={plan.id} className={isCurrentPlan ? "border-primary/60" : ""}>
+                  <CardHeader>
+                    <CardTitle>{planLabel}</CardTitle>
+                    <CardDescription>{priceLabel}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isCurrentPlan ? (
+                      <p className="text-sm text-muted-foreground">
+                        {t("subscriptions.plan.status").replace(
+                          "{status}",
+                          currentSubscription?.status ?? ""
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {t("subscriptions.currentPlan")}:
+                        {currentSubscription ? " " + t(`subscriptions.plan.${currentSubscription.plan}`) : " -"}
+                      </p>
+                    )}
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      className="w-full"
+                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={isCurrentPlan || subscribingPlanId === plan.id || isSubscriptionLoading}
+                    >
+                      {subscribingPlanId === plan.id
+                        ? t("subscriptions.processing")
+                        : t("subscriptions.cta")}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     if (demoState === "recording") {
       return (
         <RecordingInterface
@@ -376,6 +467,31 @@ export default function HomePage() {
 
   const handleToggleChat = useCallback(() => {
     window.dispatchEvent(new CustomEvent("chat-toggle"));
+  }, []);
+
+  const handleSubscribe = useCallback(async (planId: "pro" | "business" | "enterprise") => {
+    try {
+      setSubscribingPlanId(planId);
+      const response = await createSubscription({ plan: planId });
+      window.location.href = response.initPoint;
+    } catch (error) {
+      toast({
+        title: t("errors.generic"),
+        description: (error as ApiError)?.message ?? t("errors.requestFailed"),
+        variant: "destructive",
+      });
+    } finally {
+      setSubscribingPlanId(null);
+    }
+  }, [toast, t]);
+
+  const handleSidebarSubscriptions = useCallback(() => {
+    setSidebarView("subscriptions");
+    setDemoState("main");
+    setSelectedReportId(null);
+    setCurrentReportId(null);
+    setCurrentReportTitle(null);
+    setIsReportsOpen(false);
   }, []);
 
   /**
@@ -809,6 +925,10 @@ export default function HomePage() {
               handleSidebarReports();
               setIsMobileMenuOpen(false);
             }}
+            onSelectSubscriptions={() => {
+              handleSidebarSubscriptions();
+              setIsMobileMenuOpen(false);
+            }}
             onToggleChat={() => {
               handleToggleChat();
               setIsMobileMenuOpen(false);
@@ -824,6 +944,7 @@ export default function HomePage() {
           isReportsOpen={isReportsOpen}
           onSelectHome={handleSidebarHome}
           onToggleReports={handleSidebarReports}
+          onSelectSubscriptions={handleSidebarSubscriptions}
           onToggleChat={handleToggleChat}
         />
 

@@ -6,6 +6,8 @@ import type {
 
 const API_PATH = "/api/generate-report";
 const REPORTS_PATH = "/api/reports";
+const SUBSCRIPTIONS_PATH = "/api/subscriptions";
+const SUBSCRIBE_PATH = "/api/subscriptions/subscribe";
 
 export interface Report {
   report_id: string;
@@ -23,6 +25,28 @@ export interface Report {
   language: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface SubscriptionRecord {
+  id: string;
+  user_id: string;
+  plan: "pro" | "business" | "enterprise";
+  status: "active" | "paused" | "cancelled" | "pending";
+  mp_preapproval_id: string | null;
+  mp_customer_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateSubscriptionRequest {
+  plan: "pro" | "business" | "enterprise";
+}
+
+export interface CreateSubscriptionResponse {
+  initPoint: string;
+  preapprovalId: string;
 }
 
 export interface ChatSession {
@@ -58,6 +82,71 @@ export interface UpdateReportRequest {
   report_title?: string;
   updated_report?: string;
   updated_transcription?: string;
+}
+
+export async function getCurrentSubscription(): Promise<SubscriptionRecord | null> {
+  try {
+    const response = await fetch(SUBSCRIPTIONS_PATH, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Unexpected server error",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as SubscriptionRecord | null;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createSubscription(
+  payload: CreateSubscriptionRequest,
+): Promise<CreateSubscriptionResponse> {
+  try {
+    const response = await fetch(SUBSCRIBE_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Unexpected server error",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as CreateSubscriptionResponse;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
 }
 
 export async function generateReport(

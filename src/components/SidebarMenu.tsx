@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { BookOpen, ChevronLeft, ChevronRight, Home, MessageCircle } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, CreditCard, Home, MessageCircle } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 
@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-type SidebarView = "home" | "reports";
+export type SidebarView = "home" | "reports" | "subscriptions";
 
 interface SidebarMenuProps {
   activeView: SidebarView;
   isReportsOpen: boolean;
   onSelectHome: () => void;
   onToggleReports: () => void;
+  onSelectSubscriptions: () => void;
   onToggleChat: () => void;
   className?: string;
 }
@@ -25,6 +26,7 @@ export function SidebarMenu({
   isReportsOpen,
   onSelectHome,
   onToggleReports,
+  onSelectSubscriptions,
   onToggleChat,
   className = "",
 }: SidebarMenuProps) {
@@ -32,6 +34,7 @@ export function SidebarMenu({
   const { user } = useUser();
   const isMobile = className.includes("flex");
   const reportsActive = activeView === "reports" && isReportsOpen;
+  const subscriptionsActive = activeView === "subscriptions";
   const [isExpanded, setIsExpanded] = useState(false);
 
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
@@ -127,6 +130,24 @@ export function SidebarMenu({
             <span className="ml-3 text-left">
               <span className="block text-sm font-medium">{t("sidebar.reports")}</span>
               <span className="block text-xs text-muted-foreground">{t("sidebar.reportsDescription")}</span>
+            </span>
+          )}
+        </Button>
+
+        <Button
+          variant="ghost"
+          onClick={onSelectSubscriptions}
+          className={`w-12 h-12 hover:bg-muted transition-colors rounded-xl border ${
+            subscriptionsActive ? "bg-muted border-border" : "border-transparent"
+          } ${isExpanded ? "w-full justify-start px-3" : ""}`}
+          title={t("sidebar.subscriptions")}
+          aria-pressed={subscriptionsActive}
+        >
+          <CreditCard className="w-5 h-5 shrink-0" aria-hidden="true" />
+          {isExpanded && (
+            <span className="ml-3 text-left">
+              <span className="block text-sm font-medium">{t("sidebar.subscriptions")}</span>
+              <span className="block text-xs text-muted-foreground">{t("sidebar.subscriptionsDescription")}</span>
             </span>
           )}
         </Button>
