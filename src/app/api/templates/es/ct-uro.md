@@ -1,56 +1,39 @@
 UROTOMOGRAFÍA [CON CONTRASTE, SIN CONTRASTE]
 
-COMPARACIÓN: [si, no]
+Comparación: [si, no]
  
 Calidad de imagen: [satisfactoria, no satisfactoria]
+
+Riñon y uréter derechos 
+De forma, tamaño y densidad conservados. Sin cálculos. Sin Hidronefrosis.
  
-Riñón y Uréter Derechos: dentro de límites normales.
-Número de Cálculos en el Rińon: sin cálculos.
-Número de Cálculos en el Uréter: sin cálculos.
-Hidronefrosis: no.
- 
-Riñón y Uréter Izquierdos: dentro de límites normales.
-Número de Cálculos en el Rińon: sin cálculos.
-Número de Cálculos en el Uréter: sin cálculos.
-Hidronefrosis: no.
+Riñon y uréter izquierdos 
+De forma, tamaño y densidad conservados. Sin cálculos. Sin Hidronefrosis.
 
 No se observan otras alteraciones en el tracto urinario superior.
+Sin líquido libre retroperitoneal.
+Sin Líquido libre peritoneal.
  
-Otros Hallazgos: no.
-Líquido Libre Retroperitoneal: no.
-Líquido Libre Peritoneal: no.
- 
-Vejiga:
-Cálculos: sin cálculos.
-Uniones Vesicoureterales: libres.
-Distendida: si. 
-Pared: delgada.
+Vejiga sin cálculos. Uniones vesicoureterales libres. Distendida. De paredes delgadas.
  
 Resto del Examen
-Hígado: dentro de límites normales.
-Bazo: dentro de límites normales.
-Páncreas: dentro de límites normales.
-Vesícula Biliar: dentro de límites normales. 
-Vía Biliar Intra y Extrahepática: no dilatadas.
-Glándulas Adrenales: dentro de límites normales.
-Ganglios Linfáticos Retroperitoneales, Pelvianos e Inguinales: sin adenomegalias.
-Asas Intestinales: normodistendidas.
-Grandes Vasos: diámetros conservados.
-Imágenes Ocupantes Pelvianas: no se evidencian.
-//Selecciona útero o Próstata dependiendo del sexo. Si no se menciona, deja ambos.
-//Si la transcripción menciona "anexos", significa que es mujer.
-Útero: de tamaño conservado para la edad.
-Próstata: de tamaño conservado.
-Vejiga: sin evidencia de imágenes endoluminales.
-Cavidad Peritoneal: no se observó líquido libre.
-Fosas Isquiorectales: libres.
-
-Tórax Inferior: dentro de límites normales.
-
-Músculo Esquelético: dentro de límites normales.
-
-// Agregar esta línea si el estudio es con contraste
-No se observan realces patológicos luego de la administración del contraste endovenoso. 
+Hígado de forma, tamaño y densidad conservados.
+Bazo de forma, tamaño y densidad conservados.
+Páncreas de forma, tamaño y densidad conservados.
+Vesícula biliar presente.
+Vía biliar intra y extrahepática no dilatadas.
+Glándulas adrenales ambas de tamaño conservado sin evidencia de imágenes ocupantes.
+Ganglios linfáticos retroperitoneales, pelvianos e inguinales sin adenomegalias.
+Asas intestinales normodistendidas.
+Grandes vasos de diámetros conservados.
+No se evidencian imágenes ocupantes pelvianas.
+Útero de tamaño conservado para la edad.
+Próstata de tamaño conservado.
+Vejiga sin evidencia de imágenes endoluminales.
+Fosas isquiorectales libres.
+Cavidad peritoneal no se observó líquido libre.
+Tórax inferior de forma, tamaño y densidad conservados.
+Músculo esquelético de forma, tamaño y densidad conservados.
 
 CONCLUSIONES
 - Estudio dentro de los límites normales.

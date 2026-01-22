@@ -4,20 +4,17 @@ COMPARISON: [yes, no]
  
 Image quality: [satisfactory, not satisfactory]
  
-Globes: Within normal limits.
-Preseptal soft tissues: Within normal limits.
-Optic nerves: caliber preserved.
-Extrinsic ocular musculature: Within normal limits.
-Lacrimal gland: Within normal limits.
-Bony structures: Within normal limits.
+Globes within normal limits.
+Preseptal soft tissues within normal limits.
+Optic nerves caliber preserved.
+Extrinsic ocular musculature within normal limits.
+Lacrimal gland within normal limits.
+Bony structures within normal limits.
  
-Other:
-Visible paranasal sinuses: Within normal limits.
-Visible cervical spine: Within normal limits.
-Sella turcica and cavernous sinuses: Within normal limits.
-
-// Add this line if the study is with contrast
-No pathological enhancement observed following intravenous contrast administration.
+Other
+Visible paranasal sinuses within normal limits.
+Visible cervical spine within normal limits.
+Sella turcica and cavernous sinuses within normal limits.
 
 CONCLUSIONS
 - Study within normal limits.

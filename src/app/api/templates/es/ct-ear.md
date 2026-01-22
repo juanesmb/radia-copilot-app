@@ -1,31 +1,28 @@
 TOMOGRAFÍA DE OÍDO [CON CONTRASTE, SIN CONTRASTE]
 
-COMPARACIÓN: [si, no]
+Comparación: [si, no]
  
 Calidad de imagen: [satisfactoria, no satisfactoria]
  
-Ambos Oídos:
-Celdillas Mastoideas: ventiladas.
-Conductos Auditivos Externos: dentro de límites normales.
-Membranas Timpánicas: dentro de límites normales.
-Cajas Timpánicas: aireadas.
-Cadenas Osiculares: dentro de límites normales.
-Ventanas Ovales y Redondas: dentro de límites normales.
-Densitometría Pericoclear: dentro de límites normales.
-Cócleas: dentro de límites normales.
-Vestíbulos: dentro de límites normales.
-Acueductos Vestibulares: dentro de límites normales.
-Acueductos Cocleares: dentro de límites normales.
-Conductos Semicirculares: dentro de límites normales.
-Canales de Nervios Faciales: dentro de límites normales.
-Conductos Auditivos Internos: dentro de límites normales.
+Ambos oídos
+Celdillas mastoideas ventiladas.
+Conductos auditivos externos dentro de límites normales.
+Membranas timpánicas dentro de límites normales.
+Cajas timpánicas aireadas.
+Cadenas osiculares dentro de límites normales.
+Ventanas ovales y redondas dentro de límites normales.
+Densitometría pericoclear dentro de límites normales.
+Cócleas dentro de límites normales.
+Vestíbulos dentro de límites normales.
+Acueductos vestibulares dentro de límites normales.
+Acueductos cocleares dentro de límites normales.
+Conductos semicirculares dentro de límites normales.
+Canales de nervios faciales dentro de límites normales.
+Conductos auditivos internos dentro de límites normales.
  
-Otros:
-Estructuras Óseas Craneofaciales Visibles: dentro de límites normales.
-Senos Paranasales: visibles.
-
-// Agregar esta línea si el estudio es con contraste
-No se observan realces patológicos luego de la administración del contraste endovenoso. 
+Otros
+Estructuras óseas craneofaciales visibles dentro de límites normales.
+Senos paranasales visibles.
 
 CONCLUSIONES
 - Estudio dentro de los límites normales.

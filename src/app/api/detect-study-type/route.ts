@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAIClient } from '../clients/aiClient';
-import { getAIConfig } from '../lib/config';
+import { getAIConfig, getDetectionModel } from '../lib/config';
 import { HttpError } from '../lib/errorHandler';
 import { detectStudyType } from '../services/studyTypeDetector';
 import { listAvailableTemplates } from '../services/templateLoader';
@@ -26,9 +26,10 @@ export async function POST(request: NextRequest) {
 
     const { transcription, language } = parsed.data;
     const aiConfig = getAIConfig();
+    const detectionModel = getDetectionModel();
     const aiClient = createAIClient({
       gatewayApiKey: aiConfig.gatewayApiKey,
-      model: aiConfig.model,
+      model: detectionModel,
       baseUrl: aiConfig.baseUrl,
     });
 

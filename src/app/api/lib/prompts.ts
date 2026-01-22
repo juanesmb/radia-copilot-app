@@ -14,7 +14,7 @@ const loadPrompt = (language: Language): string => {
 
   try {
     const promptsDir = join(process.cwd(), "src/app/api/prompts");
-    const filePath = join(promptsDir, `${language}.md`);
+    const filePath = join(promptsDir, `generate-report-${language}.md`);
     const content = readFileSync(filePath, "utf-8");
     const trimmed = content.trim();
 
@@ -62,7 +62,7 @@ const loadEnhancementPrompt = (language: Language): string => {
 
   try {
     const promptsDir = join(process.cwd(), "src/app/api/prompts");
-    const filePath = join(promptsDir, `${language}-enhance.md`);
+    const filePath = join(promptsDir, `enhance-report-${language}.md`);
     const content = readFileSync(filePath, "utf-8");
     const trimmed = content.trim();
 

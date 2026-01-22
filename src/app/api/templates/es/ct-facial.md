@@ -1,27 +1,24 @@
 TOMOGRAFÍA DE MACIZO FACIAL [CON CONTRASTE, SIN CONTRASTE]
 
-COMPARACIÓN: [si, no]
+Comparación: [si, no]
  
 Calidad de imagen: [satisfactoria, no satisfactoria]
 
-Senos Frontales: neumatización normal.
-Celdillas Etmoidales: neumatización normal.
-Seno Esfenoidal: neumatización normal.
-Senos Maxilares: neumatización normal.
-Complejos Osteomeatales: permeables.
-Fosas Nasales: de características conservadas.
-Tabique Nasal: centrado.
-Estructuras Óseas: conservadas.
-Regiones Orbitarias: dentro de límites normales.
-Cavum: dentro de límites normales.
-Cavidades Paranasales: correctamente neumatizadas, sin imágenes endoluminales.
-Complejos Ostiomeatales: permeables.
-Septum Nasal: alineado.
-Cavum Faríngeo: libre.
-Huesos Propios Nasales: sin particularidades.
-
-// Agregar esta línea si el estudio es con contraste
-No se observan realces patológicos luego de la administración del contraste endovenoso. 
+Senos frontales neumatización normal.
+Celdillas etmoidales neumatización normal.
+Seno esfenoidal neumatización normal.
+Senos maxilares neumatización normal.
+Complejos osteomeatales permeables.
+Fosas nasales de características conservadas.
+Tabique nasal centrado.
+Estructuras óseas conservadas.
+Regiones orbitarias dentro de límites normales.
+Cavum dentro de límites normales.
+Cavidades paranasales correctamente neumatizadas, sin imágenes endoluminales.
+Complejos ostiomeatales permeables.
+Septum nasal alineado.
+Cavum faríngeo libre.
+Huesos propios nasales sin particularidades.
 
 CONCLUSIONES
 - Estudio dentro de los límites normales.
