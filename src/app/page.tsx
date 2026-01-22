@@ -553,22 +553,31 @@ export default function HomePage() {
             toast({ title: t("app.generatedToast") });
 
             if (reportTitle) {
-              try {
-                const normalizedChatTitle = reportTitle.trim().slice(0, 48);
-                const { sessionId } = await createReportChatSession({
-                  reportId,
-                  title: normalizedChatTitle,
-                  model: process.env.NEXT_PUBLIC_DEFAULT_CHAT_MODEL || "openai/gpt-4o",
-                  initialPrompt: t("chat.report.initialPrompt"),
-                });
-                setReportChatSessions((prev) => ({ ...prev, [reportId]: sessionId }));
+              const existingSessionId = reportChatSessions[reportId];
+              if (existingSessionId) {
                 window.dispatchEvent(
-                  new CustomEvent("report-chat-created", {
-                    detail: { sessionId, reportId },
+                  new CustomEvent("report-chat-open", {
+                    detail: { sessionId: existingSessionId, reportId },
                   })
                 );
-              } catch (error) {
-                console.error("[ReportChat] Failed to create report chat", error);
+              } else {
+                try {
+                  const normalizedChatTitle = reportTitle.trim().slice(0, 48);
+                  const { sessionId } = await createReportChatSession({
+                    reportId,
+                    title: normalizedChatTitle,
+                    model: process.env.NEXT_PUBLIC_DEFAULT_CHAT_MODEL || "openai/gpt-4o",
+                    initialPrompt: t("chat.report.initialPrompt"),
+                  });
+                  setReportChatSessions((prev) => ({ ...prev, [reportId]: sessionId }));
+                  window.dispatchEvent(
+                    new CustomEvent("report-chat-created", {
+                      detail: { sessionId, reportId },
+                    })
+                  );
+                } catch (error) {
+                  console.error("[ReportChat] Failed to create report chat", error);
+                }
               }
             }
           },
