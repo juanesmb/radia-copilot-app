@@ -1101,10 +1101,21 @@ export function ChatWidget() {
                             <SelectValue placeholder={t("chat.report.placeholder")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">{t("chat.report.none")}</SelectItem>
+                            <SelectItem
+                              value="none"
+                              className="text-xs sm:text-sm"
+                            >
+                              {t("chat.report.none")}
+                            </SelectItem>
                             {reports.map((report) => (
-                              <SelectItem key={report.report_id} value={report.report_id}>
-                                {report.report_title || t("chat.untitled")}
+                              <SelectItem
+                                key={report.report_id}
+                                value={report.report_id}
+                                className="text-xs sm:text-sm"
+                              >
+                                <span className="block max-w-[140px] truncate sm:max-w-[260px]">
+                                  {report.report_title || t("chat.untitled")}
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectContent>
