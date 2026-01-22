@@ -10,7 +10,6 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
-import { nanoid } from "nanoid";
 
 import {
   Attachment,
@@ -163,8 +162,6 @@ export function ChatWidget() {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const bubbleMovedRef = useRef(false);
   const [model, setModel] = useState<string>(models[0].id);
-  const [useWebSearch, setUseWebSearch] = useState<boolean>(false);
-  const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
   const modelRef = useRef(model);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -187,9 +184,6 @@ export function ChatWidget() {
     "submitted" | "streaming" | "ready" | "error"
   >("ready");
   const [messages, setMessages] = useState<MessageType[]>([]);
-  const [_streamingMessageId, setStreamingMessageId] = useState<string | null>(
-    null
-  );
   const messagesRef = useRef<MessageType[]>([]);
 
   useEffect(() => {
@@ -428,31 +422,6 @@ export function ChatWidget() {
     };
   }, []);
 
-  const streamResponse = useCallback(async (messageId: string, content: string) => {
-    setStatus("streaming");
-    setStreamingMessageId(messageId);
-
-    const words = content.split(" ");
-    let currentContent = "";
-
-    for (let i = 0; i < words.length; i++) {
-      currentContent += (i > 0 ? " " : "") + words[i];
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.key === messageId ? { ...msg, content: currentContent } : msg
-        )
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-
-    setStatus("ready");
-    setStreamingMessageId(null);
-  }, []);
-
-  const selectedModelData = models.find((modelOption) => modelOption.id === model);
-
   const mapStoredMessage = (message: ChatMessage): MessageType => ({
     key: message.id,
     from: message.role === "assistant" ? "assistant" : "user",
@@ -587,7 +556,6 @@ export function ChatWidget() {
 
       setMessages((prev) => [...prev, assistantMessage]);
       setStatus("streaming");
-      setStreamingMessageId(assistantMessageId);
 
       const enqueueStreamingText = (nextChunk: string) => {
         if (!nextChunk) {
@@ -718,14 +686,12 @@ export function ChatWidget() {
           )
         );
         setStatus("error");
-        setStreamingMessageId(null);
         return;
       }
 
       setStatus("ready");
-      setStreamingMessageId(null);
     },
-    [activeSessionId, streamResponse]
+    [activeSessionId]
   );
 
   const handleSubmit = (message: PromptInputMessage) => {
