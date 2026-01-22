@@ -1,14 +1,26 @@
 import { HttpError } from "./errorHandler";
 
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+
 export interface AIConfig {
   gatewayApiKey: string;
   model: string;
   baseUrl: string;
   temperature: number;
+  reasoningEffort: ReasoningEffort;
 }
 
 const DEFAULT_BASE_URL = "https://ai-gateway.vercel.sh/v3/ai";
 const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_REASONING_EFFORT: ReasoningEffort = "low";
+const VALID_REASONING_VALUES: readonly ReasoningEffort[] = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
 
 /**
  * Gets AI Gateway configuration from environment variables.
@@ -27,8 +39,6 @@ export function getAIConfig(): AIConfig {
     );
   }
 
-  // Model should include provider prefix (e.g., "provider/model-name")
-  // If not provided, user must specify in AI_MODEL env var
   const model = process.env.AI_MODEL;
 
   if (!model) {
@@ -37,14 +47,28 @@ export function getAIConfig(): AIConfig {
       { status: 500 }
     );
   }
-  // Prioritize configured DEFAULT_BASE_URL (v3) for AI SDK Gateway compatibility
-  // ignoring potential legacy v1 env var
+
   const baseUrl = DEFAULT_BASE_URL;
+
+  const reasoningEnv = process.env.AI_REASONING;
+  let reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT;
+
+  if (reasoningEnv) {
+    const normalizedReasoning = reasoningEnv.toLowerCase() as ReasoningEffort;
+    if (VALID_REASONING_VALUES.includes(normalizedReasoning)) {
+      reasoningEffort = normalizedReasoning;
+    } else {
+      console.warn(
+        `Invalid AI_REASONING="${reasoningEnv}". Valid values: ${VALID_REASONING_VALUES.join(", ")}. Using default: "${DEFAULT_REASONING_EFFORT}"`
+      );
+    }
+  }
 
   return {
     gatewayApiKey,
     model,
     baseUrl,
     temperature: DEFAULT_TEMPERATURE,
+    reasoningEffort,
   };
 }

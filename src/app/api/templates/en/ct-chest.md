@@ -4,28 +4,25 @@ COMPARISON: [yes, no]
 
 Image quality: [satisfactory, not satisfactory]
 
-Airway: Within normal limits.
-Parenchyma: Within normal limits.
-Pleura: Within normal limits.
-Vessels: Within normal limits.
-Heart: Normal size. No pericardial effusion.
-Mediastinum and hila: Within normal limits.
-Axillae: Within normal limits.
+Airway within normal limits.
+Parenchyma within normal limits.
+Pleura within normal limits.
+Vessels within normal limits.
+Heart normal size. No pericardial effusion.
+Mediastinum and hila within normal limits.
+Axillae within normal limits.
 
 UPPER ABDOMEN
-Liver: Within normal limits.
-Spleen: Within normal limits.
-Pancreas: Within normal limits.
-Kidneys: Within normal limits.
-Gallbladder: Within normal limits.
-Bile duct: Within normal limits.
-Adrenal glands: Within normal limits.
-Colon: Within normal limits.
+Liver within normal limits.
+Spleen within normal limits.
+Pancreas within normal limits.
+Kidneys within normal limits.
+Gallbladder within normal limits.
+Bile duct within normal limits.
+Adrenal glands within normal limits.
+Colon within normal limits.
 
-Musculoskeletal: Within normal limits.
-
-// Add this line if the study is with contrast
-No pathological enhancement observed following intravenous contrast administration.
+Musculoskeletal within normal limits.
 
 CONCLUSIONS
 - Study within normal limits.
