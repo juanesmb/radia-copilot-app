@@ -6,6 +6,10 @@ import type {
 
 const API_PATH = "/api/generate-report";
 const REPORTS_PATH = "/api/reports";
+const BILLING_PLANS_PATH = "/api/billing/plans";
+const BILLING_SUBSCRIPTION_PATH = "/api/billing/subscription";
+const BILLING_CHECKOUT_PATH = "/api/billing/checkout";
+const BILLING_PORTAL_PATH = "/api/billing/portal";
 
 export interface Report {
   report_id: string;
@@ -23,6 +27,171 @@ export interface Report {
   language: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface BillingPlan {
+  key: string;
+  label: string;
+  description: string;
+  productId: string;
+  priceId: string;
+  amount: number | null;
+  currency: string | null;
+  interval: string;
+}
+
+export interface BillingPlansResponse {
+  plans: BillingPlan[];
+}
+
+export interface BillingSubscription {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string;
+  stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
+  plan_key: string | null;
+  plan_name: string | null;
+  status: string;
+  amount_total: number | null;
+  currency: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean | null;
+  canceled_at: string | null;
+  latest_invoice_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BillingSubscriptionResponse {
+  payment: BillingSubscription | null;
+}
+
+export interface BillingCheckoutResponse {
+  url: string;
+}
+
+export async function getBillingPlans(): Promise<BillingPlansResponse> {
+  try {
+    const response = await fetch(BILLING_PLANS_PATH, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to load billing plans",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return (await response.json()) as BillingPlansResponse;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function getBillingSubscription(): Promise<BillingSubscriptionResponse> {
+  try {
+    const response = await fetch(BILLING_SUBSCRIPTION_PATH, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to load subscription",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return (await response.json()) as BillingSubscriptionResponse;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createCheckoutSession(planKey: string): Promise<BillingCheckoutResponse> {
+  try {
+    const response = await fetch(BILLING_CHECKOUT_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ planKey }),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to start checkout",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return (await response.json()) as BillingCheckoutResponse;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createBillingPortalSession(): Promise<BillingCheckoutResponse> {
+  try {
+    const response = await fetch(BILLING_PORTAL_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to open billing portal",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return (await response.json()) as BillingCheckoutResponse;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
 }
 
 export interface UpdateReportRequest {

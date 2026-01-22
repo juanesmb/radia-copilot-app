@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { BookOpen, ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, CreditCard, Home } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 
@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-type SidebarView = "home" | "reports";
+type SidebarView = "home" | "reports" | "pricing";
 
 interface SidebarMenuProps {
   activeView: SidebarView;
   isReportsOpen: boolean;
   onSelectHome: () => void;
   onToggleReports: () => void;
+  onSelectPricing: () => void;
   className?: string;
 }
 
@@ -24,6 +25,7 @@ export function SidebarMenu({
   isReportsOpen,
   onSelectHome,
   onToggleReports,
+  onSelectPricing,
   className = "",
 }: SidebarMenuProps) {
   const { t } = useLanguage();
@@ -125,6 +127,26 @@ export function SidebarMenu({
             <span className="ml-3 text-left">
               <span className="block text-sm font-medium">{t("sidebar.reports")}</span>
               <span className="block text-xs text-muted-foreground">{t("sidebar.reportsDescription")}</span>
+            </span>
+          )}
+        </Button>
+
+        <Button
+          variant="ghost"
+          onClick={onSelectPricing}
+          className={`w-12 h-12 hover:bg-muted transition-colors rounded-xl border ${
+            activeView === "pricing" ? "bg-muted border-border" : "border-transparent"
+          } ${isExpanded ? "w-full justify-start px-3" : ""}`}
+          title={t("sidebar.pricing")}
+          aria-pressed={activeView === "pricing"}
+        >
+          <CreditCard className="w-5 h-5 shrink-0" aria-hidden="true" />
+          {isExpanded && (
+            <span className="ml-3 text-left">
+              <span className="block text-sm font-medium">{t("sidebar.pricing")}</span>
+              <span className="block text-xs text-muted-foreground">
+                {t("sidebar.pricingDescription")}
+              </span>
             </span>
           )}
         </Button>

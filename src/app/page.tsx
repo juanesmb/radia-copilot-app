@@ -11,6 +11,7 @@ import { RecordingInterface } from "@/components/RecordingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
 import { WelcomeSection } from "@/components/WelcomeSection";
 import { ReportsEmptyState } from "@/components/ReportsEmptyState";
+import { PricingSection } from "@/components/PricingSection";
 import { MainContentLayout } from "@/components/MainContentLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -23,7 +24,7 @@ import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { mapReportToHistoryItem, extractPatientName } from "@/utils/reportHistory";
 
 type DemoState = "main" | "recording" | "uploading";
-type SidebarView = "home" | "reports";
+type SidebarView = "home" | "reports" | "pricing";
 
 interface StudyTypeOption {
   value: string;
@@ -181,6 +182,10 @@ export default function HomePage() {
   }, [demoState, t]);
 
   const renderContentPanel = () => {
+    if (sidebarView === "pricing") {
+      return <PricingSection />;
+    }
+
     if (demoState === "recording") {
       return (
         <RecordingInterface
@@ -636,6 +641,13 @@ export default function HomePage() {
     setDemoState("main");
   }, []);
 
+  const handleSidebarPricing = useCallback(() => {
+    setSidebarView("pricing");
+    setIsReportsOpen(false);
+    setSelectedReportId(null);
+    setDemoState("main");
+  }, []);
+
   const shouldShowReportOnMobile = useMemo(() => {
     if (!isReportsOpen) return false;
     const isRecordingOrUploading = demoState === "recording" || demoState === "uploading";
@@ -744,6 +756,10 @@ export default function HomePage() {
               handleSidebarReports();
               setIsMobileMenuOpen(false);
             }}
+            onSelectPricing={() => {
+              handleSidebarPricing();
+              setIsMobileMenuOpen(false);
+            }}
             className="flex"
           />
         </SheetContent>
@@ -755,6 +771,7 @@ export default function HomePage() {
           isReportsOpen={isReportsOpen}
           onSelectHome={handleSidebarHome}
           onToggleReports={handleSidebarReports}
+          onSelectPricing={handleSidebarPricing}
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen" data-report-container>
