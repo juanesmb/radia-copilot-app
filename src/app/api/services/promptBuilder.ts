@@ -52,17 +52,18 @@ const createDetectionFromInput = (
   input: GenerateReportRequest,
   mode: "transcription" | "enhancement"
 ): { studyType: string; confidence: number; keywords?: string[] } | null => {
-  if (input.studyType?.trim()) {
+  // Check for custom template FIRST, before checking provided studyType
+  if (input.isCustomTemplate && input.template) {
     return {
-      studyType: input.studyType.trim(),
+      studyType: "custom",
       confidence: 1.0,
       keywords: [],
     };
   }
 
-  if (input.isCustomTemplate && input.template) {
+  if (input.studyType?.trim()) {
     return {
-      studyType: "custom",
+      studyType: input.studyType.trim(),
       confidence: 1.0,
       keywords: [],
     };
@@ -122,10 +123,13 @@ export const createPromptBuilder = (
       );
       const userPrompt = strategy.buildUserPrompt(input, template);
 
+      // Ensure selectedTemplate is "custom" if isCustomTemplate is true, regardless of detection
+      const selectedTemplate = input.isCustomTemplate ? "custom" : studyType;
+
       return {
         systemPrompt,
         userPrompt,
-        selectedTemplate: studyType,
+        selectedTemplate,
         detection: {
           studyType: detection.studyType,
           confidence: detection.confidence,
