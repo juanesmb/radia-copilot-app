@@ -5,7 +5,7 @@ import { HttpError } from "../lib/errorHandler";
 export interface PaymentRecord {
   id: string;
   user_id: string;
-  plan: "pro" | "business" | "enterprise";
+  plan: "pro";
   mp_payment_id: string | null;
   status: string;
   amount_cop: number;
@@ -16,7 +16,7 @@ export interface PaymentRecord {
 
 export interface CreatePaymentData {
   user_id: string;
-  plan: "pro" | "business" | "enterprise";
+  plan: "pro";
   mp_payment_id?: string | null;
   status: string;
   amount_cop: number;

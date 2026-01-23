@@ -23,8 +23,8 @@ const parseExternalReference = (externalReference?: string | null) => {
   if (!externalReference) return null;
   const [userId, plan] = externalReference.split(":");
   if (!userId || !plan) return null;
-  if (!(["pro", "business", "enterprise"] as const).includes(plan as any)) return null;
-  return { userId, plan: plan as "pro" | "business" | "enterprise" };
+  if (!(["pro"] as const).includes(plan as any)) return null;
+  return { userId, plan: plan as "pro" };
 };
 
 const mapStatus = (status?: string | null) => {

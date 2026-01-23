@@ -44,9 +44,7 @@ interface StudyTypeOption {
 const COPY_FEEDBACK_DURATION_MS = 2000;
 
 const subscriptionPlans = [
-  { id: "pro", price: 20000 },
-  { id: "business", price: 50000 },
-  { id: "enterprise", price: 100000 },
+  { id: "pro", price: 20000 }
 ] as const;
 
 const sttProvider = createSpeechToTextProvider('speechmatics');
@@ -472,7 +470,7 @@ export default function HomePage() {
     window.dispatchEvent(new CustomEvent("chat-toggle"));
   }, []);
 
-  const handleSubscribe = useCallback(async (planId: "pro" | "business" | "enterprise") => {
+  const handleSubscribe = useCallback(async (planId: "pro") => {
     try {
       setSubscribingPlanId(planId);
       const response = await createSubscription({ plan: planId });

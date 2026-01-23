@@ -17,15 +17,11 @@ const subscriptionRepository = createSubscriptionRepository({
 });
 
 const PLAN_PRICES: Record<string, number> = {
-  pro: 20000,
-  business: 50000,
-  enterprise: 100000,
+  pro: 20000
 };
 
 const MP_REASON: Record<string, string> = {
-  pro: "Radia Copilot Pro",
-  business: "Radia Copilot Business",
-  enterprise: "Radia Copilot Enterprise",
+  pro: "Radia Copilot Pro"
 };
 
 export async function POST(request: NextRequest) {

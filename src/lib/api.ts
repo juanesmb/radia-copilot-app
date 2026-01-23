@@ -30,7 +30,7 @@ export interface Report {
 export interface SubscriptionRecord {
   id: string;
   user_id: string;
-  plan: "pro" | "business" | "enterprise";
+  plan: "pro";
   status: "active" | "paused" | "cancelled" | "pending";
   mp_preapproval_id: string | null;
   mp_customer_id: string | null;
@@ -41,7 +41,7 @@ export interface SubscriptionRecord {
 }
 
 export interface CreateSubscriptionRequest {
-  plan: "pro" | "business" | "enterprise";
+  plan: "pro";
 }
 
 export interface CreateSubscriptionResponse {

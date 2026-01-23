@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const subscriptionPlanSchema = z.enum(["pro", "business", "enterprise"]);
+export const subscriptionPlanSchema = z.enum(["pro"]);
 
 export const createSubscriptionSchema = z.object({
   plan: subscriptionPlanSchema,
