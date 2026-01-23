@@ -37,9 +37,7 @@ interface RecordingInterfaceProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   sttError?: string | null;
-  // Template detection toggle
-  isAutoDetectTemplate?: boolean;
-  onAutoDetectTemplateChange?: (isEnabled: boolean) => void;
+  onRunAutoDetect?: () => void;
   // Study type detection
   detectedStudyType?: string | null;
   availableStudyTypes?: StudyTypeOption[];
@@ -84,8 +82,7 @@ export function RecordingInterface({
   onStartRecording,
   onStopRecording,
   sttError,
-  isAutoDetectTemplate = true,
-  onAutoDetectTemplateChange,
+  onRunAutoDetect,
   detectedStudyType,
   availableStudyTypes,
   selectedStudyType,
@@ -235,6 +232,10 @@ export function RecordingInterface({
   const isRecording = sttState === 'recording';
   const isConnecting = sttState === 'connecting';
   const isStopping = sttState === 'stopping';
+  const currentTranscription = onUpdateTranscription
+    ? transcriptionAutoSave.value
+    : transcription;
+  const hasTranscriptionText = Boolean(currentTranscription?.trim());
   const isActive = isRecording || isConnecting || isStopping;
 
   const isProcessingRef = useRef(false);
@@ -522,8 +523,8 @@ export function RecordingInterface({
               availableStudyTypes={availableStudyTypes}
               selectedStudyType={selectedStudyType || detectedStudyType || ''}
               onStudyTypeChange={onStudyTypeChange}
-              isAutoDetectTemplate={isAutoDetectTemplate}
-              onAutoDetectTemplateChange={onAutoDetectTemplateChange}
+              onRunAutoDetect={onRunAutoDetect}
+              hasTranscriptionText={hasTranscriptionText}
               isActive={isActive}
               disabled={disabled}
               isCustom={hasTemplateBeenEdited}
