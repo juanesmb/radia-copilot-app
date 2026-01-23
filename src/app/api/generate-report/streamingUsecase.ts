@@ -82,13 +82,16 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
           selectedTemplate: prompt.selectedTemplate,
         };
 
+        // Ensure used_template is "custom" if isCustomTemplate is true
+        const usedTemplate = input.isCustomTemplate ? "custom" : reportData.selectedTemplate;
+
         // Prepare report fields for database
         const baseReportFields = {
           generated_transcription: input.transcription,
           updated_transcription: input.transcription,
           generated_report: reportData.report,
           updated_report: reportData.report,
-          used_template: reportData.selectedTemplate,
+          used_template: usedTemplate,
           model_used: reportData.modelUsed,
         };
 
@@ -120,7 +123,7 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
             studyType: savedReport.study_type || undefined,
             detectionConfidence: savedReport.detection_confidence || undefined,
             modelUsed: savedReport.model_used,
-            selectedTemplate: reportData.selectedTemplate,
+            selectedTemplate: usedTemplate,
           },
         };
       } catch (error) {

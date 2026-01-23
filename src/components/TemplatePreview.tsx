@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,76 +67,69 @@ export function TemplatePreview({
   }, [templateScrollbarRef]);
 
   const renderHeader = () => (
-    <div className="p-4 border-b border-border shrink-0">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 lg:gap-3 min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-foreground shrink-0">
-            {t("template.title")}
-          </h3>
-
-          {availableStudyTypes && availableStudyTypes.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-              <select
-                id="study-type"
-                value={isCustom ? 'custom' : (selectedStudyType || '')}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                  const value = e.target.value;
-                  if (value === 'custom') {
-                    // Don't allow selecting custom - it's just a display value
-                    return;
-                  }
-                  if (value) {
-                    onStudyTypeChange?.(value);
-                    // Reset custom state when a new template is selected
-                    onCustomStateReset?.();
-                  } else {
-                    onStudyTypeChange?.('');
-                    onCustomStateReset?.();
-                  }
-                }}
-                disabled={isActive || disabled || isDetectingStudyType}
-                className="min-w-0 max-w-full sm:max-w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">{t("recording.studyTypePlaceholder")}</option>
-                <option value="custom" disabled={!isCustom}>
-                  {t("recording.customTemplate")}
-                </option>
-                {availableStudyTypes.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <Button
-                type="button"
-                className="gap-2 text-base h-10 px-6 shrink-0"
-                onClick={onRunAutoDetect}
-                disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
-              >
-                {t("template.autoDetect")}
-              </Button>
-            </div>
+    <div className="px-3 py-4 border-b border-border shrink-0 flex items-center gap-2 lg:gap-3 min-w-0">
+      {onMobileFullscreenToggle && (
+        <button
+          type="button"
+          onClick={onMobileFullscreenToggle}
+          className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors shrink-0"
+          aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isMobileFullscreen ? (
+            <Minimize2 className="w-4 h-4" />
+          ) : (
+            <Maximize2 className="w-4 h-4" />
           )}
-        </div>
+        </button>
+      )}
+      <h3 className="text-base font-semibold text-foreground shrink-0 whitespace-nowrap">
+        {t("template.title")}
+      </h3>
 
-        <div className="flex items-center gap-2">
-          {/* Mobile fullscreen button */}
-          {onMobileFullscreenToggle && (
-            <button
-              type="button"
-              onClick={onMobileFullscreenToggle}
-              className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
-              aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-              {isMobileFullscreen ? (
-                <Minimize2 className="w-4 h-4" />
-              ) : (
-                <Maximize2 className="w-4 h-4" />
-              )}
-            </button>
-          )}
+      {availableStudyTypes && availableStudyTypes.length > 0 && (
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <select
+            id="study-type"
+            value={isCustom ? 'custom' : (selectedStudyType || '')}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+              const value = e.target.value;
+              if (value === 'custom') {
+                // Don't allow selecting custom - it's just a display value
+                return;
+              }
+              if (value) {
+                onStudyTypeChange?.(value);
+                // Reset custom state when a new template is selected
+                onCustomStateReset?.();
+              } else {
+                onStudyTypeChange?.('');
+                onCustomStateReset?.();
+              }
+            }}
+            disabled={isActive || disabled || isDetectingStudyType}
+            className="min-w-0 flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="">{t("recording.studyTypePlaceholder")}</option>
+            <option value="custom" disabled={!isCustom}>
+              {t("recording.customTemplate")}
+            </option>
+            {availableStudyTypes.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            className="gap-2 text-sm h-10 px-3 sm:px-3 shrink-0 whitespace-nowrap"
+            onClick={onRunAutoDetect}
+            disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
+          >
+            <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">{t("template.autoDetect")}</span>
+          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 

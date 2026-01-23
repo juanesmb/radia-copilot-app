@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAIClient } from '../clients/aiClient';
+import { createSupabaseClient } from '../clients/supabaseClient';
 import { getAIConfig, getDetectionModel } from '../lib/config';
 import { HttpError } from '../lib/errorHandler';
+import { createTemplateRepository } from '../repositories/templateRepository';
 import { detectStudyType } from '../services/studyTypeDetector';
-import { listAvailableTemplates } from '../services/templateLoader';
+import { createTemplateLoader } from '../services/templateLoader';
 import type { Language } from '../types/language';
+
+const supabaseClient = createSupabaseClient({
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+});
+
+const templateRepository = createTemplateRepository({
+  supabaseClient: supabaseClient.getClient(),
+});
+
+const templateLoader = createTemplateLoader({
+  templateRepository,
+});
 
 const requestSchema = z.object({
   transcription: z.string().min(1),
@@ -36,10 +51,11 @@ export async function POST(request: NextRequest) {
     const detection = await detectStudyType(
       transcription,
       language as Language,
-      aiClient
+      aiClient,
+      templateLoader
     );
 
-    const availableTemplates = listAvailableTemplates(language as Language);
+    const availableTemplates = await templateLoader.listAvailableTemplates(language as Language);
 
     return NextResponse.json({
       studyType: detection.studyType,
@@ -70,4 +86,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -433,8 +433,21 @@ export function RecordingInterface({
               "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
               mobileFullscreen === 'transcription' ? "h-full" : "min-h-[200px] lg:min-h-0 lg:h-full"
             )}>
-              <div className="p-4 border-b border-border shrink-0">
-                <div className="flex items-center justify-between gap-3">
+              <div className="px-3 py-4 border-b border-border shrink-0">
+                <div className="flex items-center gap-3">
+                  {/* Mobile fullscreen button */}
+                  <button
+                    type="button"
+                    onClick={() => setMobileFullscreen(mobileFullscreen === 'transcription' ? null : 'transcription')}
+                    className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+                    aria-label={mobileFullscreen === 'transcription' ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  >
+                    {mobileFullscreen === 'transcription' ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </button>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
                     {onUpdateTranscription && currentReportId && (
@@ -444,20 +457,7 @@ export function RecordingInterface({
                       />
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {/* Mobile fullscreen button */}
-                    <button
-                      type="button"
-                      onClick={() => setMobileFullscreen(mobileFullscreen === 'transcription' ? null : 'transcription')}
-                      className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
-                      aria-label={mobileFullscreen === 'transcription' ? 'Exit fullscreen' : 'Enter fullscreen'}
-                    >
-                      {mobileFullscreen === 'transcription' ? (
-                        <Minimize2 className="w-4 h-4" />
-                      ) : (
-                        <Maximize2 className="w-4 h-4" />
-                      )}
-                    </button>
+                  <div className="flex items-center gap-2 ml-auto">
                     <button
                     type="button"
                     onClick={handleMicClick}
@@ -546,8 +546,21 @@ export function RecordingInterface({
             "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
             mobileFullscreen === 'report' ? "h-full" : "min-h-[200px] lg:min-h-0 lg:h-full"
           )}>
-            <div className="p-4 border-b border-border shrink-0">
-              <div className="flex items-center justify-between gap-3">
+            <div className="px-3 py-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-3">
+                {/* Mobile fullscreen button */}
+                <button
+                  type="button"
+                  onClick={() => setMobileFullscreen(mobileFullscreen === 'report' ? null : 'report')}
+                  className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+                  aria-label={mobileFullscreen === 'report' ? 'Exit fullscreen' : 'Enter fullscreen'}
+                >
+                  {mobileFullscreen === 'report' ? (
+                    <Minimize2 className="w-4 h-4" />
+                  ) : (
+                    <Maximize2 className="w-4 h-4" />
+                  )}
+                </button>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
                   {onUpdateReport && currentReportId && (
@@ -557,20 +570,7 @@ export function RecordingInterface({
                     />
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Mobile fullscreen button */}
-                  <button
-                    type="button"
-                    onClick={() => setMobileFullscreen(mobileFullscreen === 'report' ? null : 'report')}
-                    className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
-                    aria-label={mobileFullscreen === 'report' ? 'Exit fullscreen' : 'Enter fullscreen'}
-                  >
-                    {mobileFullscreen === 'report' ? (
-                      <Minimize2 className="w-4 h-4" />
-                    ) : (
-                      <Maximize2 className="w-4 h-4" />
-                    )}
-                  </button>
+                <div className="flex items-center gap-2 ml-auto">
                   {currentReportId && reportChatSessionId && onOpenReportChat && (
                     <Button
                       type="button"
@@ -584,12 +584,17 @@ export function RecordingInterface({
                   {hasAvailableStudyTypes && (
                     <Button
                       type="button"
-                      className="gap-2 text-base h-10 px-6 shrink-0"
+                      className="gap-2 text-base h-10 px-3 sm:px-6 shrink-0"
                       onClick={onUpload}
                       disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
                     >
-                      <Sparkles className="w-4 h-4" aria-hidden="true" />
-                      {uploadLabel}
+                      <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />
+                      <span className="hidden sm:inline">{uploadLabel}</span>
+                      <span className="sm:hidden">
+                        {uploadLabel === t("recording.regenerate")
+                          ? t("recording.regenerateMobile")
+                          : language === "es" ? "Generar" : "Generate"}
+                      </span>
                     </Button>
                   )}
                 </div>

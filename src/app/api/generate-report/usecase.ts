@@ -63,6 +63,9 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
         selectedTemplate: prompt.selectedTemplate,
       };
 
+      // Ensure used_template is "custom" if isCustomTemplate is true
+      const usedTemplate = input.isCustomTemplate ? "custom" : reportData.selectedTemplate;
+
       const savedReport = await deps.reportRepository.createReport({
         user_id: userId,
         generated_transcription: input.transcription,
@@ -70,7 +73,7 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
         report_title: reportData.title || null,
         generated_report: reportData.report,
         updated_report: reportData.report,
-        used_template: reportData.selectedTemplate,
+        used_template: usedTemplate,
         template_content: input.isCustomTemplate && input.template ? input.template : null,
         study_type: reportData.studyType || null,
         detection_confidence: reportData.detectionConfidence || null,
