@@ -35,30 +35,35 @@ const mapStatus = (status?: string | null) => {
   return "pending";
 };
 
-export async function POST(request: NextRequest) {
-  try {
-    const signatureSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-    if (signatureSecret && !request.headers.get("x-signature")) {
-      return NextResponse.json({ message: "Missing webhook signature." }, { status: 401 });
-    }
+const handleNotification = async (request: NextRequest) => {
+  const signatureSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  if (signatureSecret && request.method === "POST" && !request.headers.get("x-signature")) {
+    return NextResponse.json({ message: "Missing webhook signature." }, { status: 401 });
+  }
 
-    let payload: any = null;
+  let payload: any = null;
+  if (request.method === "POST") {
     try {
       payload = await request.json();
     } catch {
       payload = null;
     }
+  }
 
-    const params = request.nextUrl.searchParams;
-    const topic = params.get("topic") || params.get("type") || payload?.type;
-    const dataId = params.get("id") || payload?.data?.id;
+  const params = request.nextUrl.searchParams;
+  if (params.get("health") === "1") {
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+  const topic = params.get("topic") || params.get("type") || payload?.type;
+  const dataId = params.get("id") || payload?.data?.id;
 
-    if (!topic || !dataId) {
-      return NextResponse.json({ message: "Invalid webhook payload." }, { status: 400 });
-    }
+  if (!topic || !dataId) {
+    return NextResponse.json({ message: "Invalid webhook payload." }, { status: 400 });
+  }
 
-    if (["preapproval", "preapproval_plan", "plan", "subscription"].includes(topic)) {
-      const preApprovalClient = createPreApprovalClient();
+  if (["preapproval", "preapproval_plan", "plan", "subscription"].includes(topic)) {
+    const preApprovalClient = createPreApprovalClient();
+    try {
       const preApproval = await preApprovalClient.get({ id: String(dataId) });
       const mappedStatus = mapStatus(preApproval.status);
 
@@ -68,12 +73,16 @@ export async function POST(request: NextRequest) {
         current_period_start: preApproval.last_modified ?? null,
         current_period_end: preApproval.next_payment_date ?? null,
       });
-
-      return NextResponse.json({ received: true }, { status: 200 });
+    } catch (error) {
+      console.warn("[mercadopago/webhook] Preapproval fetch failed:", error);
     }
 
-    if (topic === "payment") {
-      const paymentClient = createPaymentClient();
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  if (topic === "payment") {
+    const paymentClient = createPaymentClient();
+    try {
       const payment = await paymentClient.get({ id: String(dataId) });
       const external = parseExternalReference(payment.external_reference);
 
@@ -90,13 +99,31 @@ export async function POST(request: NextRequest) {
         currency: payment.currency_id || "COP",
         paid_at: payment.date_approved || null,
       });
-
-      return NextResponse.json({ received: true }, { status: 200 });
+    } catch (error) {
+      console.warn("[mercadopago/webhook] Payment fetch failed:", error);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  return NextResponse.json({ received: true }, { status: 200 });
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    return await handleNotification(request);
   } catch (error) {
     console.error("[mercadopago/webhook] Error:", error);
+    const mapped = mapErrorToResponse(error);
+    return NextResponse.json(mapped.body, { status: mapped.status });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    return await handleNotification(request);
+  } catch (error) {
+    console.error("[mercadopago/ipn] Error:", error);
     const mapped = mapErrorToResponse(error);
     return NextResponse.json(mapped.body, { status: mapped.status });
   }

@@ -38,10 +38,11 @@ export async function POST(request: NextRequest) {
     const client = await clerkClient();
     const clerkUser = await client.users.getUser(userId);
     const primaryEmailId = clerkUser.primaryEmailAddressId;
-    const payerEmail =
+    const clerkEmail =
       clerkUser.emailAddresses.find((email: { id: string; emailAddress: string }) => email.id === primaryEmailId)?.emailAddress ??
       clerkUser.emailAddresses[0]?.emailAddress ??
       null;
+    const payerEmail = process.env.MP_TEST_PAYER_EMAIL || clerkEmail;
 
     if (!payerEmail) {
       return NextResponse.json({ message: "payer_email is required" }, { status: 400 });
