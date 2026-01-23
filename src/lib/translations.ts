@@ -57,6 +57,7 @@ export const translations: TranslationMap = {
     "recording.detecting": "Detecting study type...",
     "recording.customTemplate": "Custom Template",
     "recording.regenerate": "Regenerate",
+    "recording.regenerateMobile": "Regenerate",
 
     "template.title": "Template",
     "template.empty": "Select a study type from the dropdown above, or start recording - the template will appear automatically after you finish recording",
@@ -195,6 +196,7 @@ export const translations: TranslationMap = {
     "recording.detecting": "Detectando tipo de estudio...",
     "recording.customTemplate": "Plantilla Personalizada",
     "recording.regenerate": "Volver a Generar",
+    "recording.regenerateMobile": "Regenerar",
 
     "template.title": "Plantilla",
     "template.empty": "Selecciona una plantilla o dicta tus hallazgos positivos.",

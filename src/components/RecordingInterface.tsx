@@ -591,7 +591,9 @@ export function RecordingInterface({
                       <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />
                       <span className="hidden sm:inline">{uploadLabel}</span>
                       <span className="sm:hidden">
-                        {language === "es" ? "Generar" : "Generate"}
+                        {uploadLabel === t("recording.regenerate")
+                          ? t("recording.regenerateMobile")
+                          : language === "es" ? "Generar" : "Generate"}
                       </span>
                     </Button>
                   )}
