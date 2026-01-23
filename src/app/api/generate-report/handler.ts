@@ -6,9 +6,11 @@ import { createSupabaseClient } from "../clients/supabaseClient";
 import { mapErrorToResponse } from "../lib/errorHandler";
 import { getAIConfig } from "../lib/config";
 import { createReportRepository } from "../repositories/reportRepository";
+import { createTemplateRepository } from "../repositories/templateRepository";
 import { validateGenerateReportRequest } from "../lib/validation";
 import { createPromptBuilder } from "../services/promptBuilder";
 import { createPromptModeDetector } from "../services/promptModeDetector";
+import { createTemplateLoader } from "../services/templateLoader";
 import { createTranscriptionPromptStrategy } from "../services/transcriptionPromptStrategy";
 import { createEnhancementPromptStrategy } from "../services/enhancementPromptStrategy";
 import { createResponseFormatter } from "../services/responseFormatter";
@@ -33,12 +35,21 @@ const reportRepository = createReportRepository({
   supabaseClient: supabaseClient.getClient(),
 });
 
+const templateRepository = createTemplateRepository({
+  supabaseClient: supabaseClient.getClient(),
+});
+
+const templateLoader = createTemplateLoader({
+  templateRepository,
+});
+
 const useCase = createGenerateReportUseCase({
   promptBuilder: createPromptBuilder({
     aiClient,
     modeDetector: createPromptModeDetector(),
     transcriptionStrategy: createTranscriptionPromptStrategy(),
     enhancementStrategy: createEnhancementPromptStrategy(),
+    templateLoader,
   }),
   responseFormatter: createResponseFormatter(),
   aiClient,
@@ -85,4 +96,3 @@ export const generateReportHandler = async (request: NextRequest) => {
     return NextResponse.json(mapped.body, { status: mapped.status });
   }
 };
-

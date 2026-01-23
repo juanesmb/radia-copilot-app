@@ -1,12 +1,12 @@
 import type { Language } from "./language";
 
-export interface TemplateMetadata {
-  studyType: string;
-  modality: string;
-  region?: string;
-  keywords: string[];
-  requiredKeywords?: string[];
-  excludeKeywords?: string[];
+export interface Template {
+  template_id: string;
+  study_type: string;
+  language: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StudyTypeDetection {
@@ -14,11 +14,6 @@ export interface StudyTypeDetection {
   confidence: number;
   reasoning?: string;
   keywords?: string[];
-}
-
-export interface TemplateSearchResult {
-  template: TemplateMetadata;
-  score: number;
 }
 
 export interface GetTemplateContentRequest {
