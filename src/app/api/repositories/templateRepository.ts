@@ -57,7 +57,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
 
         return template as Template | null;
       } catch (error) {
-        handleSupabaseError(error, "fetch template", "Failed to fetch template");
+        return handleSupabaseError(error, "fetch template", "Failed to fetch template");
       }
     },
 
@@ -79,7 +79,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
 
         return data !== null;
       } catch (error) {
-        handleSupabaseError(
+        return handleSupabaseError(
           error,
           "check template existence",
           "Failed to check template existence"
@@ -104,7 +104,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
 
         return (templates || []).map((t) => t.study_type);
       } catch (error) {
-        handleSupabaseError(error, "list templates", "Failed to list templates");
+        return handleSupabaseError(error, "list templates", "Failed to list templates");
       }
     },
   };

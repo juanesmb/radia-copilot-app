@@ -123,14 +123,16 @@ const parseDetectionResponse = (response: string): StudyTypeDetection => {
           secondError: secondError instanceof Error ? secondError.message : String(secondError),
         });
 
+        const errorDetails = JSON.stringify({
+          parsingError: secondError instanceof Error ? secondError.message : String(secondError),
+          responsePreview: response.substring(0, 500),
+        });
+
         throw new HttpError(
           `Failed to parse AI detection response. The model returned invalid JSON. Please try again.`,
           {
             status: 500,
-            details: {
-              parsingError: secondError instanceof Error ? secondError.message : String(secondError),
-              responsePreview: response.substring(0, 500),
-            },
+            details: errorDetails,
           }
         );
       }
