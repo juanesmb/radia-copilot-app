@@ -274,7 +274,7 @@ export default function HomePage() {
 
 
     if (showWelcome) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} />;
+      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} />;
     }
 
     return (

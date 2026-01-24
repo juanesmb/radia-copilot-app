@@ -74,10 +74,13 @@ export const translations: TranslationMap = {
 
     "welcome.tagline": "Your Radiology Copilot with AI",
     "welcome.greeting": "Welcome",
-    "welcome.title": "Record, review, and share structured reports",
+    "welcome.title": "Record, generate, and share structured reports",
     "welcome.subtitle": "Mention your findings, edit the result and generate structured reports in seconds.",
     "welcome.generate": "New Report",
     "welcome.viewReports": "View history",
+    "welcome.chat.title": "Your AI Radiology Assistant",
+    "welcome.chat.subtitle": "Ask questions, get insights, and receive guidance on radiology reports and findings.",
+    "welcome.chat.button": "Open Chat",
 
     "errors.generic": "We could not generate the report. Please try again.",
     "errors.requestFailed": "Unable to contact the report service.",
@@ -213,10 +216,13 @@ export const translations: TranslationMap = {
 
     "welcome.tagline": "Tu copiloto de Radiología con IA",
     "welcome.greeting": "Bienvenido/a",
-    "welcome.title": "Graba, revisa y comparte informes estructurados",
+    "welcome.title": "Graba, genera y comparte informes estructurados",
     "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
     "welcome.generate": "Nuevo informe",
     "welcome.viewReports": "Ver historial",
+    "welcome.chat.title": "Tu Asistente de Radiología con IA",
+    "welcome.chat.subtitle": "Haz preguntas, obtén insights y recibe orientación sobre informes y hallazgos radiológicos.",
+    "welcome.chat.button": "Abrir Chat",
 
     "errors.generic": "No pudimos generar el informe. Intenta nuevamente.",
     "errors.requestFailed": "No pudimos contactar el servicio de informes.",
