@@ -10,7 +10,6 @@ import { SidebarMenu } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
 import { WelcomeSection } from "@/components/WelcomeSection";
-import { ReportsEmptyState } from "@/components/ReportsEmptyState";
 import { MainContentLayout } from "@/components/MainContentLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -55,7 +54,6 @@ export default function HomePage() {
   } = useSpeechToText(sttProvider);
 
   const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
   const [reportChatSessions, setReportChatSessions] = useState<Record<string, string>>({});
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
@@ -277,13 +275,13 @@ export default function HomePage() {
       return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} />;
     }
 
-    return (
-      <ReportsEmptyState
-        message={t("reports.emptyState")}
-        onGenerateReport={handleGenerateReport}
-        generateLabel={t("reports.generate")}
-      />
-    );
+    // When in reports view but no report selected, show welcome section
+    if (sidebarView === "reports" && !currentReportId) {
+      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} />;
+    }
+
+    // Default: show welcome section
+    return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} />;
   };
 
   useEffect(() => {
@@ -342,7 +340,8 @@ export default function HomePage() {
 
   const handleGenerateReport = useCallback(() => {
     setSidebarView("reports");
-    setIsReportsOpen(true);
+    setIsReportsOpen(false);
+    setIsMobileMenuOpen(false); // Close mobile menu if open
     setDemoState("recording");
     setDetectedStudyType(null);
     setSelectedStudyType("");
@@ -351,7 +350,6 @@ export default function HomePage() {
     setCurrentReportId(null);
     setCurrentReportTitle(null);
     setTranscription("");
-    setSelectedReportId(null);
     setIsGenerating(false);
     setEditedTemplate("");
     setIsTemplateCustom(false);
@@ -678,7 +676,6 @@ export default function HomePage() {
   const handleSidebarHome = useCallback(() => {
     setSidebarView("home");
     setDemoState("main");
-    setSelectedReportId(null);
     setCurrentReportId(null);
     setCurrentReportTitle(null);
     setIsReportsOpen(false);
@@ -686,23 +683,18 @@ export default function HomePage() {
 
   const handleSidebarReports = useCallback(() => {
     setSidebarView("reports");
-    setIsReportsOpen(true);
-    setSelectedReportId(null);
-    setDemoState("main");
+    setIsReportsOpen((prev) => !prev);
   }, []);
 
-  const shouldShowReportOnMobile = useMemo(() => {
-    if (!isReportsOpen) return false;
-    const isRecordingOrUploading = demoState === "recording" || demoState === "uploading";
-    return isRecordingOrUploading;
-  }, [isReportsOpen, demoState]);
+  const handleCloseReports = useCallback(() => {
+    setIsReportsOpen(false);
+  }, []);
 
   const reportsSubmenuProps = useMemo(
     () => ({
       reports: reportHistory,
       selectedReportId: currentReportId,
       copiedReportId,
-      reportChatSessions,
       onSelectReport: (id: string) => {
         const report = reportHistory.find((r) => r.id === id);
         if (report) {
@@ -723,42 +715,41 @@ export default function HomePage() {
             setEditedTemplate("");
             setIsTemplateCustom(false);
           }
-          setSelectedReportId(id);
           setDemoState("recording");
           setSidebarView("reports");
-          setIsReportsOpen(true);
+          setIsReportsOpen(false);
         }
       },
       onCopyReport: handleCopyReportCard,
-      onOpenReportChat: handleOpenReportChat,
-      onGenerateReport: handleGenerateReport,
-      generateLabel: t("reports.generate"),
       subtitleLabel: t("reports.title"),
       emptyLabel: t("reports.emptyState"),
       copyLabel: t("report.copy"),
       copiedLabel: t("report.copied"),
     }),
-    [
-      reportHistory,
-      currentReportId,
-      copiedReportId,
-      reportChatSessions,
-      handleOpenReportChat,
-      handleCopyReportCard,
-      handleGenerateReport,
-      t,
-    ]
+    [reportHistory, currentReportId, copiedReportId, handleCopyReportCard, t]
   );
 
+  const reportsPanel = <ReportsSubmenu {...reportsSubmenuProps} />;
+
   const renderMainContent = () => {
-    return (
-      <MainContentLayout
-        isReportsOpen={isReportsOpen}
-        leftPanel={<ReportsSubmenu {...reportsSubmenuProps} />}
-        rightPanel={renderContentPanel()}
-        showReportOnMobile={shouldShowReportOnMobile}
-      />
+    // On mobile, show reports panel in main content when reports are open
+    // On desktop, always show content panel (reports panel is in overlay)
+    const content = (
+      <div className="flex-1 min-h-0 flex flex-col">
+        {isReportsOpen ? (
+          <>
+            {/* Mobile: Show reports panel */}
+            <div className="lg:hidden flex-1 min-h-0">{reportsPanel}</div>
+            {/* Desktop: Show content panel */}
+            <div className="hidden lg:flex flex-1 min-h-0">{renderContentPanel()}</div>
+          </>
+        ) : (
+          renderContentPanel()
+        )}
+      </div>
     );
+    
+    return <MainContentLayout rightPanel={content} />;
   };
 
   return (
@@ -791,7 +782,7 @@ export default function HomePage() {
 
       {/* Mobile menu Sheet */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="w-auto max-w-none p-0 shadow-none border-none data-[state=open]:animate-in data-[state=closed]:animate-out [&>button]:hidden">
+        <SheetContent side="left" className="w-auto max-w-none p-0 shadow-none border-none h-screen data-[state=open]:animate-in data-[state=closed]:animate-out [&>button]:hidden">
           <SidebarMenu
             activeView={sidebarView}
             isReportsOpen={isReportsOpen}
@@ -807,6 +798,9 @@ export default function HomePage() {
               handleToggleChat();
               setIsMobileMenuOpen(false);
             }}
+            onGenerateReport={handleGenerateReport}
+            onCloseReports={handleCloseReports}
+            reportsPanel={reportsPanel}
             className="flex"
           />
         </SheetContent>
@@ -819,6 +813,9 @@ export default function HomePage() {
           onSelectHome={handleSidebarHome}
           onToggleReports={handleSidebarReports}
           onToggleChat={handleToggleChat}
+          onGenerateReport={handleGenerateReport}
+          onCloseReports={handleCloseReports}
+          reportsPanel={reportsPanel}
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen" data-report-container>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ReportCard } from "@/components/ReportCard";
 import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
@@ -11,12 +10,8 @@ interface ReportsSubmenuProps {
   reports: ReportHistoryItem[];
   selectedReportId: string | null;
   copiedReportId: string | null;
-  reportChatSessions: Record<string, string>;
   onSelectReport: (reportId: string) => void;
   onCopyReport: (report: ReportHistoryItem) => void;
-  onOpenReportChat: (reportId: string, sessionId: string) => void;
-  onGenerateReport: () => void;
-  generateLabel: string;
   subtitleLabel: string;
   emptyLabel: string;
   copyLabel: string;
@@ -27,12 +22,8 @@ export function ReportsSubmenu({
   reports,
   selectedReportId,
   copiedReportId,
-  reportChatSessions,
   onSelectReport,
   onCopyReport,
-  onOpenReportChat,
-  onGenerateReport,
-  generateLabel,
   subtitleLabel,
   emptyLabel,
   copyLabel,
@@ -48,44 +39,20 @@ export function ReportsSubmenu({
   }, [reportsScrollbarRef]);
 
   return (
-    <div className="w-full lg:w-64 flex flex-col h-full bg-background lg:border-r border-border overflow-hidden">
+    <div className="w-full lg:w-64 flex flex-col h-full bg-background overflow-hidden border-r border-border">
       <div className="hidden lg:flex flex-shrink-0 px-2 pt-4 pb-2 border-b border-border bg-background/80 backdrop-blur-sm">
         <h2 className="text-lg font-semibold text-foreground tracking-tight">
           {subtitleLabel}
         </h2>
       </div>
 
-      {reports.length === 0 ? (
-        <div className="flex-1 flex flex-col p-2">
-          <div className="pb-2">
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                className="w-full justify-center gap-2 h-10"
-                onClick={onGenerateReport}
-              >
-                {generateLabel}
-              </Button>
-            </div>
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {reports.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <Card className="w-full border-2 text-center text-sm text-muted-foreground">{emptyLabel}</Card>
           </div>
-          <Card className="flex-1 flex items-center justify-center p-6 border-2 text-center text-sm text-muted-foreground">
-            {emptyLabel}
-          </Card>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="px-2 pt-2 pb-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                className="w-full justify-center gap-2 h-10"
-                onClick={onGenerateReport}
-              >
-                {generateLabel}
-              </Button>
-            </div>
-          </div>
-          <div 
+        ) : (
+          <div
             ref={reportsContainerRef}
             className="flex-1 p-2 space-y-3 overflow-y-auto min-h-0 scrollbar-transparent"
           >
@@ -102,8 +69,8 @@ export function ReportsSubmenu({
               />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
