@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReportsSubmenu } from "@/components/ReportsSubmenu";
 import { SidebarMenu, type SidebarView } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
@@ -71,6 +72,7 @@ export default function HomePage() {
   const [currentSubscription, setCurrentSubscription] = useState<SubscriptionRecord | null>(null);
   const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(false);
   const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -155,7 +157,7 @@ export default function HomePage() {
   }, [detectedStudyType, isDetectingStudyType, language, t]);
 
   useEffect(() => {
-    if (sidebarView !== "subscriptions") {
+    if (!isSubscriptionModalOpen) {
       return;
     }
 
@@ -176,7 +178,7 @@ export default function HomePage() {
     };
 
     loadSubscription();
-  }, [sidebarView, t, toast]);
+  }, [isSubscriptionModalOpen, t, toast]);
 
   useEffect(() => {
     setTranscription(transcript);
@@ -231,66 +233,11 @@ export default function HomePage() {
   const showWelcome = sidebarView === "home" && demoState === "main" && !currentReportId;
 
   const headerSubtitle = useMemo(() => {
-    if (sidebarView === "subscriptions") return t("subscriptions.title");
     if (demoState === "recording") return t("header.generateReport");
     return null;
   }, [demoState, sidebarView, t]);
 
   const renderContentPanel = () => {
-    if (sidebarView === "subscriptions") {
-      return (
-        <div className="h-full flex flex-col gap-6 px-4 pb-10 lg:px-8">
-          <div className="pt-6">
-            <h1 className="text-2xl font-semibold text-foreground">{t("subscriptions.title")}</h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              {t("subscriptions.subtitle")}
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {subscriptionPlans.map((plan) => {
-              const isCurrentPlan = currentSubscription?.plan === plan.id;
-              const planLabel = t(`subscriptions.plan.${plan.id}`);
-              const priceLabel = t("subscriptions.plan.price").replace("{price}", plan.price.toLocaleString("es-CO"));
-              return (
-                <Card key={plan.id} className={isCurrentPlan ? "border-primary/60" : ""}>
-                  <CardHeader>
-                    <CardTitle>{planLabel}</CardTitle>
-                    <CardDescription>{priceLabel}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isCurrentPlan ? (
-                      <p className="text-sm text-muted-foreground">
-                        {t("subscriptions.plan.status").replace(
-                          "{status}",
-                          currentSubscription?.status ?? ""
-                        )}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {t("subscriptions.currentPlan")}:
-                        {currentSubscription ? " " + t(`subscriptions.plan.${currentSubscription.plan}`) : " -"}
-                      </p>
-                    )}
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      className="w-full"
-                      onClick={() => handleSubscribe(plan.id)}
-                      disabled={isCurrentPlan || subscribingPlanId === plan.id || isSubscriptionLoading}
-                    >
-                      {subscribingPlanId === plan.id
-                        ? t("subscriptions.processing")
-                        : t("subscriptions.cta")}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
     if (demoState === "recording") {
       return (
         <RecordingInterface
@@ -487,12 +434,7 @@ export default function HomePage() {
   }, [toast, t]);
 
   const handleSidebarSubscriptions = useCallback(() => {
-    setSidebarView("subscriptions");
-    setDemoState("main");
-    setSelectedReportId(null);
-    setCurrentReportId(null);
-    setCurrentReportTitle(null);
-    setIsReportsOpen(false);
+    setIsSubscriptionModalOpen(true);
   }, []);
 
   /**
@@ -862,16 +804,68 @@ export default function HomePage() {
     ]
   );
 
-  const renderMainContent = () => {
-    return (
-      <MainContentLayout
-        isReportsOpen={isReportsOpen}
-        leftPanel={<ReportsSubmenu {...reportsSubmenuProps} />}
-        rightPanel={renderContentPanel()}
-        showReportOnMobile={shouldShowReportOnMobile}
-      />
-    );
-  };
+  const renderSubscriptionModalContent = () => (
+    <div className="flex flex-col gap-6">
+      <div>
+        <DialogTitle className="text-2xl font-semibold text-foreground">
+          {t("subscriptions.title")}
+        </DialogTitle>
+        <DialogDescription className="text-sm text-muted-foreground mt-2">
+          {t("subscriptions.subtitle")}
+        </DialogDescription>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {subscriptionPlans.map((plan) => {
+          const isCurrentPlan = currentSubscription?.plan === plan.id;
+          const planLabel = t(`subscriptions.plan.${plan.id}`);
+          const priceLabel = t("subscriptions.plan.price").replace("{price}", plan.price.toLocaleString("es-CO"));
+          return (
+            <Card key={plan.id} className={isCurrentPlan ? "border-primary/60" : ""}>
+              <CardHeader>
+                <CardTitle>{planLabel}</CardTitle>
+                <CardDescription>{priceLabel}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isCurrentPlan ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("subscriptions.plan.status").replace(
+                      "{status}",
+                      currentSubscription?.status ?? ""
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {t("subscriptions.currentPlan")}:
+                    {currentSubscription ? " " + t(`subscriptions.plan.${currentSubscription.plan}`) : " -"}
+                  </p>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full"
+                  onClick={() => handleSubscribe(plan.id)}
+                  disabled={isCurrentPlan || subscribingPlanId === plan.id || isSubscriptionLoading}
+                >
+                  {subscribingPlanId === plan.id
+                    ? t("subscriptions.processing")
+                    : t("subscriptions.cta")}
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderMainContent = () => (
+    <MainContentLayout
+      isReportsOpen={isReportsOpen}
+      leftPanel={<ReportsSubmenu {...reportsSubmenuProps} />}
+      rightPanel={renderContentPanel()}
+      showReportOnMobile={shouldShowReportOnMobile}
+    />
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -952,6 +946,11 @@ export default function HomePage() {
           isMinimized={minimizedFeedbackReports.has(currentReportId!)}
         />
       )}
+      <Dialog open={isSubscriptionModalOpen} onOpenChange={setIsSubscriptionModalOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>{renderSubscriptionModalContent()}</DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
