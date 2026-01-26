@@ -78,13 +78,18 @@ export async function POST(request: NextRequest) {
       content: getChatSystemPrompt(chatLanguage),
     });
 
-    const normalizedMessages: Array<{ role: "user" | "system"; content: string }> =
-      parsed.data.messages.map((message) => {
-        if (message.role === "system") {
-          return { role: "system" as const, content: message.content };
-        }
-        return { role: "user" as const, content: message.content };
-      });
+    const normalizedMessages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string;
+    }> = parsed.data.messages.map((message) => {
+      if (message.role === "system") {
+        return { role: "system" as const, content: message.content };
+      }
+      if (message.role === "assistant") {
+        return { role: "assistant" as const, content: message.content };
+      }
+      return { role: "user" as const, content: message.content };
+    });
 
     if (stream) {
       const gateway = createGateway({

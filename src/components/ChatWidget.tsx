@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckIcon,
+  CopyIcon,
   GlobeIcon,
   HistoryIcon,
   MessageCircleIcon,
@@ -31,7 +32,6 @@ import {
   MessageBranchPrevious,
   MessageBranchSelector,
   MessageContent,
-  MessageResponse,
 } from "@/components/ai-elements/message";
 import {
   PromptInput,
@@ -162,6 +162,7 @@ export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState(DEFAULT_PANEL_POSITION);
   const [bubblePosition, setBubblePosition] = useState(DEFAULT_BUBBLE_POSITION);
+  const [copiedMessageKey, setCopiedMessageKey] = useState<string | null>(null);
   const [draggingPanel, setDraggingPanel] = useState(false);
   const [draggingBubble, setDraggingBubble] = useState(false);
   const draggingBubbleRef = useRef(false);
@@ -764,6 +765,19 @@ export function ChatWidget() {
     });
   };
 
+  const handleCopyAssistantMessage = useCallback(
+    async (messageKey: string, textToCopy: string) => {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopiedMessageKey(messageKey);
+        window.setTimeout(() => setCopiedMessageKey(null), 1200);
+      } catch (error) {
+        console.error("[ChatWidget] Failed to copy message", error);
+      }
+    },
+    []
+  );
+
   return (
     <>
       <button
@@ -997,7 +1011,38 @@ export function ChatWidget() {
                             </Reasoning>
                           )}
                           <MessageContent>
-                            <MessageResponse>{message.content}</MessageResponse>
+                            {message.from === "assistant" ? (
+                              <div className="relative rounded-xl border border-border/60 bg-muted/20 px-4 py-3 shadow-sm">
+                                <button
+                                  className={cn(
+                                    "absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition hover:text-foreground",
+                                    "hover:bg-muted/40"
+                                  )}
+                                  onClick={() =>
+                                    void handleCopyAssistantMessage(
+                                      message.key,
+                                      message.content
+                                    )
+                                  }
+                                  type="button"
+                                  aria-label={t("chat.message.copy")}
+                                  title={t("chat.message.copy")}
+                                >
+                                  {copiedMessageKey === message.key ? (
+                                    <CheckIcon className="h-4 w-4" />
+                                  ) : (
+                                    <CopyIcon className="h-4 w-4" />
+                                  )}
+                                </button>
+                                <div className="whitespace-pre-wrap break-words pr-6">
+                                  {message.content}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="whitespace-pre-wrap break-words">
+                                {message.content}
+                              </div>
+                            )}
                           </MessageContent>
                         </div>
                       </Message>
