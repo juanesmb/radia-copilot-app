@@ -37,7 +37,9 @@ const mapStatus = (status?: string | null) => {
 
 const handleNotification = async (request: NextRequest) => {
   const signatureSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
-  if (signatureSecret && request.method === "POST" && !request.headers.get("x-signature")) {
+  const hasSignature = Boolean(request.headers.get("x-signature"));
+  const enforceSignature = process.env.NODE_ENV === "production";
+  if (signatureSecret && enforceSignature && request.method === "POST" && !hasSignature) {
     return NextResponse.json({ message: "Missing webhook signature." }, { status: 401 });
   }
 

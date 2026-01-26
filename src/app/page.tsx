@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Check, Menu, Sparkles } from "lucide-react";
+import { Check, CreditCard, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -180,6 +180,72 @@ export default function HomePage() {
 
     loadSubscription();
   }, [isSubscriptionModalOpen, t, toast]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    let preapprovalId =
+      url.searchParams.get("preapproval_id") ||
+      url.searchParams.get("preapprovalId") ||
+      url.searchParams.get("preapproval");
+
+    if (!preapprovalId) {
+      const subscriptionParam = url.searchParams.get("subscription");
+      if (subscriptionParam && subscriptionParam.includes("preapproval_id=")) {
+        const innerQuery = subscriptionParam.split("?")[1] ?? "";
+        const innerParams = new URLSearchParams(innerQuery);
+        preapprovalId = innerParams.get("preapproval_id");
+      }
+    }
+
+    if (!preapprovalId) {
+      const match = url.search.match(/(?:\?|&)(?:preapproval_id|preapprovalId|preapproval)=([^&]+)/i);
+      if (match?.[1]) {
+        preapprovalId = decodeURIComponent(match[1]);
+      }
+    }
+
+    if (!preapprovalId) {
+      return;
+    }
+
+    const syncSubscription = async () => {
+      try {
+        setIsSubscriptionLoading(true);
+        const syncResponse = await fetch("/api/subscriptions/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ preapprovalId }),
+        });
+
+        if (syncResponse.ok) {
+          const synced = (await syncResponse.json()) as SubscriptionRecord;
+          if (synced?.status === "active") {
+            toast({
+              title: t("subscriptions.paymentSuccess.title"),
+              description: t("subscriptions.paymentSuccess.description"),
+            });
+          }
+        }
+        const subscription = await getCurrentSubscription();
+        setCurrentSubscription(subscription);
+        setIsSubscriptionModalOpen(true);
+      } catch (error) {
+        console.error("[subscriptions] Sync failed:", error);
+      } finally {
+        setIsSubscriptionLoading(false);
+        const cleanedUrl = `${url.pathname}`;
+        window.history.replaceState({}, "", cleanedUrl);
+      }
+    };
+
+    void syncSubscription();
+  }, []);
 
   useEffect(() => {
     setTranscription(transcript);
@@ -821,7 +887,7 @@ export default function HomePage() {
             </DialogDescription>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
-            <Sparkles className="h-4 w-4" />
+            <CreditCard className="h-4 w-4" />
             <span className="text-xs">Secure checkout</span>
           </div>
         </div>

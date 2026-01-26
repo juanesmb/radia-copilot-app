@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { BookOpen, ChevronLeft, ChevronRight, CreditCard, Home, MessageCircle, Sparkles } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, CreditCard, Home, MessageCircle } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 
@@ -159,7 +159,7 @@ export function SidebarMenu({
           <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-primary/10 via-background to-background p-3">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                <CreditCard className="h-4 w-4" aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">
