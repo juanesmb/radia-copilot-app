@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { createSupabaseClient } from "../../clients/supabaseClient";
 import { mapErrorToResponse } from "../../lib/errorHandler";
-import { loadTemplate, templateExists } from "../../services/templateLoader";
+import { createTemplateRepository } from "../../repositories/templateRepository";
+import { createTemplateLoader } from "../../services/templateLoader";
 import type { Language } from "../../types/language";
+
+const supabaseClient = createSupabaseClient({
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+});
+
+const templateRepository = createTemplateRepository({
+  supabaseClient: supabaseClient.getClient(),
+});
+
+const templateLoader = createTemplateLoader({
+  templateRepository,
+});
 
 const requestSchema = z.object({
   language: z.enum(["en", "es"]),
@@ -16,7 +31,7 @@ export async function POST(
   try {
     const { studyType } = await params;
 
-    if (!studyType || studyType.trim().length === 0) {
+    if (!studyType?.trim()) {
       return NextResponse.json(
         { error: "Invalid request", message: "Study type is required" },
         { status: 400 }
@@ -42,15 +57,11 @@ export async function POST(
     }
 
     const { language } = parsed.data;
-
-    if (!templateExists(studyType, language as Language)) {
-      return NextResponse.json(
-        { error: "Template not found", message: `Template "${studyType}" not found for language "${language}"` },
-        { status: 404 }
-      );
-    }
-
-    const content = loadTemplate(studyType, language as Language);
+    // loadTemplate will throw 404 if template doesn't exist, no need to check separately
+    const content = await templateLoader.loadTemplate(
+      studyType,
+      language as Language
+    );
 
     return NextResponse.json({
       content,
@@ -58,7 +69,7 @@ export async function POST(
       language,
     });
   } catch (error) {
-    console.error("[getTemplateContent] Error:", error);
+    console.error("[GetTemplateContent] Error:", error);
     const mapped = mapErrorToResponse(error);
     return NextResponse.json(mapped.body, { status: mapped.status });
   }

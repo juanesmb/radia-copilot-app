@@ -1,7 +1,13 @@
 import type { AIClient } from "../clients/aiClient";
 import type { Language } from "../types/language";
 import type { StudyTypeDetection } from "../types/template";
-import { listAvailableTemplates } from "./templateLoader";
+import type { TemplateLoader } from "./templateLoader";
+import { HttpError } from "../lib/errorHandler";
+
+const SYSTEM_MESSAGES = {
+  es: "Eres un clasificador experto de tipos de estudios radiológicos. Debes distinguir cuidadosamente entre estudios completos del abdomen (ct-abdomen) y estudios específicos del tracto urinario (ct-uro). Si la transcripción menciona múltiples órganos abdominales (hígado, bazo, páncreas, etc.), es ct-abdomen. Solo elige ct-uro si el estudio se enfoca exclusivamente en el sistema urinario. Responde únicamente con JSON válido.",
+  en: "You are an expert radiological study type classifier. You must carefully distinguish between comprehensive abdomen studies (ct-abdomen) and specific urinary tract studies (ct-uro). If the transcription mentions multiple abdominal organs (liver, spleen, pancreas, etc.), it's ct-abdomen. Only choose ct-uro if the study focuses exclusively on the urinary system. Respond only with valid JSON.",
+} as const;
 
 const buildDetectionPrompt = (
   transcription: string,
@@ -57,89 +63,109 @@ Respond ONLY with valid JSON:
 }`;
 };
 
+/**
+ * Extracts JSON from a response that may contain markdown code blocks or other text
+ */
+const extractJsonFromResponse = (response: string): string => {
+  let cleaned = response.trim();
+
+  // Remove markdown code blocks
+  cleaned = cleaned.replace(/^```json\s*/i, "").replace(/```\s*$/, "");
+  cleaned = cleaned.replace(/^```\s*/i, "").replace(/```\s*$/, "");
+
+  // Try to find JSON object boundaries
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+  }
+
+  // Fix common JSON issues
+  // Remove trailing commas before closing braces/brackets
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
+
+  return cleaned.trim();
+};
+
+/**
+ * Attempts to fix common JSON parsing issues
+ */
+const fixJsonIssues = (jsonString: string): string => {
+  let fixed = jsonString;
+
+  // Remove trailing commas before closing braces/brackets
+  fixed = fixed.replace(/,(\s*[}\]])/g, "$1");
+
+  return fixed;
+};
+
 const parseDetectionResponse = (response: string): StudyTypeDetection => {
   try {
-    const cleaned = response.trim().replace(/^```json\s*/i, "").replace(/```\s*$/, "");
-    const parsed = JSON.parse(cleaned) as StudyTypeDetection;
-    return parsed;
+    let cleaned = extractJsonFromResponse(response);
+
+    // First attempt: parse as-is
+    try {
+      const parsed = JSON.parse(cleaned) as StudyTypeDetection;
+      return parsed;
+    } catch (firstError) {
+      // Second attempt: try fixing common issues
+      try {
+        const fixed = fixJsonIssues(cleaned);
+        const parsed = JSON.parse(fixed) as StudyTypeDetection;
+        return parsed;
+      } catch (secondError) {
+        // Log the problematic response for debugging
+        console.error("[StudyTypeDetector] Failed to parse JSON response:", {
+          original: response.substring(0, 200),
+          cleaned: cleaned.substring(0, 200),
+          firstError: firstError instanceof Error ? firstError.message : String(firstError),
+          secondError: secondError instanceof Error ? secondError.message : String(secondError),
+        });
+
+        const errorDetails = JSON.stringify({
+          parsingError: secondError instanceof Error ? secondError.message : String(secondError),
+          responsePreview: response.substring(0, 500),
+        });
+
+        throw new HttpError(
+          `Failed to parse AI detection response. The model returned invalid JSON. Please try again.`,
+          {
+            status: 500,
+            details: errorDetails,
+          }
+        );
+      }
+    }
   } catch (error) {
-    throw new Error(
-      `Failed to parse detection response: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-};
+    if (error instanceof HttpError) {
+      throw error;
+    }
 
-const extractModalityFromKeywords = (keywords: string[] | undefined): string | undefined => {
-  if (!keywords || keywords.length === 0) {
-    return undefined;
+    const message = error instanceof Error ? error.message : "Unknown parsing error";
+    throw new HttpError(`Failed to parse detection response: ${message}`, {
+      status: 500,
+      details: error instanceof Error ? message : undefined,
+    });
   }
-
-  const lowerKeywords = keywords.map((k) => k.toLowerCase());
-  
-  if (lowerKeywords.some((k) => k.includes("doppler") || k.includes("ecodoppler"))) {
-    return "ecodoppler";
-  }
-  if (lowerKeywords.some((k) => k.includes("tomografía") || k.includes("ct") || k.includes("tc"))) {
-    return "ct";
-  }
-  if (lowerKeywords.some((k) => k.includes("mri") || k.includes("resonancia"))) {
-    return "mri";
-  }
-  if (lowerKeywords.some((k) => k.includes("rayos") || k.includes("radiografía") || k.includes("xray"))) {
-    return "xray";
-  }
-  if (lowerKeywords.some((k) => k.includes("ecografía") || k.includes("ultrasound") || k.includes("ultrasonido"))) {
-    return "ultrasound";
-  }
-
-  return undefined;
-};
-
-const extractRegionFromKeywords = (keywords: string[] | undefined): string | undefined => {
-  if (!keywords || keywords.length === 0) {
-    return undefined;
-  }
-
-  const lowerKeywords = keywords.map((k) => k.toLowerCase());
-  
-  if (lowerKeywords.some((k) => k.includes("abdomen") || k.includes("abdominal"))) {
-    return "abdomen";
-  }
-  if (lowerKeywords.some((k) => k.includes("tórax") || k.includes("chest") || k.includes("pulmón"))) {
-    return "chest";
-  }
-  if (lowerKeywords.some((k) => k.includes("cerebro") || k.includes("brain") || k.includes("craneal"))) {
-    return "brain";
-  }
-  if (lowerKeywords.some((k) => k.includes("testicular") || k.includes("testículo"))) {
-    return "testicular";
-  }
-  if (lowerKeywords.some((k) => k.includes("renal") || k.includes("riñón"))) {
-    return "renal";
-  }
-  if (lowerKeywords.some((k) => k.includes("miembros inferiores") || k.includes("lower limbs"))) {
-    return "lower limbs";
-  }
-
-  return undefined;
 };
 
 export const detectStudyType = async (
   transcription: string,
   language: Language,
-  aiClient: AIClient
+  aiClient: AIClient,
+  templateLoader: TemplateLoader
 ): Promise<StudyTypeDetection> => {
-  const availableTemplates = listAvailableTemplates(language);
+  const availableTemplates = await templateLoader.listAvailableTemplates(language);
 
   if (availableTemplates.length === 0) {
-    throw new Error(`No templates available for language "${language}"`);
+    throw new HttpError(`No templates available for language "${language}"`, {
+      status: 404,
+    });
   }
 
   const prompt = buildDetectionPrompt(transcription, availableTemplates, language);
-
-  const systemMessage = language === "es"
-    ? "Eres un clasificador experto de tipos de estudios radiológicos. Debes distinguir cuidadosamente entre estudios completos del abdomen (ct-abdomen) y estudios específicos del tracto urinario (ct-uro). Si la transcripción menciona múltiples órganos abdominales (hígado, bazo, páncreas, etc.), es ct-abdomen. Solo elige ct-uro si el estudio se enfoca exclusivamente en el sistema urinario. Responde únicamente con JSON válido."
-    : "You are an expert radiological study type classifier. You must carefully distinguish between comprehensive abdomen studies (ct-abdomen) and specific urinary tract studies (ct-uro). If the transcription mentions multiple abdominal organs (liver, spleen, pancreas, etc.), it's ct-abdomen. Only choose ct-uro if the study focuses exclusively on the urinary system. Respond only with valid JSON.";
+  const systemMessage = SYSTEM_MESSAGES[language];
 
   const response = await aiClient.generateCompletion([
     { role: "system", content: systemMessage },
@@ -148,19 +174,21 @@ export const detectStudyType = async (
 
   const detection = parseDetectionResponse(response);
 
-  if (!detection.keywords) {
+  // Validate and normalize the detection result
+  if (!detection.studyType || typeof detection.studyType !== "string") {
+    throw new HttpError("Invalid detection response: missing or invalid studyType", {
+      status: 500,
+    });
+  }
+
+  if (typeof detection.confidence !== "number" || detection.confidence < 0 || detection.confidence > 1) {
+    detection.confidence = 0.5; // Default confidence if invalid
+  }
+
+  // Ensure keywords array exists
+  if (!Array.isArray(detection.keywords)) {
     detection.keywords = [];
   }
 
   return detection;
 };
-
-export const extractModalityAndRegion = (
-  detection: StudyTypeDetection
-): { modality: string | undefined; region: string | undefined } => {
-  return {
-    modality: extractModalityFromKeywords(detection.keywords),
-    region: extractRegionFromKeywords(detection.keywords),
-  };
-};
-

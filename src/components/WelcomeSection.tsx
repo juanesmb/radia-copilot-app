@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from "react";
-import { Sparkles } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -9,9 +9,10 @@ import { useUserGreeting } from "@/hooks/useUserGreeting";
 
 interface WelcomeSectionProps {
   onGenerateReport: () => void;
+  onToggleChat: () => void;
 }
 
-export function WelcomeSection({ onGenerateReport }: WelcomeSectionProps) {
+export function WelcomeSection({ onGenerateReport, onToggleChat }: WelcomeSectionProps) {
   const { t } = useLanguage();
   const { firstName, isLoading } = useUserGreeting();
 
@@ -25,31 +26,59 @@ export function WelcomeSection({ onGenerateReport }: WelcomeSectionProps) {
 
   const welcomeLabels = useMemo(
     () => ({
-      tagline: t("welcome.tagline"),
       title: t("welcome.title"),
       subtitle: t("welcome.subtitle"),
+      chatTitle: t("welcome.chat.title"),
+      chatSubtitle: t("welcome.chat.subtitle"),
+      chatButton: t("welcome.chat.button"),
     }),
     [t],
   );
 
   return (
-    <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center space-y-4 bg-muted/10 mx-4">
-      <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        {welcomeLabels.tagline}
-      </p>
-      <h2 className="text-2xl font-semibold text-foreground">{greetingText}</h2>
-      <h3 className="text-3xl font-bold text-foreground">{welcomeLabels.title}</h3>
-      <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-        {welcomeLabels.subtitle}
-      </p>
-      <Button
-        type="button"
-        className="gap-2"
-        onClick={onGenerateReport}
-      >
-        <Sparkles className="w-4 h-4" aria-hidden="true" />
-        {t("recording.upload")}
-      </Button>
+    <div className="rounded-2xl border-2 border-dashed border-border p-8 bg-muted/10 mx-4">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-semibold text-foreground">{greetingText}</h2>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* First Column: Report Generation */}
+        <div className="flex flex-col items-center text-center space-y-4">
+          <h3 className="text-2xl lg:text-3xl font-bold text-foreground">
+            {welcomeLabels.title}
+          </h3>
+          <p className="text-base text-muted-foreground">
+            {welcomeLabels.subtitle}
+          </p>
+          <Button
+            type="button"
+            className="gap-2 min-w-[162px]"
+            onClick={onGenerateReport}
+          >
+            <Sparkles className="w-4 h-4" aria-hidden="true" />
+            {t("recording.upload")}
+          </Button>
+        </div>
+
+        {/* Second Column: Chat Copilot */}
+        <div className="flex flex-col items-center text-center space-y-4 border-l-0 lg:border-l border-border pl-0 lg:pl-6">
+          <h3 className="text-2xl lg:text-3xl font-bold text-foreground">
+            {welcomeLabels.chatTitle}
+          </h3>
+          <p className="text-base text-muted-foreground">
+            {welcomeLabels.chatSubtitle}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 min-w-[162px]"
+            onClick={onToggleChat}
+          >
+            <MessageCircle className="w-4 h-4" aria-hidden="true" />
+            {welcomeLabels.chatButton}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

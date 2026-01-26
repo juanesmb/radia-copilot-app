@@ -43,7 +43,7 @@ export function SidebarMenu({
   const asideClasses = [
     isMobile ? "flex" : "hidden lg:flex",
     `flex-col gap-3 flex-shrink-0 border-r border-border pt-4 pb-4 transition-all duration-500 ${
-      isExpanded ? "w-64" : "w-14"
+      isExpanded ? "w-56" : "w-14"
     }`,
     isMobile ? "h-full" : "h-[calc(100dvh-4rem)] lg:h-screen",
     className,
@@ -58,14 +58,16 @@ export function SidebarMenu({
         <div className={`flex items-center ${isExpanded ? "justify-between" : "justify-center"}`}>
           <button
             onClick={onSelectHome}
-            className="hover:opacity-80 transition-opacity cursor-pointer w-12 h-12 flex items-center justify-center"
+            className={`hover:opacity-80 transition-opacity cursor-pointer flex items-center justify-center ${
+              isExpanded ? "w-full h-14 px-2" : "w-14 h-14"
+            }`}
             aria-label={t("sidebar.home")}
           >
             <Image
-              src="/logo.svg"
+              src={isExpanded ? "/long_logo.svg" : "/logo.svg"}
               alt="RadiaCopilot"
-              width={48}
-              height={48}
+              width={isExpanded ? 240 : 56}
+              height={56}
               className="w-full h-full object-contain"
               priority
             />

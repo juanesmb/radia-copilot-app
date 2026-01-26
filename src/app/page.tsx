@@ -263,10 +263,12 @@ export default function HomePage() {
           onRunAutoDetect={() => {
             const normalizedText = (transcription.trim() || transcript.trim()).trim();
 
-            if (!normalizedText || lastStudyTypeDetectionTextRef.current === normalizedText) {
+            if (!normalizedText) {
               return;
             }
 
+            // Clear the ref to allow re-detection with the same text
+            lastStudyTypeDetectionTextRef.current = "";
             setDetectedStudyType(null);
             setSelectedStudyType("");
             runStudyTypeDetection(normalizedText);
@@ -308,7 +310,7 @@ export default function HomePage() {
 
 
     if (showWelcome) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} />;
+      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} />;
     }
 
     return (
