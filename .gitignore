@@ -78,3 +78,6 @@ next-env.d.ts
 .Trashes
 ehthumbs.db
 Desktop.ini
+
+# clerk configuration (can include secrets)
+/.clerk/

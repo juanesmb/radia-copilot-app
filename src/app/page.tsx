@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Menu } from "lucide-react";
+import { Check, Menu, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReportsSubmenu } from "@/components/ReportsSubmenu";
@@ -807,55 +808,136 @@ export default function HomePage() {
   );
 
   const renderSubscriptionModalContent = () => (
-    <div className="flex flex-col gap-6">
-      <div>
-        <DialogTitle className="text-2xl font-semibold text-foreground">
-          {t("subscriptions.title")}
-        </DialogTitle>
-        <DialogDescription className="text-sm text-muted-foreground mt-2">
-          {t("subscriptions.subtitle")}
-        </DialogDescription>
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        {subscriptionPlans.map((plan) => {
-          const isCurrentPlan = currentSubscription?.plan === plan.id;
-          const planLabel = t(`subscriptions.plan.${plan.id}`);
-          const priceLabel = t("subscriptions.plan.price").replace("{price}", plan.price.toLocaleString("es-CO"));
-          return (
-            <Card key={plan.id} className={isCurrentPlan ? "border-primary/60" : ""}>
-              <CardHeader>
-                <CardTitle>{planLabel}</CardTitle>
-                <CardDescription>{priceLabel}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isCurrentPlan ? (
-                  <p className="text-sm text-muted-foreground">
+    <div className="relative">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-background to-background" />
+      <div className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <DialogTitle className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+              {t("subscriptions.title")}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground mt-2 max-w-2xl">
+              {t("subscriptions.subtitle")}
+            </DialogDescription>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
+            <Sparkles className="h-4 w-4" />
+            <span className="text-xs">Secure checkout</span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="border-border/60 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl">Gratis</CardTitle>
+                  <CardDescription className="mt-1">Ideal para empezar</CardDescription>
+                </div>
+                {!currentSubscription && (
+                  <Badge variant="secondary">Plan actual</Badge>
+                )}
+              </div>
+              <div className="mt-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-semibold">$0</span>
+                  <span className="text-sm text-muted-foreground">/ mes</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ul className="space-y-3 text-sm">
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Generación de reportes básicos</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Historial limitado de reportes</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Plantillas estándar</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Soporte por email (básico)</span>
+                </li>
+              </ul>
+            </CardContent>
+            <CardFooter className="pt-2">
+              <Button className="w-full" variant="secondary" disabled>
+                {currentSubscription ? t("subscriptions.currentPlan") : "Plan actual"}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card className="relative overflow-hidden border-primary/40 bg-gradient-to-b from-primary/10 via-background to-background">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.25),transparent_55%)]" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-xl">{t("subscriptions.plan.pro")}</CardTitle>
+                  <CardDescription className="mt-1">Para uso profesional y mayor productividad</CardDescription>
+                </div>
+                <Badge>Popular</Badge>
+              </div>
+              <div className="mt-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-semibold">
+                    {subscriptionPlans[0].price.toLocaleString("es-CO")}
+                  </span>
+                  <span className="text-sm text-muted-foreground">COP / mes</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ul className="space-y-3 text-sm">
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Reportes ilimitados</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Mejor precisión y formato avanzado</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Plantillas pro y personalización</span>
+                </li>
+                <li className="flex gap-2">
+                  <Check className="h-4 w-4 mt-0.5 text-primary" />
+                  <span>Soporte prioritario</span>
+                </li>
+              </ul>
+
+              <div className="mt-4 text-sm text-muted-foreground">
+                {currentSubscription?.plan === "pro" ? (
+                  <p>
                     {t("subscriptions.plan.status").replace(
                       "{status}",
                       currentSubscription?.status ?? ""
                     )}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p>
                     {t("subscriptions.currentPlan")}:
-                    {currentSubscription ? " " + t(`subscriptions.plan.${currentSubscription.plan}`) : " -"}
+                    {currentSubscription ? " " + t(`subscriptions.plan.${currentSubscription.plan}`) : " Gratis"}
                   </p>
                 )}
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="w-full"
-                  onClick={() => handleSubscribe(plan.id)}
-                  disabled={isCurrentPlan || subscribingPlanId === plan.id || isSubscriptionLoading}
-                >
-                  {subscribingPlanId === plan.id
-                    ? t("subscriptions.processing")
-                    : t("subscriptions.cta")}
-                </Button>
-              </CardFooter>
-            </Card>
-          );
-        })}
+              </div>
+            </CardContent>
+            <CardFooter className="pt-2">
+              <Button
+                className="w-full"
+                onClick={() => handleSubscribe("pro")}
+                disabled={currentSubscription?.plan === "pro" || subscribingPlanId === "pro" || isSubscriptionLoading}
+              >
+                {subscribingPlanId === "pro" ? t("subscriptions.processing") : t("subscriptions.cta")}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -949,7 +1031,7 @@ export default function HomePage() {
         />
       )}
       <Dialog open={isSubscriptionModalOpen} onOpenChange={setIsSubscriptionModalOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden">
           <DialogHeader>{renderSubscriptionModalContent()}</DialogHeader>
         </DialogContent>
       </Dialog>
