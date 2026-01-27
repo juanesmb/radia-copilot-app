@@ -22,6 +22,7 @@ interface TemplatePreviewProps {
   studyType: string | null;
   isDetectingStudyType?: boolean;
   onContentChange?: (value: string) => void;
+  onContentBlur?: (value: string) => void;
   onRunAutoDetect?: () => void;
   hasTranscriptionText?: boolean;
   availableStudyTypes?: StudyTypeOption[];
@@ -43,6 +44,7 @@ export function TemplatePreview({
   studyType,
   isDetectingStudyType = false,
   onContentChange,
+  onContentBlur,
   onRunAutoDetect,
   hasTranscriptionText = false,
   availableStudyTypes,
@@ -189,6 +191,7 @@ export function TemplatePreview({
           ref={textareaRef}
           value={content || ''}
           onChange={(e) => onContentChange?.(e.target.value)}
+          onBlur={(e) => onContentBlur?.(e.target.value)}
           className="flex-1 text-base leading-relaxed resize-none scrollbar-transparent"
           readOnly={!onContentChange}
           placeholder={!content ? t("template.empty") : undefined}

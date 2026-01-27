@@ -13,3 +13,24 @@ export const createGetReportsUseCase = (deps: Dependencies) => {
   };
 };
 
+export const createCreateReportUseCase = (deps: Dependencies) => {
+  return {
+    async execute(userId: string, payload: { report_title: string | null; language: string }): Promise<Report> {
+      return deps.reportRepository.createReport({
+        user_id: userId,
+        report_title: payload.report_title,
+        language: payload.language,
+        // Initialize empty content for draft creation
+        generated_transcription: "",
+        updated_transcription: "",
+        generated_report: "",
+        updated_report: "",
+        used_template: "",
+        template_content: null,
+        study_type: null,
+        detection_confidence: null,
+        model_used: "",
+      });
+    },
+  };
+};

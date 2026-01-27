@@ -36,6 +36,7 @@ export const translations: TranslationMap = {
     "report.disclaimer": "This report has been generated using AI and may contain errors. Always verify the information.",
 
     "reports.title": "Reports",
+    "reports.untitled": "Untitled report",
     "reports.subtitle": "Your Reports",
     "reports.generate": "Generate report",
     "reports.empty": "No reports generated yet.",
@@ -48,7 +49,7 @@ export const translations: TranslationMap = {
       "Click the microphone to start recording your verbal findings. Speak naturally as you would during a case review.",
     "recording.placeholder": "Dictate or mention the positive findings...",
     "recording.label": "Dictation",
-    "recording.upload": "Generate report",
+    "recording.upload": "New report",
     "recording.recording": "Recording...",
     "recording.connecting": "Connecting...",
     "recording.stop": "Stop",
@@ -179,6 +180,7 @@ export const translations: TranslationMap = {
     "report.disclaimer": "Este informe ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
 
     "reports.title": "Informes",
+    "reports.untitled": "Informe sin título",
     "reports.subtitle": "Tus informes",
     "reports.generate": "Nuevo informe",
     "reports.empty": "Todavía no se han generado informes.",
@@ -191,7 +193,7 @@ export const translations: TranslationMap = {
       "Haz clic en el micrófono para comenzar a grabar tus hallazgos. Habla con naturalidad como lo harías durante la revisión del caso.",
     "recording.placeholder": "Dicta o menciona los hallazgos positivos...",
     "recording.label": "Dictado",
-    "recording.upload": "Generar informe",
+    "recording.upload": "Nuevo informe",
     "recording.recording": "Grabando...",
     "recording.connecting": "Conectando...",
     "recording.stop": "Detener",

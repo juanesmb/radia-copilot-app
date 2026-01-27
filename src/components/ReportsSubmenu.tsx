@@ -16,6 +16,7 @@ interface ReportsSubmenuProps {
   emptyLabel: string;
   copyLabel: string;
   copiedLabel: string;
+  untitledLabel: string;
 }
 
 export function ReportsSubmenu({
@@ -28,6 +29,7 @@ export function ReportsSubmenu({
   emptyLabel,
   copyLabel,
   copiedLabel,
+  untitledLabel,
 }: ReportsSubmenuProps) {
   const reportsScrollbarRef = useAutoHideScrollbar();
   const reportsContainerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +68,7 @@ export function ReportsSubmenu({
                 onCopy={onCopyReport}
                 copyLabel={copyLabel}
                 copiedLabel={copiedLabel}
+                untitledLabel={untitledLabel}
               />
             ))}
           </div>

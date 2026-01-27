@@ -1,8 +1,11 @@
 import type { NextRequest } from "next/server";
 
-import { getReportsHandler } from "./handler";
+import { createReportHandler, getReportsHandler } from "./handler";
 
 export async function GET(request: NextRequest) {
   return getReportsHandler(request);
 }
 
+export async function POST(request: NextRequest) {
+  return createReportHandler(request);
+}

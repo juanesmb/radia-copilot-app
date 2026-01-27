@@ -14,6 +14,7 @@ interface ReportCardProps {
   onCopy: (report: ReportHistoryItem) => void;
   copyLabel: string;
   copiedLabel: string;
+  untitledLabel: string;
 }
 
 export function ReportCard({
@@ -24,6 +25,7 @@ export function ReportCard({
   onCopy,
   copyLabel,
   copiedLabel,
+  untitledLabel,
 }: ReportCardProps) {
   const handleCopy = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -48,7 +50,7 @@ export function ReportCard({
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
           <h3 className={`text-xs font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
-            {report.title || "Untitled report"}
+            {report.title || untitledLabel}
           </h3>
           <p className="text-xs text-muted-foreground">
             {report.createdAt.toLocaleString(undefined, {
