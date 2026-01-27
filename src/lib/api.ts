@@ -8,6 +8,7 @@ const API_PATH = "/api/generate-report";
 const REPORTS_PATH = "/api/reports";
 const SUBSCRIPTIONS_PATH = "/api/subscriptions";
 const SUBSCRIBE_PATH = "/api/subscriptions/subscribe";
+const RENEW_SUBSCRIPTION_PATH = "/api/subscriptions/renew";
 
 export interface Report {
   report_id: string;
@@ -45,6 +46,11 @@ export interface CreateSubscriptionRequest {
 }
 
 export interface CreateSubscriptionResponse {
+  initPoint: string;
+  preapprovalId: string;
+}
+
+export interface RenewSubscriptionResponse {
   initPoint: string;
   preapprovalId: string;
 }
@@ -103,6 +109,40 @@ export async function getCurrentSubscription(): Promise<SubscriptionRecord | nul
     }
 
     const data = (await response.json()) as SubscriptionRecord | null;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function renewSubscription(
+  payload: CreateSubscriptionRequest,
+): Promise<RenewSubscriptionResponse> {
+  try {
+    const response = await fetch(RENEW_SUBSCRIPTION_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Unexpected server error",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as RenewSubscriptionResponse;
     return data;
   } catch (error) {
     if ((error as ApiError)?.message) {

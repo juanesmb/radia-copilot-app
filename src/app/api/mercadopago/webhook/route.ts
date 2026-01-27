@@ -29,7 +29,7 @@ const parseExternalReference = (externalReference?: string | null) => {
 
 const mapStatus = (status?: string | null) => {
   if (!status) return "pending";
-  if (["authorized", "approved", "active"].includes(status)) return "active";
+  if (["approved", "active", "authorized"].includes(status)) return "active";
   if (["paused"].includes(status)) return "paused";
   if (["cancelled", "cancelled_by_user", "cancelled_by_admin"].includes(status)) return "cancelled";
   return "pending";
@@ -69,12 +69,32 @@ const handleNotification = async (request: NextRequest) => {
       const preApproval = await preApprovalClient.get({ id: String(dataId) });
       const mappedStatus = mapStatus(preApproval.status);
 
-      await subscriptionRepository.updateByPreapprovalId(String(dataId), {
-        status: mappedStatus,
-        mp_customer_id: preApproval.payer_id ? String(preApproval.payer_id) : null,
-        current_period_start: preApproval.last_modified ?? null,
-        current_period_end: preApproval.next_payment_date ?? null,
-      });
+      const existing = await subscriptionRepository.getByPreapprovalId(String(dataId));
+      const mpCustomerId = preApproval.payer_id ? String(preApproval.payer_id) : null;
+      const periodStart = preApproval.last_modified ?? null;
+      const periodEnd = preApproval.next_payment_date ?? null;
+
+      if (existing) {
+        await subscriptionRepository.updateByPreapprovalId(String(dataId), {
+          status: mappedStatus,
+          mp_customer_id: mpCustomerId,
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+        });
+      } else {
+        const external = parseExternalReference(preApproval.external_reference);
+        if (external) {
+          await subscriptionRepository.createSubscription({
+            user_id: external.userId,
+            plan: external.plan,
+            status: mappedStatus,
+            mp_preapproval_id: String(dataId),
+            mp_customer_id: mpCustomerId,
+            current_period_start: periodStart,
+            current_period_end: periodEnd,
+          });
+        }
+      }
     } catch (error) {
       console.warn("[mercadopago/webhook] Preapproval fetch failed:", error);
     }

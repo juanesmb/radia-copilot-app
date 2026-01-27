@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { SubscriptionRecord } from "@/lib/api";
 
 export type SidebarView = "home" | "reports" | "subscriptions";
 
@@ -18,6 +19,7 @@ interface SidebarMenuProps {
   onToggleReports: () => void;
   onSelectSubscriptions: () => void;
   onToggleChat: () => void;
+  currentSubscription?: SubscriptionRecord | null;
   className?: string;
 }
 
@@ -28,6 +30,7 @@ export function SidebarMenu({
   onToggleReports,
   onSelectSubscriptions,
   onToggleChat,
+  currentSubscription,
   className = "",
 }: SidebarMenuProps) {
   const { t } = useLanguage();
@@ -35,6 +38,18 @@ export function SidebarMenu({
   const isMobile = className.includes("flex");
   const reportsActive = activeView === "reports" && isReportsOpen;
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const isCancelledButStillActive = (() => {
+    if (!currentSubscription || currentSubscription.status !== "cancelled") return false;
+    if (!currentSubscription.current_period_end) return false;
+    const end = new Date(currentSubscription.current_period_end);
+    if (Number.isNaN(end.getTime())) return false;
+    return end.getTime() > Date.now();
+  })();
+
+  const isEffectivelyActive = Boolean(
+    currentSubscription?.status === "active" || isCancelledButStillActive
+  );
 
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const userName = user?.fullName || user?.firstName || user?.username || "";
@@ -158,15 +173,15 @@ export function SidebarMenu({
         {isExpanded ? (
           <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-primary/10 via-background to-background p-3">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
                 <CreditCard className="h-4 w-4" aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">
-                  {t("sidebar.upgrade.title")}
+                  {isEffectivelyActive ? t("subscriptions.manage.title") : t("sidebar.upgrade.title")}
                 </div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t("sidebar.upgrade.subtitle")}
+                  {isEffectivelyActive ? t("sidebar.subscriptionsDescription") : t("sidebar.upgrade.subtitle")}
                 </div>
               </div>
             </div>
@@ -175,7 +190,7 @@ export function SidebarMenu({
               onClick={onSelectSubscriptions}
               size="sm"
             >
-              {t("sidebar.upgrade.cta")}
+              {isEffectivelyActive ? t("sidebar.subscriptions") : t("sidebar.upgrade.cta")}
             </Button>
           </div>
         ) : (
@@ -186,8 +201,8 @@ export function SidebarMenu({
             className={`h-11 w-11 rounded-full border transition-colors bg-gradient-to-b from-primary/20 via-background to-background hover:bg-muted ${
               activeView === "subscriptions" ? "border-primary/50" : "border-border/60"
             }`}
-            title={t("sidebar.upgrade.cta")}
-            aria-label={t("sidebar.upgrade.cta")}
+            title={isEffectivelyActive ? t("sidebar.subscriptions") : t("sidebar.upgrade.cta")}
+            aria-label={isEffectivelyActive ? t("sidebar.subscriptions") : t("sidebar.upgrade.cta")}
           >
             <CreditCard className="h-5 w-5 text-primary" aria-hidden="true" />
           </Button>

@@ -1,11 +1,17 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { createSupabaseClient } from "../../clients/supabaseClient";
 import { mapErrorToResponse } from "../../lib/errorHandler";
 import { createPreApprovalClient } from "../../lib/mercadopagoClient";
 import { createSubscriptionRepository } from "../../repositories/subscriptionRepository";
-import { validateCreateSubscriptionRequest } from "../../types/subscriptions";
+
+const requestSchema = z.object({
+  plan: z.literal("pro").default("pro"),
+});
+
+type Plan = z.infer<typeof requestSchema>["plan"];
 
 type Country = "CO" | "AR";
 
@@ -17,7 +23,7 @@ const normalizeSimulationCountry = (value?: string | null): Country | null => {
   return null;
 };
 
-const detectCountry = (request: NextRequest): Country => {
+const detectCountry = (request: Request): Country => {
   const simulation = normalizeSimulationCountry(process.env.SIMULATION_COUNTRY);
   if (simulation) return simulation;
 
@@ -35,6 +41,17 @@ const detectCountry = (request: NextRequest): Country => {
   return "CO";
 };
 
+const PLAN_PRICES: Record<Plan, Record<Country, number>> = {
+  pro: {
+    CO: 20000,
+    AR: Number(process.env.PRO_PRICE_ARS || 0) || 0,
+  },
+};
+
+const MP_REASON: Record<Plan, string> = {
+  pro: "Radia Copilot Pro",
+};
+
 const supabaseClient = createSupabaseClient({
   url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
@@ -44,60 +61,77 @@ const subscriptionRepository = createSubscriptionRepository({
   supabaseClient: supabaseClient.getClient(),
 });
 
-const PLAN_PRICES: Record<string, Record<Country, number>> = {
-  pro: {
-    CO: 20000,
-    AR: Number(process.env.PRO_PRICE_ARS || 0) || 0,
-  },
+const computeStartDate = (currentPeriodEnd: string | null) => {
+  const now = new Date();
+
+  if (currentPeriodEnd) {
+    const end = new Date(currentPeriodEnd);
+    if (!Number.isNaN(end.getTime()) && end.getTime() > now.getTime()) {
+      return new Date(end.getTime() + 2 * 60 * 1000).toISOString();
+    }
+  }
+
+  return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 };
 
-const MP_REASON: Record<string, string> = {
-  pro: "Radia Copilot Pro"
-};
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const client = await clerkClient();
-    const clerkUser = await client.users.getUser(userId);
-    const primaryEmailId = clerkUser.primaryEmailAddressId;
-    const clerkEmail =
-      clerkUser.emailAddresses.find((email: { id: string; emailAddress: string }) => email.id === primaryEmailId)?.emailAddress ??
-      clerkUser.emailAddresses[0]?.emailAddress ??
-      null;
-    const payerEmail = process.env.MP_TEST_PAYER_EMAIL || clerkEmail;
-
-    if (!payerEmail) {
-      return NextResponse.json({ message: "payer_email is required" }, { status: 400 });
-    }
-
-    let payload: unknown;
+    let payload: unknown = {};
     try {
       payload = await request.json();
     } catch {
-      return NextResponse.json({ message: "Invalid JSON body." }, { status: 400 });
+      payload = {};
     }
 
-    const validation = validateCreateSubscriptionRequest(payload);
-    if (!validation.success) {
-      return NextResponse.json({ message: validation.message }, { status: 400 });
+    const parsed = requestSchema.safeParse(payload);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: "Invalid request", details: parsed.error.flatten() },
+        { status: 400 }
+      );
     }
 
-    const { plan } = validation.data;
+    const { plan } = parsed.data;
     const country = detectCountry(request);
-    const publicBaseUrl = process.env.NEXT_PUBLIC_APP_URL;
 
+    const publicBaseUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!publicBaseUrl) {
       return NextResponse.json({ message: "NEXT_PUBLIC_APP_URL is not configured." }, { status: 500 });
     }
 
+    const existing = await subscriptionRepository.getLatestByUserId(userId);
+    if (!existing || !existing.mp_preapproval_id) {
+      return NextResponse.json({ message: "No existing subscription found." }, { status: 404 });
+    }
+
+    if (existing.status !== "cancelled") {
+      return NextResponse.json(
+        { message: "Subscription is not cancelled." },
+        { status: 400 }
+      );
+    }
+
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(userId);
+    const primaryEmailId = clerkUser.primaryEmailAddressId;
+    const clerkEmail =
+      clerkUser.emailAddresses.find((email: { id: string; emailAddress: string }) => email.id === primaryEmailId)
+        ?.emailAddress ??
+      clerkUser.emailAddresses[0]?.emailAddress ??
+      null;
+
+    const payerEmail = process.env.MP_TEST_PAYER_EMAIL || clerkEmail;
+    if (!payerEmail) {
+      return NextResponse.json({ message: "payer_email is required" }, { status: 400 });
+    }
+
     const amount = PLAN_PRICES[plan][country];
     const currencyId = country === "AR" ? "ARS" : "COP";
-
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { message: `Price not configured for country ${country}.` },
@@ -105,9 +139,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const startDate = computeStartDate(existing.current_period_end);
+
     const preApprovalClient = createPreApprovalClient();
-    const now = new Date();
-    const startDate = new Date(now.getTime() + 2 * 60 * 1000).toISOString();
 
     const baseBody = {
       reason: MP_REASON[plan],
@@ -180,7 +214,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("[subscription/subscribe] Error:", error);
+    console.error("[subscription/renew] Error:", error);
     const mapped = mapErrorToResponse(error);
     return NextResponse.json(mapped.body, { status: mapped.status });
   }

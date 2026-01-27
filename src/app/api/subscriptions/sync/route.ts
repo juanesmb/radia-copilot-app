@@ -22,7 +22,7 @@ const subscriptionRepository = createSubscriptionRepository({
 
 const mapStatus = (status?: string | null) => {
   if (!status) return "pending";
-  if (["authorized", "approved", "active"].includes(status)) return "active";
+  if (["approved", "active", "authorized"].includes(status)) return "active";
   if (["paused"].includes(status)) return "paused";
   if (["cancelled", "cancelled_by_user", "cancelled_by_admin"].includes(status)) return "cancelled";
   return "pending";
@@ -71,7 +71,13 @@ export async function POST(request: NextRequest) {
       current_period_end: preApproval.next_payment_date ?? null,
     });
 
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json(
+      {
+        ...updated,
+        mp_raw_status: preApproval.status ?? null,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("[subscriptions/sync] Error:", error);
     const mapped = mapErrorToResponse(error);

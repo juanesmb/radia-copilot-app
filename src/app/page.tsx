@@ -30,6 +30,7 @@ import {
   getAvailableTemplates,
   createSubscription,
   getCurrentSubscription,
+  renewSubscription,
 } from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
@@ -45,9 +46,8 @@ interface StudyTypeOption {
 
 const COPY_FEEDBACK_DURATION_MS = 2000;
 
-const subscriptionPlans = [
-  { id: "pro", price: 20000 }
-] as const;
+type BillingCountry = "CO" | "AR";
+type BillingCurrency = "COP" | "ARS";
 
 const sttProvider = createSpeechToTextProvider('speechmatics');
 
@@ -74,6 +74,13 @@ export default function HomePage() {
   const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(false);
   const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isSubscriptionManagementModalOpen, setIsSubscriptionManagementModalOpen] = useState(false);
+  const [isCancelSubscriptionDialogOpen, setIsCancelSubscriptionDialogOpen] = useState(false);
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
+  const [shouldShowSubscriptionSuccessToast, setShouldShowSubscriptionSuccessToast] = useState(false);
+  const [billingCountry, setBillingCountry] = useState<BillingCountry>("CO");
+  const [billingCurrency, setBillingCurrency] = useState<BillingCurrency>("COP");
+  const [proPrice, setProPrice] = useState<number>(20000);
   const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -158,7 +165,7 @@ export default function HomePage() {
   }, [detectedStudyType, isDetectingStudyType, language, t]);
 
   useEffect(() => {
-    if (!isSubscriptionModalOpen) {
+    if (!isSubscriptionModalOpen && !isSubscriptionManagementModalOpen) {
       return;
     }
 
@@ -167,6 +174,11 @@ export default function HomePage() {
         setIsSubscriptionLoading(true);
         const subscription = await getCurrentSubscription();
         setCurrentSubscription(subscription);
+
+        if (!subscription && isSubscriptionManagementModalOpen) {
+          setIsSubscriptionManagementModalOpen(false);
+          setIsSubscriptionModalOpen(true);
+        }
       } catch (error) {
         toast({
           title: t("errors.generic"),
@@ -179,7 +191,7 @@ export default function HomePage() {
     };
 
     loadSubscription();
-  }, [isSubscriptionModalOpen, t, toast]);
+  }, [isSubscriptionModalOpen, isSubscriptionManagementModalOpen, t, toast]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -224,17 +236,27 @@ export default function HomePage() {
         });
 
         if (syncResponse.ok) {
-          const synced = (await syncResponse.json()) as SubscriptionRecord;
-          if (synced?.status === "active") {
-            toast({
-              title: t("subscriptions.paymentSuccess.title"),
-              description: t("subscriptions.paymentSuccess.description"),
-            });
+          try {
+            await syncResponse.json();
+          } catch {
+            // ignore
           }
         }
+
         const subscription = await getCurrentSubscription();
         setCurrentSubscription(subscription);
-        setIsSubscriptionModalOpen(true);
+
+        if (subscription?.status === "active") {
+          setShouldShowSubscriptionSuccessToast(true);
+        }
+
+        if (subscription) {
+          setIsSubscriptionModalOpen(false);
+          setIsSubscriptionManagementModalOpen(true);
+        } else {
+          setIsSubscriptionManagementModalOpen(false);
+          setIsSubscriptionModalOpen(true);
+        }
       } catch (error) {
         console.error("[subscriptions] Sync failed:", error);
       } finally {
@@ -245,6 +267,37 @@ export default function HomePage() {
     };
 
     void syncSubscription();
+  }, []);
+
+  useEffect(() => {
+    const loadCountry = async () => {
+      try {
+        const response = await fetch("/api/country", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          country?: BillingCountry;
+          currency?: BillingCurrency;
+          proPrice?: number;
+        };
+
+        if (data.country) setBillingCountry(data.country);
+        if (data.currency) setBillingCurrency(data.currency);
+        if (typeof data.proPrice === "number" && data.proPrice > 0) setProPrice(data.proPrice);
+      } catch {
+        // ignore
+      }
+    };
+
+    void loadCountry();
   }, []);
 
   useEffect(() => {
@@ -502,9 +555,116 @@ export default function HomePage() {
     }
   }, [toast, t]);
 
+  const handleRenewSubscription = useCallback(async (planId: "pro") => {
+    try {
+      setSubscribingPlanId(planId);
+      const response = await renewSubscription({ plan: planId });
+      window.location.href = response.initPoint;
+    } catch (error) {
+      toast({
+        title: t("errors.generic"),
+        description: (error as ApiError)?.message ?? t("errors.requestFailed"),
+        variant: "destructive",
+      });
+    } finally {
+      setSubscribingPlanId(null);
+    }
+  }, [toast, t]);
+
   const handleSidebarSubscriptions = useCallback(() => {
-    setIsSubscriptionModalOpen(true);
-  }, []);
+    const open = async () => {
+      try {
+        setIsSubscriptionLoading(true);
+        const subscription = await getCurrentSubscription();
+        setCurrentSubscription(subscription);
+
+        if (subscription) {
+          setIsSubscriptionManagementModalOpen(true);
+        } else {
+          setIsSubscriptionModalOpen(true);
+        }
+      } catch (error) {
+        toast({
+          title: t("errors.generic"),
+          description: (error as ApiError)?.message ?? t("errors.requestFailed"),
+          variant: "destructive",
+        });
+        setIsSubscriptionModalOpen(true);
+      } finally {
+        setIsSubscriptionLoading(false);
+      }
+    };
+
+    void open();
+  }, [t, toast]);
+
+  const dateTimeFormatter = useMemo(() => {
+    return new Intl.DateTimeFormat(language === "es" ? "es-CO" : "en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  }, [language]);
+
+  const formatSubscriptionDate = useCallback(
+    (value: string | null) => {
+      if (!value) return t("subscriptions.manage.notAvailable");
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return t("subscriptions.manage.notAvailable");
+      return dateTimeFormatter.format(date);
+    },
+    [dateTimeFormatter, t]
+  );
+
+  const handleCancelSubscription = useCallback(async () => {
+    if (!currentSubscription?.mp_preapproval_id) {
+      toast({
+        title: t("errors.generic"),
+        description: t("subscriptions.manage.cancel.missingId"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsCancellingSubscription(true);
+      const response = await fetch("/api/subscriptions/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ preapprovalId: currentSubscription.mp_preapproval_id }),
+      });
+
+      if (!response.ok) {
+        throw new Error(t("errors.requestFailed"));
+      }
+
+      const updated = (await response.json()) as SubscriptionRecord;
+      setCurrentSubscription(updated);
+      toast({
+        title: t("subscriptions.manage.cancel.successTitle"),
+        description: t("subscriptions.manage.cancel.successDescription"),
+      });
+      setIsCancelSubscriptionDialogOpen(false);
+
+      try {
+        const refreshed = await getCurrentSubscription();
+        setCurrentSubscription(refreshed);
+      } catch {
+        // ignore
+      }
+    } catch (error) {
+      console.error("[subscriptions] Cancel failed:", error);
+      toast({
+        title: t("errors.generic"),
+        description: t("subscriptions.manage.cancel.error"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancellingSubscription(false);
+    }
+  }, [currentSubscription?.mp_preapproval_id, currentSubscription, t, toast]);
 
   /**
    * Handles auto-save of transcription updates
@@ -888,7 +1048,7 @@ export default function HomePage() {
           </div>
           <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
             <CreditCard className="h-4 w-4" />
-            <span className="text-xs">Secure checkout</span>
+            <span className="text-xs">{t("subscriptions.secureCheckout")}</span>
           </div>
         </div>
 
@@ -951,9 +1111,13 @@ export default function HomePage() {
               <div className="mt-4">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-semibold">
-                    {subscriptionPlans[0].price.toLocaleString("es-CO")}
+                    {proPrice.toLocaleString(
+                      billingCountry === "AR" ? "es-AR" : "es-CO"
+                    )}
                   </span>
-                  <span className="text-sm text-muted-foreground">COP / mes</span>
+                  <span className="text-sm text-muted-foreground">
+                    {billingCurrency} / {t("subscriptions.plan.month")}
+                  </span>
                 </div>
               </div>
             </CardHeader>
@@ -982,7 +1146,7 @@ export default function HomePage() {
                   <p>
                     {t("subscriptions.plan.status").replace(
                       "{status}",
-                      currentSubscription?.status ?? ""
+                      formatSubscriptionStatus(currentSubscription?.status)
                     )}
                   </p>
                 ) : (
@@ -997,7 +1161,11 @@ export default function HomePage() {
               <Button
                 className="w-full"
                 onClick={() => handleSubscribe("pro")}
-                disabled={currentSubscription?.plan === "pro" || subscribingPlanId === "pro" || isSubscriptionLoading}
+                disabled={
+                  (currentSubscription?.plan === "pro" && currentSubscription?.status === "active") ||
+                  subscribingPlanId === "pro" ||
+                  isSubscriptionLoading
+                }
               >
                 {subscribingPlanId === "pro" ? t("subscriptions.processing") : t("subscriptions.cta")}
               </Button>
@@ -1007,6 +1175,184 @@ export default function HomePage() {
       </div>
     </div>
   );
+
+  const formatSubscriptionStatus = useCallback(
+    (status?: SubscriptionRecord["status"] | null) => {
+      if (!status) return t("subscriptions.status.pending");
+      return t(`subscriptions.status.${status}`);
+    },
+    [t]
+  );
+
+  const renderSubscriptionManagementContent = () => {
+    const isCancelled = currentSubscription?.status === "cancelled";
+    const hasSubscription = Boolean(currentSubscription);
+    const canCancel = Boolean(
+      currentSubscription?.mp_preapproval_id && currentSubscription?.status !== "cancelled"
+    );
+    const isPending = currentSubscription?.status === "pending";
+    const isCancelledButStillActive = (() => {
+      if (!currentSubscription || currentSubscription.status !== "cancelled") return false;
+      if (!currentSubscription.current_period_end) return false;
+      const end = new Date(currentSubscription.current_period_end);
+      if (Number.isNaN(end.getTime())) return false;
+      return end.getTime() > Date.now();
+    })();
+
+    const isEffectivelyActive = Boolean(
+      currentSubscription?.status === "active" || isCancelledButStillActive
+    );
+
+    const canRenew = Boolean(currentSubscription?.status === "cancelled");
+
+    return (
+      <div className="relative">
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-background to-background" />
+        <div className="flex flex-col gap-6 p-6 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+                {t("subscriptions.manage.title")}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground mt-2 max-w-2xl">
+                {t("subscriptions.manage.subtitle")}
+              </DialogDescription>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
+              <CreditCard className="h-4 w-4" />
+              <span className="text-xs">{t("subscriptions.secureCheckout")}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="lg:col-span-2 border-border/60 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-xl">
+                        {hasSubscription ? t(`subscriptions.plan.${currentSubscription?.plan}`) : "Gratis"}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {hasSubscription
+                          ? isPending
+                            ? t("subscriptions.manage.pendingDescription")
+                            : t("subscriptions.manage.planDescription")
+                          : t("subscriptions.manage.freeDescription")}
+                      </CardDescription>
+                    </div>
+                    {hasSubscription ? (
+                      <Badge variant={isCancelled ? "secondary" : "default"}>
+                        {t("subscriptions.manage.status").replace(
+                          "{status}",
+                          formatSubscriptionStatus(currentSubscription?.status)
+                        )}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">{t("subscriptions.manage.freeBadge")}</Badge>
+                    )}
+                  </div>
+                  {isCancelledButStillActive && (
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      {t("subscriptions.manage.cancelledActiveUntil").replace(
+                        "{date}",
+                        formatSubscriptionDate(currentSubscription?.current_period_end ?? null)
+                      )}
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("subscriptions.manage.startDate")}
+                      </div>
+                      <div className="mt-2 text-sm font-medium text-foreground">
+                        {formatSubscriptionDate(currentSubscription?.current_period_start ?? null)}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("subscriptions.manage.renewalDate")}
+                      </div>
+                      <div className="mt-2 text-sm font-medium text-foreground">
+                        {formatSubscriptionDate(currentSubscription?.current_period_end ?? null)}
+                      </div>
+                    </div>
+                  </div>
+
+                </CardContent>
+                <CardFooter className="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-end">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setIsSubscriptionModalOpen(true)}
+                  >
+                    {t("subscriptions.manage.changePlan")}
+                  </Button>
+                  {isPending && (
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => handleSubscribe("pro")}
+                      disabled={subscribingPlanId === "pro" || isSubscriptionLoading}
+                    >
+                      {subscribingPlanId === "pro"
+                        ? t("subscriptions.processing")
+                        : t("subscriptions.manage.pending.cta")}
+                    </Button>
+                  )}
+                  {canRenew && (
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => handleRenewSubscription("pro")}
+                      disabled={subscribingPlanId === "pro" || isSubscriptionLoading}
+                    >
+                      {subscribingPlanId === "pro"
+                        ? t("subscriptions.processing")
+                        : t("subscriptions.manage.renew.cta")}
+                    </Button>
+                  )}
+                  <Button
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    onClick={() => setIsCancelSubscriptionDialogOpen(true)}
+                    disabled={!canCancel || isPending}
+                  >
+                    {t("subscriptions.manage.cancel.cta")}
+                  </Button>
+                </CardFooter>
+              </Card>
+
+              <Card className="border-border/60 bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t("subscriptions.manage.summaryTitle")}</CardTitle>
+                  <CardDescription>{t("subscriptions.manage.summarySubtitle")}</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ul className="space-y-3 text-sm">
+                    <li className="flex gap-2">
+                      <Check className="h-4 w-4 mt-0.5 text-primary" />
+                      <span>{t("subscriptions.manage.summary.item1")}</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <Check className="h-4 w-4 mt-0.5 text-primary" />
+                      <span>{t("subscriptions.manage.summary.item2")}</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <Check className="h-4 w-4 mt-0.5 text-primary" />
+                      <span>{t("subscriptions.manage.summary.item3")}</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <Check className="h-4 w-4 mt-0.5 text-primary" />
+                      <span>{t("subscriptions.manage.summary.item4")}</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderMainContent = () => (
     <MainContentLayout
@@ -1067,6 +1413,7 @@ export default function HomePage() {
               handleToggleChat();
               setIsMobileMenuOpen(false);
             }}
+            currentSubscription={currentSubscription}
             className="flex"
           />
         </SheetContent>
@@ -1080,6 +1427,7 @@ export default function HomePage() {
           onToggleReports={handleSidebarReports}
           onSelectSubscriptions={handleSidebarSubscriptions}
           onToggleChat={handleToggleChat}
+          currentSubscription={currentSubscription}
         />
 
         <section className="flex-1 min-w-0 overflow-y-auto h-[calc(100dvh-4rem)] lg:h-screen" data-report-container>
@@ -1099,6 +1447,45 @@ export default function HomePage() {
       <Dialog open={isSubscriptionModalOpen} onOpenChange={setIsSubscriptionModalOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden">
           <DialogHeader>{renderSubscriptionModalContent()}</DialogHeader>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={isSubscriptionManagementModalOpen}
+        onOpenChange={setIsSubscriptionManagementModalOpen}
+      >
+        <DialogContent className="max-w-5xl p-0 overflow-hidden">
+          <DialogHeader>
+            {renderSubscriptionManagementContent()}
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={isCancelSubscriptionDialogOpen}
+        onOpenChange={setIsCancelSubscriptionDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("subscriptions.manage.cancel.title")}</DialogTitle>
+            <DialogDescription>{t("subscriptions.manage.cancel.description")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelSubscriptionDialogOpen(false)}
+              disabled={isCancellingSubscription}
+            >
+              {t("subscriptions.manage.cancel.back")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelSubscription}
+              disabled={isCancellingSubscription}
+            >
+              {isCancellingSubscription
+                ? t("subscriptions.manage.cancel.processing")
+                : t("subscriptions.manage.cancel.confirm")}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
