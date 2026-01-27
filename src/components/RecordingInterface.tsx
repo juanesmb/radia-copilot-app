@@ -65,6 +65,7 @@ interface RecordingInterfaceProps {
   onUpdateTranscription?: (value: string) => void;
   onUpdateReport?: (value: string) => void;
   onTemplateChange?: (value: string) => void;
+  onTemplateSave?: (value: string, isCustom: boolean) => Promise<void>;
   initialTemplateContent?: string | null;
   onTemplateEditStatusChange?: (isCustom: boolean) => void;
   isTemplateCustom?: boolean;
@@ -101,6 +102,7 @@ export function RecordingInterface({
   onUpdateTranscription,
   onUpdateReport,
   onTemplateChange,
+  onTemplateSave,
   initialTemplateContent,
   onTemplateEditStatusChange,
   isTemplateCustom = false,
@@ -136,6 +138,7 @@ export function RecordingInterface({
   const [editedTemplateContent, setEditedTemplateContent] = useState<string | null>(null);
   const [originalTemplateContent, setOriginalTemplateContent] = useState<string | null>(null);
   const [hasTemplateBeenEdited, setHasTemplateBeenEdited] = useState(false);
+  const templateSaveDisabled = !currentReportId || !onTemplateSave;
 
   useEffect(() => {
     setEditedTemplateContent(content);
@@ -144,12 +147,25 @@ export function RecordingInterface({
     onTemplateEditStatusChange?.(false); // Notify parent that template is no longer custom
   }, [content, onTemplateEditStatusChange]);
 
+  const {
+    value: templateValue,
+    onChange: onTemplateAutoSaveChange,
+    onBlur: onTemplateAutoSaveBlur,
+  } = useAutoSave({
+    initialValue: editedTemplateContent ?? "",
+    onSave: onTemplateSave
+      ? async (value: string) => {
+          await onTemplateSave(value, hasTemplateBeenEdited);
+        }
+      : async () => {},
+    debounceMs: 1500,
+    isDisabled: templateSaveDisabled,
+    reportId: currentReportId,
+  });
+
   const handleTemplateChange = useCallback((value: string) => {
     setEditedTemplateContent(value);
     
-    // Check if content differs from original (immediately mark as custom if edited)
-    // If originalTemplateContent is null, any non-empty value means it's custom
-    // If originalTemplateContent exists, compare trimmed values
     const isDifferent = originalTemplateContent === null
       ? value.trim().length > 0
       : value.trim() !== originalTemplateContent.trim();
@@ -158,7 +174,26 @@ export function RecordingInterface({
     onTemplateEditStatusChange?.(isDifferent);
     
     onTemplateChange?.(value);
-  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange]);
+
+    if (!templateSaveDisabled) {
+      onTemplateAutoSaveChange({
+        target: { value },
+      } as React.ChangeEvent<HTMLTextAreaElement>);
+    }
+  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange, onTemplateAutoSaveChange, templateSaveDisabled, effectiveStudyType]);
+
+  const handleTemplateBlur = useCallback(
+    (value: string) => {
+      if (templateSaveDisabled) {
+        return;
+      }
+
+      onTemplateAutoSaveBlur({
+        target: { value },
+      } as React.FocusEvent<HTMLTextAreaElement>);
+    },
+    [onTemplateAutoSaveBlur, templateSaveDisabled],
+  );
 
   const handleCustomStateReset = useCallback(() => {
     // Reset custom state when a new template is selected
@@ -209,7 +244,8 @@ export function RecordingInterface({
           // No-op when handler not provided
         },
     debounceMs: 1500,
-    isDisabled: !currentReportId, // Disable if no report has been generated
+    // Allow creating a draft from positive findings even before a report exists
+    isDisabled: false,
     reportId: currentReportId,
   });
 
@@ -412,7 +448,7 @@ export function RecordingInterface({
       {/* Mobile: Stack vertically and allow scrolling. Desktop: Side-by-side with overflow hidden */}
       {/* Mobile fullscreen: When a component is fullscreen, it takes full height */}
       <div className={cn(
-        "flex flex-col lg:flex-row gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden",
+        "flex flex-col lg:flex-row gap-4 flex-1 h-full min-h-0 lg:min-h-0 lg:overflow-hidden mt-2",
         mobileFullscreen && "flex-1 h-full"
       )}>
         {/* Left column: Stacked Transcription and Template */}
@@ -514,12 +550,13 @@ export function RecordingInterface({
             mobileFullscreen === 'template' && "lg:flex flex-1 h-full"
           )}>
             <TemplatePreview
-              content={editedTemplateContent}
+              content={onTemplateSave ? templateValue : editedTemplateContent}
               isLoading={isTemplateLoading}
               error={templateError}
               studyType={effectiveStudyType}
               isDetectingStudyType={isDetectingStudyType}
               onContentChange={handleTemplateChange}
+              onContentBlur={handleTemplateBlur}
               availableStudyTypes={availableStudyTypes}
               selectedStudyType={selectedStudyType || detectedStudyType || ''}
               onStudyTypeChange={onStudyTypeChange}
