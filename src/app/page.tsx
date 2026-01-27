@@ -93,6 +93,7 @@ export default function HomePage() {
   const prevSttStateRef = useRef<typeof sttState>(sttState);
   const lastStudyTypeDetectionTextRef = useRef<string>("");
   const isCreatingDraftRef = useRef(false);
+  const inFlightCreateRef = useRef<Promise<string> | null>(null);
   const pendingTitleRef = useRef<string | null>(null);
   const lastSavedTranscriptionRef = useRef<string>("");
   const pendingReportIdRef = useRef<string | null>(null);
@@ -108,6 +109,44 @@ export default function HomePage() {
   useEffect(() => {
     setTranscription(transcript);
   }, [transcript]);
+
+  const ensureDraftReport = useCallback(async (): Promise<string | null> => {
+    if (currentReportId) {
+      return currentReportId;
+    }
+
+    if (pendingReportIdRef.current) {
+      return pendingReportIdRef.current;
+    }
+
+    if (inFlightCreateRef.current) {
+      return inFlightCreateRef.current;
+    }
+
+    const createPromise = (async () => {
+      try {
+        isCreatingDraftRef.current = true;
+        const created = await createDraftReport({
+          report_title: currentReportTitle || null,
+          language,
+        });
+        const reportId = created.report_id;
+        pendingReportIdRef.current = reportId;
+        setCurrentReportId(reportId);
+        setReportHistory((prev) => {
+          const mapped = mapReportToHistoryItem(created);
+          return [mapped, ...prev];
+        });
+        return reportId;
+      } finally {
+        isCreatingDraftRef.current = false;
+        inFlightCreateRef.current = null;
+      }
+    })();
+
+    inFlightCreateRef.current = createPromise;
+    return createPromise;
+  }, [currentReportId, currentReportTitle, language, setReportHistory]);
 
   const { firstName, isLoading: isGreetingLoading } = useUserGreeting();
 
@@ -216,45 +255,8 @@ export default function HomePage() {
   const handleStudyTypeChange = useCallback(
     async (studyType: string) => {
       try {
-        let reportId = currentReportId || pendingReportIdRef.current;
-
-        if (!reportId) {
-          if (isCreatingDraftRef.current) {
-            return;
-          }
-
-          // Wait briefly for transcription-created draft to surface
-          let retries = 0;
-          while (!reportId && retries < 10) {
-            await new Promise((res) => setTimeout(res, 100));
-            reportId = currentReportId || pendingReportIdRef.current;
-            retries += 1;
-          }
-
-          if (!reportId) {
-            isCreatingDraftRef.current = true;
-            const created = await createDraftReport({
-              report_title: currentReportTitle || null,
-              language,
-            });
-            reportId = created.report_id;
-            pendingReportIdRef.current = reportId;
-            setCurrentReportId(reportId);
-            setReportHistory((prev) => {
-              const mapped = mapReportToHistoryItem(created);
-              return [mapped, ...prev];
-            });
-            isCreatingDraftRef.current = false;
-          }
-        }
-
-        if (!reportId) {
-          return;
-        }
-
-        if (!studyType) {
-          return;
-        }
+        const reportId = await ensureDraftReport();
+        if (!reportId || !studyType) return;
 
         const updated = await updateReport(reportId, {
           used_template: studyType,
@@ -287,7 +289,7 @@ export default function HomePage() {
         isCreatingDraftRef.current = false;
       }
     },
-    [currentReportId, currentReportTitle, language, t, toast],
+    [ensureDraftReport, t, toast],
   );
 
   const handleTemplateSave = useCallback(
@@ -594,34 +596,8 @@ export default function HomePage() {
    * @throws {ApiError} Re-throws errors for the hook to handle
    */
   const handleTranscriptionUpdate = useCallback(async (value: string) => {
-    let reportId = currentReportId;
-
-    // If no report exists yet, create a draft so the findings can be persisted
-    if (!reportId) {
-      if (isCreatingDraftRef.current) {
-        return;
-      }
-      try {
-        isCreatingDraftRef.current = true;
-        const created = await createDraftReport({
-          report_title: currentReportTitle || null,
-          language,
-        });
-        reportId = created.report_id;
-        pendingReportIdRef.current = reportId;
-        setCurrentReportId(reportId);
-        setReportHistory((prev) => {
-          const mapped = mapReportToHistoryItem(created);
-          return [mapped, ...prev];
-        });
-      } finally {
-        isCreatingDraftRef.current = false;
-      }
-    }
-
-    if (!reportId) {
-      return;
-    }
+    const reportId = await ensureDraftReport();
+    if (!reportId) return;
 
     await updateReport(reportId, { updated_transcription: value });
     lastSavedTranscriptionRef.current = value;
@@ -634,7 +610,7 @@ export default function HomePage() {
           : report
       )
     );
-  }, [currentReportId, currentReportTitle, language]);
+  }, [ensureDraftReport, setReportHistory]);
 
   // Auto-detect study type (and persist findings) when recording stops
   useEffect(() => {
