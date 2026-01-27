@@ -36,6 +36,7 @@ export const translations: TranslationMap = {
     "report.disclaimer": "This report has been generated using AI and may contain errors. Always verify the information.",
 
     "reports.title": "Reports",
+    "reports.untitled": "Untitled report",
     "reports.subtitle": "Your Reports",
     "reports.generate": "Generate report",
     "reports.empty": "No reports generated yet.",
@@ -179,6 +180,7 @@ export const translations: TranslationMap = {
     "report.disclaimer": "Este informe ha sido generado usando IA y puede contener errores. Siempre verifica la información.",
 
     "reports.title": "Informes",
+    "reports.untitled": "Informe sin título",
     "reports.subtitle": "Tus informes",
     "reports.generate": "Nuevo informe",
     "reports.empty": "Todavía no se han generado informes.",

@@ -166,7 +166,7 @@ export default function HomePage() {
 
     if (currentReportId) {
       try {
-        await updateReport(currentReportId, { report_title: trimmed || null });
+        await updateReport(currentReportId, { report_title: trimmed || undefined });
         setReportHistory((prev) =>
           prev.map((report) =>
             report.id === currentReportId ? { ...report, title: trimmed } : report,
@@ -993,6 +993,7 @@ export default function HomePage() {
       emptyLabel: t("reports.emptyState"),
       copyLabel: t("report.copy"),
       copiedLabel: t("report.copied"),
+      untitledLabel: t("reports.untitled"),
     }),
     [reportHistory, currentReportId, copiedReportId, handleCopyReportCard, t]
   );
