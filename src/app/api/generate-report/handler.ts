@@ -5,8 +5,11 @@ import { createAIClient } from "../clients/aiClient";
 import { createSupabaseClient } from "../clients/supabaseClient";
 import { mapErrorToResponse } from "../lib/errorHandler";
 import { getAIConfig } from "../lib/config";
+import { getAppLimits } from "../lib/limits";
 import { createReportRepository } from "../repositories/reportRepository";
+import { createSubscriptionRepository } from "../repositories/subscriptionRepository";
 import { createTemplateRepository } from "../repositories/templateRepository";
+import { createUserMonthlyUsageRepository } from "../repositories/userMonthlyUsageRepository";
 import { validateGenerateReportRequest } from "../lib/validation";
 import { createPromptBuilder } from "../services/promptBuilder";
 import { createPromptModeDetector } from "../services/promptModeDetector";
@@ -29,6 +32,14 @@ const modelUsed = aiConfig.model;
 const supabaseClient = createSupabaseClient({
   url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+});
+
+const subscriptionRepository = createSubscriptionRepository({
+  supabaseClient: supabaseClient.getClient(),
+});
+
+const userMonthlyUsageRepository = createUserMonthlyUsageRepository({
+  supabaseClient: supabaseClient.getClient(),
 });
 
 const reportRepository = createReportRepository({
@@ -64,6 +75,22 @@ export const generateReportHandler = async (request: NextRequest) => {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const subscription = await subscriptionRepository.getLatestByUserId(userId);
+    const isPaidUser = subscription?.status === "active";
+    if (!isPaidUser) {
+      const limits = getAppLimits();
+      const usage = await userMonthlyUsageRepository.getOrCreate(userId);
+      if (usage.report_count >= limits.free.monthly.reports) {
+        return NextResponse.json(
+          {
+            message: "Monthly report limit reached",
+            details: "REPORT_LIMIT_REACHED",
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     let payload: unknown;
     try {
       payload = await request.json();
@@ -77,6 +104,10 @@ export const generateReportHandler = async (request: NextRequest) => {
     }
 
     const report = await useCase.execute(validation.data, userId);
+
+    if (!isPaidUser) {
+      await userMonthlyUsageRepository.incrementReportCount(userId);
+    }
 
     return NextResponse.json(
       {
