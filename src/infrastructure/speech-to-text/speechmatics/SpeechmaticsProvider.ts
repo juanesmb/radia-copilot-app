@@ -27,7 +27,7 @@ const getDictatedPunctuationReplacements = (
 
   // English
   return [
-    { from: '/^(comma|Comma)$/', to: ',' },
+    { from: '/^([cC]omma|[cC]oma)$/', to: ',' },
     { from: '/^(period|Period)$/', to: '.' },
     { from: '/^(full stop|Full stop)$/', to: '.' },
     { from: '/^(colon|Colon)$/', to: ':' }
@@ -420,7 +420,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
         const rms = Math.sqrt(sumSquares / Math.max(1, buffer.length));
 
         const SILENCE_RMS_THRESHOLD = 0.008;
-        const SILENCE_STOP_AFTER_MS = 3000;
+        const SILENCE_STOP_AFTER_MS = 12500;
 
         if (rms < SILENCE_RMS_THRESHOLD) {
           if (this.silenceStartMs === null) {
