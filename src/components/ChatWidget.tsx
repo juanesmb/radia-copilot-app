@@ -617,6 +617,7 @@ export function ChatWidget() {
         }
 
         let finalAssistantText = "";
+        let finalAssistantTokens: number | null = null;
         streamingTextRef.current = "";
         streamingQueueRef.current = [];
 
@@ -646,10 +647,20 @@ export function ChatWidget() {
                 break;
               }
               try {
-                const parsed = JSON.parse(payload) as { text?: string };
+                const parsed = JSON.parse(payload) as {
+                  text?: string;
+                  usage?: { totalTokens?: number };
+                };
                 if (parsed.text) {
                   finalAssistantText += parsed.text;
                   enqueueStreamingText(parsed.text);
+                }
+                if (
+                  parsed.usage &&
+                  typeof parsed.usage.totalTokens === "number" &&
+                  Number.isFinite(parsed.usage.totalTokens)
+                ) {
+                  finalAssistantTokens = parsed.usage.totalTokens;
                 }
               } catch {
                 // ignore malformed chunks
@@ -678,6 +689,7 @@ export function ChatWidget() {
             await createChatMessage(sessionId, {
               role: "assistant",
               content: finalAssistantText,
+              token_count: finalAssistantTokens ?? undefined,
             });
           } catch (error) {
             console.error("[ChatWidget] Failed to save assistant message", error);
