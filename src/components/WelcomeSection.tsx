@@ -10,9 +10,10 @@ import { useUserGreeting } from "@/hooks/useUserGreeting";
 interface WelcomeSectionProps {
   onGenerateReport: () => void;
   onToggleChat: () => void;
+  showGreeting?: boolean;
 }
 
-export function WelcomeSection({ onGenerateReport, onToggleChat }: WelcomeSectionProps) {
+export function WelcomeSection({ onGenerateReport, onToggleChat, showGreeting = true }: WelcomeSectionProps) {
   const { t } = useLanguage();
   const { firstName, isLoading } = useUserGreeting();
 
@@ -36,10 +37,12 @@ export function WelcomeSection({ onGenerateReport, onToggleChat }: WelcomeSectio
   );
 
   return (
-    <div className="rounded-2xl border-2 border-dashed border-border p-8 bg-muted/10 mx-4">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-semibold text-foreground">{greetingText}</h2>
-      </div>
+    <div className="rounded-2xl border-2 border-dashed border-border p-8 bg-muted/10 mx-4 mt-4">
+      {showGreeting && (
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-semibold text-foreground">{greetingText}</h2>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* First Column: Report Generation */}

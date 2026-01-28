@@ -13,14 +13,16 @@ import { SidebarMenu, type SidebarView } from "@/components/SidebarMenu";
 import { RecordingInterface } from "@/components/RecordingInterface";
 import { ReportFeedback } from "@/components/ReportFeedback";
 import { WelcomeSection } from "@/components/WelcomeSection";
-import { ReportsEmptyState } from "@/components/ReportsEmptyState";
+import { ContentHeader } from "@/components/ContentHeader";
 import { MainContentLayout } from "@/components/MainContentLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
+import { useUserGreeting } from "@/hooks/useUserGreeting";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
 import {
+  createDraftReport,
   createReportChatSession,
   generateReportStream,
   getChatSessions,
@@ -64,7 +66,6 @@ export default function HomePage() {
   } = useSpeechToText(sttProvider);
 
   const [reportHistory, setReportHistory] = useState<ReportHistoryItem[]>([]);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
   const [reportChatSessions, setReportChatSessions] = useState<Record<string, string>>({});
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
@@ -111,6 +112,11 @@ export default function HomePage() {
   
   const prevSttStateRef = useRef<typeof sttState>(sttState);
   const lastStudyTypeDetectionTextRef = useRef<string>("");
+  const isCreatingDraftRef = useRef(false);
+  const inFlightCreateRef = useRef<Promise<string> | null>(null);
+  const pendingTitleRef = useRef<string | null>(null);
+  const lastSavedTranscriptionRef = useRef<string>("");
+  const pendingReportIdRef = useRef<string | null>(null);
 
   const getTemplateLabel = useCallback(
     (templateId: string) => {
@@ -119,50 +125,6 @@ export default function HomePage() {
     },
     [t]
   );
-
-  const runStudyTypeDetection = useCallback((textToDetect: string) => {
-    const normalizedText = textToDetect.trim();
-
-    if (!normalizedText || isDetectingStudyType) {
-      return;
-    }
-
-    if (lastStudyTypeDetectionTextRef.current === normalizedText) {
-      return;
-    }
-
-    lastStudyTypeDetectionTextRef.current = normalizedText;
-
-    setIsDetectingStudyType(true);
-
-    detectStudyType({
-      transcription: normalizedText,
-      language,
-    })
-      .then((result) => {
-        setDetectedStudyType(result.studyType);
-        setSelectedStudyType(result.studyType);
-        setAvailableStudyTypes(
-          result.availableTemplates.map((templateId: string) => ({
-            value: templateId,
-            label: getTemplateLabel(templateId),
-          }))
-        );
-      })
-      .catch((error) => {
-        const message = (error as ApiError)?.message ?? t("errors.requestFailed");
-        console.error('[StudyType] Detection failed:', error);
-        toast({
-          title: t("errors.generic"),
-          description: message,
-          variant: "destructive",
-        });
-        lastStudyTypeDetectionTextRef.current = "";
-      })
-      .finally(() => {
-        setIsDetectingStudyType(false);
-      });
-  }, [detectedStudyType, isDetectingStudyType, language, t]);
 
   useEffect(() => {
     if (!isSubscriptionModalOpen && !isSubscriptionManagementModalOpen) {
@@ -304,22 +266,53 @@ export default function HomePage() {
     setTranscription(transcript);
   }, [transcript]);
 
-  // Auto-detect study type when recording stops
-  useEffect(() => {
-    const prevState = prevSttStateRef.current;
-    const currentState = sttState;
-    prevSttStateRef.current = currentState;
-
-    const justStopped = (prevState === 'recording' || prevState === 'stopping') && currentState === 'idle';
-    
-    if (!justStopped) {
-      return;
+  const ensureDraftReport = useCallback(async (): Promise<string | null> => {
+    if (currentReportId) {
+      return currentReportId;
     }
 
-    const textToDetect = transcription.trim() || transcript.trim();
-    
-    runStudyTypeDetection(textToDetect);
-  }, [sttState, transcript, transcription, runStudyTypeDetection]);
+    if (pendingReportIdRef.current) {
+      return pendingReportIdRef.current;
+    }
+
+    if (inFlightCreateRef.current) {
+      return inFlightCreateRef.current;
+    }
+
+    const createPromise = (async () => {
+      try {
+        isCreatingDraftRef.current = true;
+        const created = await createDraftReport({
+          report_title: currentReportTitle || null,
+          language,
+        });
+        const reportId = created.report_id;
+        pendingReportIdRef.current = reportId;
+        setCurrentReportId(reportId);
+        setReportHistory((prev) => {
+          const mapped = mapReportToHistoryItem(created);
+          return [mapped, ...prev];
+        });
+        return reportId;
+      } finally {
+        isCreatingDraftRef.current = false;
+        inFlightCreateRef.current = null;
+      }
+    })();
+
+    inFlightCreateRef.current = createPromise;
+    return createPromise;
+  }, [currentReportId, currentReportTitle, language, setReportHistory]);
+
+  const { firstName, isLoading: isGreetingLoading } = useUserGreeting();
+
+  const greetingText = useMemo(() => {
+    const greeting = t("welcome.greeting");
+    if (isGreetingLoading || !firstName) {
+      return greeting;
+    }
+    return `${greeting} ${firstName}`;
+  }, [firstName, isGreetingLoading, t]);
 
   // Load available templates when entering recording state
   useEffect(() => {
@@ -350,6 +343,226 @@ export default function HomePage() {
     [t],
   );
 
+  const handleTitleChange = useCallback((value: string) => {
+    setCurrentReportTitle(value);
+  }, []);
+
+  const handleTitleCommit = useCallback(async (value: string) => {
+    const trimmed = value.trim();
+    setCurrentReportTitle(trimmed);
+
+    if (!trimmed) {
+      return;
+    }
+
+    if (isCreatingDraftRef.current) {
+      return;
+    }
+
+    if (currentReportId) {
+      try {
+        await updateReport(currentReportId, { report_title: trimmed || undefined });
+        setReportHistory((prev) =>
+          prev.map((report) =>
+            report.id === currentReportId ? { ...report, title: trimmed } : report,
+          ),
+        );
+      } catch (error) {
+        toast({
+          title: t("errors.generic"),
+          description: error instanceof Error ? error.message : undefined,
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    try {
+      isCreatingDraftRef.current = true;
+      const created = await createDraftReport({ report_title: trimmed || null, language });
+      setCurrentReportId(created.report_id);
+      setReportHistory((prev) => {
+        const mapped = mapReportToHistoryItem(created);
+        return [mapped, ...prev];
+      });
+    } catch (error) {
+      toast({
+        title: t("errors.generic"),
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      isCreatingDraftRef.current = false;
+    }
+  }, [currentReportId, language, setReportHistory, toast, t]);
+
+  const handleTitleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const target = event.target as HTMLInputElement;
+        handleTitleCommit(target.value);
+        target.blur();
+      }
+    },
+    [handleTitleCommit],
+  );
+
+  const handleStudyTypeChange = useCallback(
+    async (studyType: string) => {
+      try {
+        const reportId = await ensureDraftReport();
+        if (!reportId || !studyType) return;
+
+        const updated = await updateReport(reportId, {
+          used_template: studyType,
+          study_type: studyType,
+          template_content: null,
+        });
+
+        setReportHistory((prev) => {
+          const mapped = mapReportToHistoryItem(updated);
+          const existingIndex = prev.findIndex((r) => r.id === mapped.id);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = mapped;
+            return next;
+          }
+          return [mapped, ...prev];
+        });
+
+        setSelectedStudyType(studyType);
+        setDetectedStudyType(studyType);
+        setEditedTemplate("");
+        setIsTemplateCustom(false);
+      } catch (error) {
+        toast({
+          title: t("errors.generic"),
+          description: error instanceof Error ? error.message : undefined,
+          variant: "destructive",
+        });
+      } finally {
+        isCreatingDraftRef.current = false;
+      }
+    },
+    [ensureDraftReport, t, toast],
+  );
+
+  const handleTemplateSave = useCallback(
+    async (value: string, isCustom: boolean) => {
+      const trimmedValue = value.trim();
+      const effectiveStudyType = selectedStudyType || detectedStudyType || null;
+      let reportId = currentReportId;
+
+      try {
+        if (!reportId) {
+          if (isCreatingDraftRef.current) {
+            return;
+          }
+
+          isCreatingDraftRef.current = true;
+          const created = await createDraftReport({
+            report_title: currentReportTitle || null,
+            language,
+          });
+          reportId = created.report_id;
+          setCurrentReportId(reportId);
+          setReportHistory((prev) => {
+            const mapped = mapReportToHistoryItem(created);
+            return [mapped, ...prev];
+          });
+        }
+
+        if (!reportId) {
+          return;
+        }
+
+        // If user has edited and wants custom, force used_template = "custom" and freeze dropdown to custom
+        const usedTemplate = isCustom ? "custom" : (effectiveStudyType || "custom");
+        const nextSelectedStudy = isCustom ? "custom" : (effectiveStudyType || "");
+
+        const updated = await updateReport(reportId, {
+          template_content: trimmedValue,
+          used_template: usedTemplate,
+          study_type: isCustom ? (effectiveStudyType || null) : effectiveStudyType,
+        });
+
+        setReportHistory((prev) => {
+          const mapped = mapReportToHistoryItem(updated);
+          const existingIndex = prev.findIndex((r) => r.id === mapped.id);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = mapped;
+            return next;
+          }
+          return [mapped, ...prev];
+        });
+
+        setIsTemplateCustom(isCustom);
+        setEditedTemplate(trimmedValue);
+        if (isCustom) {
+          setSelectedStudyType("custom");
+          setDetectedStudyType(null);
+        } else if (effectiveStudyType) {
+          setSelectedStudyType(effectiveStudyType);
+          setDetectedStudyType(effectiveStudyType);
+        }
+      } catch (error) {
+        toast({
+          title: t("errors.generic"),
+          description: error instanceof Error ? error.message : undefined,
+          variant: "destructive",
+        });
+      } finally {
+        isCreatingDraftRef.current = false;
+      }
+    },
+    [currentReportId, currentReportTitle, detectedStudyType, language, selectedStudyType, t, toast],
+  );
+
+  const runStudyTypeDetection = useCallback((textToDetect: string) => {
+    const normalizedText = textToDetect.trim();
+
+    if (!normalizedText || isDetectingStudyType) {
+      return;
+    }
+
+    if (lastStudyTypeDetectionTextRef.current === normalizedText) {
+      return;
+    }
+
+    lastStudyTypeDetectionTextRef.current = normalizedText;
+
+    setIsDetectingStudyType(true);
+
+    detectStudyType({
+      transcription: normalizedText,
+      language,
+    })
+      .then(async (result) => {
+        setAvailableStudyTypes(
+          result.availableTemplates.map((templateId: string) => ({
+            value: templateId,
+            label: getTemplateLabel(templateId),
+          }))
+        );
+        await handleStudyTypeChange(result.studyType);
+      })
+      .catch((error) => {
+        const message = (error as ApiError)?.message ?? t("errors.requestFailed");
+        console.error('[StudyType] Detection failed:', error);
+        toast({
+          title: t("errors.generic"),
+          description: message,
+          variant: "destructive",
+        });
+        lastStudyTypeDetectionTextRef.current = "";
+      })
+      .finally(() => {
+        setIsDetectingStudyType(false);
+      });
+  }, [getTemplateLabel, handleStudyTypeChange, isDetectingStudyType, language, t]);
+
   const showWelcome = sidebarView === "home" && demoState === "main" && !currentReportId;
 
   const headerSubtitle = useMemo(() => {
@@ -364,7 +577,7 @@ export default function HomePage() {
           transcription={transcription}
           placeholder={t("recording.placeholder")}
           label={t("recording.label")}
-          uploadLabel={currentReportId ? t("recording.regenerate") : t("recording.upload")}
+          uploadLabel={generatedReport ? t("recording.regenerate") : t("recording.upload")}
           onChange={setTranscription}
           onUpload={handleStartUpload}
           disabled={isGenerating}
@@ -375,11 +588,7 @@ export default function HomePage() {
           detectedStudyType={detectedStudyType}
           availableStudyTypes={availableStudyTypes}
           selectedStudyType={selectedStudyType}
-          onStudyTypeChange={(studyType) => {
-            setSelectedStudyType(studyType);
-            setEditedTemplate(""); // Clear edited template when new study type is selected
-            setIsTemplateCustom(false); // Reset custom flag
-          }}
+          onStudyTypeChange={handleStudyTypeChange}
           onRunAutoDetect={() => {
             const normalizedText = (transcription.trim() || transcript.trim()).trim();
 
@@ -409,15 +618,11 @@ export default function HomePage() {
           onUpdateTranscription={handleTranscriptionUpdate}
           onUpdateReport={handleReportUpdate}
           onTemplateChange={setEditedTemplate}
+          onTemplateSave={handleTemplateSave}
           initialTemplateContent={(() => {
-            // Only use custom template content if:
-            // 1. There's a current report
-            // 2. The report has custom template content
-            // 3. The selected study type matches the report's used template
-            // Otherwise, let the hook fetch the template from the API
             const report = reportHistory.find((r) => r.id === currentReportId);
-            if (report?.templateContent && report.usedTemplate === (selectedStudyType || detectedStudyType)) {
-              return report.templateContent;
+            if (report?.usedTemplate === "custom") {
+              return report.templateContent ?? null;
             }
             return null;
           })()}
@@ -430,16 +635,16 @@ export default function HomePage() {
 
 
     if (showWelcome) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} />;
+      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
     }
 
-    return (
-      <ReportsEmptyState
-        message={t("reports.emptyState")}
-        onGenerateReport={handleGenerateReport}
-        generateLabel={t("reports.generate")}
-      />
-    );
+    // When in reports view but no report selected, show welcome section
+    if (sidebarView === "reports" && !currentReportId) {
+      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+    }
+
+    // Default: show welcome section
+    return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
   };
 
   useEffect(() => {
@@ -498,7 +703,8 @@ export default function HomePage() {
 
   const handleGenerateReport = useCallback(() => {
     setSidebarView("reports");
-    setIsReportsOpen(true);
+    setIsReportsOpen(false);
+    setIsMobileMenuOpen(false); // Close mobile menu if open
     setDemoState("recording");
     setDetectedStudyType(null);
     setSelectedStudyType("");
@@ -507,7 +713,6 @@ export default function HomePage() {
     setCurrentReportId(null);
     setCurrentReportTitle(null);
     setTranscription("");
-    setSelectedReportId(null);
     setIsGenerating(false);
     setEditedTemplate("");
     setIsTemplateCustom(false);
@@ -674,22 +879,45 @@ export default function HomePage() {
    * @throws {ApiError} Re-throws errors for the hook to handle
    */
   const handleTranscriptionUpdate = useCallback(async (value: string) => {
-    if (!currentReportId) {
-      // Silently skip if no report ID (no-op for auto-save)
-      return;
-    }
-    
-    await updateReport(currentReportId, { updated_transcription: value });
+    const reportId = await ensureDraftReport();
+    if (!reportId) return;
+
+    await updateReport(reportId, { updated_transcription: value });
+    lastSavedTranscriptionRef.current = value;
     
     // Update local state only after successful save
     setReportHistory((prev) =>
       prev.map((report) =>
-        report.id === currentReportId
+        report.id === reportId
           ? { ...report, transcription: value }
           : report
       )
     );
-  }, [currentReportId]);
+  }, [ensureDraftReport, setReportHistory]);
+
+  // Auto-detect study type (and persist findings) when recording stops
+  useEffect(() => {
+    const prevState = prevSttStateRef.current;
+    const currentState = sttState;
+    prevSttStateRef.current = currentState;
+
+    const justStopped = (prevState === 'recording' || prevState === 'stopping') && currentState === 'idle';
+    
+    if (!justStopped) {
+      return;
+    }
+
+    const textToDetect = transcription.trim() || transcript.trim();
+    // Persist the final dictated findings
+    const trimmedFindings = textToDetect.trim();
+    if (trimmedFindings && trimmedFindings !== lastSavedTranscriptionRef.current.trim()) {
+      handleTranscriptionUpdate(trimmedFindings).catch((error) => {
+        console.error("[STT] Failed to persist transcription", error);
+      });
+    }
+    
+    runStudyTypeDetection(textToDetect);
+  }, [sttState, transcript, transcription, runStudyTypeDetection, handleTranscriptionUpdate]);
 
   /**
    * Handles auto-save of report updates
@@ -752,6 +980,8 @@ export default function HomePage() {
     }
 
     const trimmed = transcription.trim();
+    const userProvidedTitle = currentReportTitle?.trim() || null;
+    pendingTitleRef.current = userProvidedTitle?.length ? userProvidedTitle : null;
 
     setIsGenerating(true);
     setGeneratedReport(""); // Clear previous report
@@ -781,7 +1011,7 @@ export default function HomePage() {
             setGeneratedReport(accumulatedReport);
 
             // Extract title from first line when we have content
-            if (!reportTitle && accumulatedReport.trim()) {
+            if (!reportTitle && !pendingTitleRef.current && accumulatedReport.trim()) {
               const lines = accumulatedReport.trim().split('\n');
               if (lines.length > 0) {
                 reportTitle = lines[0];
@@ -791,9 +1021,10 @@ export default function HomePage() {
           },
           onMetadata: (metadata) => {
             savedReportId = metadata.reportId;
-            reportTitle = metadata.title;
+            const pendingTitle = pendingTitleRef.current?.trim();
+            reportTitle = pendingTitle || metadata.title;
             setCurrentReportId(metadata.reportId);
-            setCurrentReportTitle(metadata.title);
+            setCurrentReportTitle(reportTitle);
 
             // Update report history - update existing report or add new one
             setReportHistory((prev) => {
@@ -801,9 +1032,10 @@ export default function HomePage() {
               const existingReport = existingIndex >= 0 ? prev[existingIndex] : null;
               const updatedReport: ReportHistoryItem = {
                 id: metadata.reportId,
-                title: metadata.title,
+                title: reportTitle,
                 report: accumulatedReport,
                 transcription: trimmed,
+          updatedTranscription: trimmed,
                 usedTemplate: metadata.selectedTemplate,
                 templateContent: isTemplateCustom ? editedTemplate || null : (existingReport?.templateContent ?? null),
                 createdAt: existingReport?.createdAt ?? new Date(),
@@ -823,6 +1055,14 @@ export default function HomePage() {
               }
             });
             setNewlyGeneratedReportIds((prev) => new Set(prev).add(metadata.reportId));
+
+            if (pendingTitle) {
+              updateReport(metadata.reportId, { report_title: pendingTitle }).catch((error) => {
+                console.error("[ReportTitle] Failed to persist pending title", error);
+              });
+            }
+
+            pendingTitleRef.current = null;
           },
           onComplete: async (reportId: string) => {
             savedReportId = reportId;
@@ -961,7 +1201,6 @@ export default function HomePage() {
   const handleSidebarHome = useCallback(() => {
     setSidebarView("home");
     setDemoState("main");
-    setSelectedReportId(null);
     setCurrentReportId(null);
     setCurrentReportTitle(null);
     setIsReportsOpen(false);
@@ -969,23 +1208,18 @@ export default function HomePage() {
 
   const handleSidebarReports = useCallback(() => {
     setSidebarView("reports");
-    setIsReportsOpen(true);
-    setSelectedReportId(null);
-    setDemoState("main");
+    setIsReportsOpen((prev) => !prev);
   }, []);
 
-  const shouldShowReportOnMobile = useMemo(() => {
-    if (!isReportsOpen) return false;
-    const isRecordingOrUploading = demoState === "recording" || demoState === "uploading";
-    return isRecordingOrUploading;
-  }, [isReportsOpen, demoState]);
+  const handleCloseReports = useCallback(() => {
+    setIsReportsOpen(false);
+  }, []);
 
   const reportsSubmenuProps = useMemo(
     () => ({
       reports: reportHistory,
       selectedReportId: currentReportId,
       copiedReportId,
-      reportChatSessions,
       onSelectReport: (id: string) => {
         const report = reportHistory.find((r) => r.id === id);
         if (report) {
@@ -993,44 +1227,34 @@ export default function HomePage() {
           setCurrentReportTitle(report.title);
           setTranscription(report.transcription);
           setGeneratedReport(report.report);
-          // Set the study type from the used template so the template loads
-          if (report.usedTemplate) {
-            setSelectedStudyType(report.usedTemplate);
-            setDetectedStudyType(report.usedTemplate);
-          }
-          // Set the custom template content if available
-          if (report.templateContent) {
-            setEditedTemplate(report.templateContent);
+          const effectiveStudyType = report.usedTemplate === "custom"
+            ? report.studyType || ""
+            : report.usedTemplate || report.studyType || "";
+
+          if (report.usedTemplate === "custom") {
+            setSelectedStudyType("custom");
+            setDetectedStudyType(report.studyType || "");
+            setEditedTemplate(report.templateContent || "");
             setIsTemplateCustom(true);
           } else {
+            setSelectedStudyType(effectiveStudyType);
+            setDetectedStudyType(effectiveStudyType);
             setEditedTemplate("");
             setIsTemplateCustom(false);
           }
-          setSelectedReportId(id);
           setDemoState("recording");
           setSidebarView("reports");
-          setIsReportsOpen(true);
+          setIsReportsOpen(false);
         }
       },
       onCopyReport: handleCopyReportCard,
-      onOpenReportChat: handleOpenReportChat,
-      onGenerateReport: handleGenerateReport,
-      generateLabel: t("reports.generate"),
       subtitleLabel: t("reports.title"),
       emptyLabel: t("reports.emptyState"),
       copyLabel: t("report.copy"),
       copiedLabel: t("report.copied"),
+      untitledLabel: t("reports.untitled"),
     }),
-    [
-      reportHistory,
-      currentReportId,
-      copiedReportId,
-      reportChatSessions,
-      handleOpenReportChat,
-      handleCopyReportCard,
-      handleGenerateReport,
-      t,
-    ]
+    [reportHistory, currentReportId, copiedReportId, handleCopyReportCard, t]
   );
 
   const renderSubscriptionModalContent = () => (
@@ -1352,16 +1576,44 @@ export default function HomePage() {
         </div>
       </div>
     );
-  };
+  }; // Added the missing semicolon here
 
-  const renderMainContent = () => (
-    <MainContentLayout
-      isReportsOpen={isReportsOpen}
-      leftPanel={<ReportsSubmenu {...reportsSubmenuProps} />}
-      rightPanel={renderContentPanel()}
-      showReportOnMobile={shouldShowReportOnMobile}
-    />
-  );
+  const reportsPanel = <ReportsSubmenu {...reportsSubmenuProps} />;
+
+  const renderMainContent = () => {
+    // On mobile, show reports panel in main content when reports are open
+    // On desktop, always show content panel (reports panel is in overlay)
+    const headerNode = (
+      <ContentHeader
+        mode={demoState === "recording" ? "recording" : "home"}
+        greeting={greetingText}
+        title={currentReportTitle ?? ""}
+        placeholder="Titulo del Informe"
+        copyDisabled={!currentReportId || !generatedReport}
+        onCopy={handleCopyReport}
+        onTitleChange={handleTitleChange}
+        onTitleCommit={handleTitleCommit}
+        onTitleKeyDown={handleTitleKeyDown}
+      />
+    );
+
+    const content = (
+      <div className="flex-1 min-h-0 flex flex-col">
+        {isReportsOpen ? (
+          <>
+            {/* Mobile: Show reports panel */}
+            <div className="lg:hidden flex-1 min-h-0">{reportsPanel}</div>
+            {/* Desktop: Show content panel */}
+            <div className="hidden lg:flex flex-1 min-h-0">{renderContentPanel()}</div>
+          </>
+        ) : (
+          renderContentPanel()
+        )}
+      </div>
+    );
+    
+    return <MainContentLayout header={headerNode} rightPanel={content} />;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -1393,7 +1645,7 @@ export default function HomePage() {
 
       {/* Mobile menu Sheet */}
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="w-auto max-w-none p-0 shadow-none border-none data-[state=open]:animate-in data-[state=closed]:animate-out [&>button]:hidden">
+        <SheetContent side="left" className="w-auto max-w-none p-0 shadow-none border-none h-screen data-[state=open]:animate-in data-[state=closed]:animate-out [&>button]:hidden">
           <SidebarMenu
             activeView={sidebarView}
             isReportsOpen={isReportsOpen}
@@ -1413,6 +1665,9 @@ export default function HomePage() {
               handleToggleChat();
               setIsMobileMenuOpen(false);
             }}
+            onGenerateReport={handleGenerateReport}
+            onCloseReports={handleCloseReports}
+            reportsPanel={reportsPanel}
             currentSubscription={currentSubscription}
             className="flex"
           />
@@ -1427,6 +1682,9 @@ export default function HomePage() {
           onToggleReports={handleSidebarReports}
           onSelectSubscriptions={handleSidebarSubscriptions}
           onToggleChat={handleToggleChat}
+          onGenerateReport={handleGenerateReport}
+          onCloseReports={handleCloseReports}
+          reportsPanel={reportsPanel}
           currentSubscription={currentSubscription}
         />
 

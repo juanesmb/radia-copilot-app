@@ -6,7 +6,9 @@ import type { ModelConfig, ModelInput } from "../types/model";
 
 export interface AIClient {
   generateReport(input: ModelInput): Promise<string>;
-  generateCompletion(messages: Array<{ role: "system" | "user"; content: string }>): Promise<string>;
+  generateCompletion(
+    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
+  ): Promise<string>;
   generateReportStream(input: ModelInput): AsyncGenerator<string>;
 }
 
@@ -76,11 +78,11 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
   const buildGenerateOptions = (
     completionModel: string,
     completionTemperature: number,
-    messages: Array<{ role: "system" | "user"; content: string }>
+    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
   ) => {
     const options: {
       model: ReturnType<typeof gateway>;
-      messages: Array<{ role: "system" | "user"; content: string }>;
+      messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
       temperature?: number;
       providerOptions?: { openai: { reasoningEffort: typeof reasoningEffort } };
     } = {
@@ -104,7 +106,7 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
   const handleCompletion = async (
     completionModel: string,
     completionTemperature: number,
-    completionMessages: Array<{ role: "system" | "user"; content: string }>
+    completionMessages: Array<{ role: "system" | "user" | "assistant"; content: string }>
   ): Promise<string> => {
     try {
       const options = buildGenerateOptions(completionModel, completionTemperature, completionMessages);
@@ -123,7 +125,7 @@ export const createAIClient = (config: ModelConfig = {}): AIClient => {
   const handleStreamingCompletion = async function* (
     completionModel: string,
     completionTemperature: number,
-    completionMessages: Array<{ role: "system" | "user"; content: string }>
+    completionMessages: Array<{ role: "system" | "user" | "assistant"; content: string }>
   ): AsyncGenerator<string> {
     try {
       const options = buildGenerateOptions(completionModel, completionTemperature, completionMessages);

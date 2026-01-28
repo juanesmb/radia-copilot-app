@@ -32,6 +32,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/.cursor/*
 
 # env files (ignore actual env files, but allow example files)
 .env

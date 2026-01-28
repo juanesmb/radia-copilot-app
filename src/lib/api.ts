@@ -88,6 +88,14 @@ export interface UpdateReportRequest {
   report_title?: string;
   updated_report?: string;
   updated_transcription?: string;
+  used_template?: string;
+  study_type?: string | null;
+  template_content?: string | null;
+}
+
+export interface CreateReportRequest {
+  report_title?: string | null;
+  language: string;
 }
 
 export async function getCurrentSubscription(): Promise<SubscriptionRecord | null> {
@@ -467,6 +475,38 @@ export async function updateReport(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Unexpected server error",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    const data = (await response.json()) as Report;
+    return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+export async function createDraftReport(payload: CreateReportRequest): Promise<Report> {
+  try {
+    const response = await fetch(REPORTS_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
