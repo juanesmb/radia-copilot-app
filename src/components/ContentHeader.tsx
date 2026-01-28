@@ -45,7 +45,7 @@ export function ContentHeader({
   feedbackVisible = false,
   feedbackLabel,
 }: ContentHeaderProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const copyLabel = language === "es" ? "Copiar" : "Copy";
   const copiedLabel = language === "es" ? "Copiado" : "Copied";
   const handleBlur = useCallback(
@@ -91,7 +91,7 @@ export function ContentHeader({
                   isChatOpen && "border-primary bg-primary/10 text-primary hover:bg-primary/20"
                 )}
                 onClick={onToggleChat}
-                aria-label={isChatOpen ? "Cerrar chat" : "Abrir chat"}
+                aria-label={isChatOpen ? t("chat.close") : t("chat.open")}
               >
                 <MessageCircle className="h-4 w-4" />
                 {showChatBadge && (
@@ -154,7 +154,7 @@ export function ContentHeader({
                   isChatOpen && "border-primary bg-primary/10 text-primary hover:bg-primary/20"
                 )}
                 onClick={onToggleChat}
-                aria-label={isChatOpen ? "Cerrar chat" : "Abrir chat"}
+                aria-label={isChatOpen ? t("chat.close") : t("chat.open")}
               >
                 <MessageCircle className="h-4 w-4" />
                 {showChatBadge && (
