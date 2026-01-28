@@ -1,0 +1,8 @@
+{
+  "free": {
+    "monthly": {
+      "reports": 20,
+      "chatTokens": 25000
+    }
+  }
+}

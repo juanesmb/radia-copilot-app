@@ -2,7 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createSupabaseClient } from "../clients/supabaseClient";
+import { getAppLimits } from "../lib/limits";
 import { mapErrorToResponse } from "../lib/errorHandler";
+import { createSubscriptionRepository } from "../repositories/subscriptionRepository";
+import { createUserMonthlyUsageRepository } from "../repositories/userMonthlyUsageRepository";
 import { createReportRepository } from "../repositories/reportRepository";
 import { createCreateReportUseCase, createGetReportsUseCase } from "./usecase";
 
@@ -12,6 +15,14 @@ const supabaseClient = createSupabaseClient({
 });
 
 const reportRepository = createReportRepository({
+  supabaseClient: supabaseClient.getClient(),
+});
+
+const subscriptionRepository = createSubscriptionRepository({
+  supabaseClient: supabaseClient.getClient(),
+});
+
+const userMonthlyUsageRepository = createUserMonthlyUsageRepository({
   supabaseClient: supabaseClient.getClient(),
 });
 
@@ -46,6 +57,22 @@ export const createReportHandler = async (request: NextRequest) => {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
+    const subscription = await subscriptionRepository.getLatestByUserId(userId);
+    const isPaidUser = subscription?.status === "active";
+    if (!isPaidUser) {
+      const limits = getAppLimits();
+      const usage = await userMonthlyUsageRepository.getOrCreate(userId);
+      if (usage.report_count >= limits.free.monthly.reports) {
+        return NextResponse.json(
+          {
+            message: "Monthly report limit reached",
+            details: "REPORT_LIMIT_REACHED",
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     let payload: unknown;
     try {
       payload = await request.json();
@@ -66,6 +93,10 @@ export const createReportHandler = async (request: NextRequest) => {
     }
 
     const report = await createUseCase.execute(userId, { report_title, language });
+
+    if (!isPaidUser) {
+      await userMonthlyUsageRepository.incrementReportCount(userId);
+    }
     return NextResponse.json(report, { status: 201 });
   } catch (error) {
     console.error("[createReportHandler] Error:", error);
@@ -73,4 +104,3 @@ export const createReportHandler = async (request: NextRequest) => {
     return NextResponse.json(mapped.body, { status: mapped.status });
   }
 };
-

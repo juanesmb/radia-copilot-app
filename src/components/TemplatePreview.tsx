@@ -17,13 +17,14 @@ interface StudyTypeOption {
 
 interface TemplatePreviewProps {
   content: string | null;
-  isLoading: boolean;
-  error: string | null;
-  studyType: string | null;
+  isLoading?: boolean;
+  error?: string | null;
+  studyType?: string | null;
   isDetectingStudyType?: boolean;
   onContentChange?: (value: string) => void;
   onContentBlur?: (value: string) => void;
   onRunAutoDetect?: () => void;
+  isReportLimitReached?: boolean;
   hasTranscriptionText?: boolean;
   availableStudyTypes?: StudyTypeOption[];
   selectedStudyType?: string;
@@ -32,20 +33,20 @@ interface TemplatePreviewProps {
   disabled?: boolean;
   isCustom?: boolean;
   onCustomStateReset?: () => void;
-  // Mobile fullscreen props
   isMobileFullscreen?: boolean;
   onMobileFullscreenToggle?: () => void;
 }
 
 export function TemplatePreview({
   content,
-  isLoading,
+  isLoading = false,
   error,
   studyType,
   isDetectingStudyType = false,
   onContentChange,
   onContentBlur,
   onRunAutoDetect,
+  isReportLimitReached = false,
   hasTranscriptionText = false,
   availableStudyTypes,
   selectedStudyType,
@@ -108,7 +109,7 @@ export function TemplatePreview({
                 onCustomStateReset?.();
               }
             }}
-            disabled={isActive || disabled || isDetectingStudyType}
+            disabled={isActive || disabled || isDetectingStudyType || isReportLimitReached}
             className="min-w-0 flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">{t("recording.studyTypePlaceholder")}</option>
@@ -124,8 +125,13 @@ export function TemplatePreview({
           <Button
             type="button"
             className="gap-2 text-sm h-10 px-3 sm:px-3 shrink-0 whitespace-nowrap"
-            onClick={onRunAutoDetect}
-            disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
+            onClick={() => {
+              if (isReportLimitReached) {
+                return;
+              }
+              onRunAutoDetect?.();
+            }}
+            disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType || isReportLimitReached}
           >
             <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" />
             <span className="hidden sm:inline">{t("template.autoDetect")}</span>

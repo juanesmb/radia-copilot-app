@@ -16,6 +16,7 @@ import { WelcomeSection } from "@/components/WelcomeSection";
 import { ContentHeader } from "@/components/ContentHeader";
 import { MainContentLayout } from "@/components/MainContentLayout";
 import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
@@ -78,6 +79,7 @@ export default function HomePage() {
   const [isSubscriptionManagementModalOpen, setIsSubscriptionManagementModalOpen] = useState(false);
   const [isCancelSubscriptionDialogOpen, setIsCancelSubscriptionDialogOpen] = useState(false);
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
+  const [isReportLimitReached, setIsReportLimitReached] = useState(false);
   const [shouldShowSubscriptionSuccessToast, setShouldShowSubscriptionSuccessToast] = useState(false);
   const [billingCountry, setBillingCountry] = useState<BillingCountry>("CO");
   const [billingCurrency, setBillingCurrency] = useState<BillingCurrency>("COP");
@@ -113,7 +115,7 @@ export default function HomePage() {
   const prevSttStateRef = useRef<typeof sttState>(sttState);
   const lastStudyTypeDetectionTextRef = useRef<string>("");
   const isCreatingDraftRef = useRef(false);
-  const inFlightCreateRef = useRef<Promise<string> | null>(null);
+  const inFlightCreateRef = useRef<Promise<string | null> | null>(null);
   const pendingTitleRef = useRef<string | null>(null);
   const lastSavedTranscriptionRef = useRef<string>("");
   const pendingReportIdRef = useRef<string | null>(null);
@@ -266,7 +268,273 @@ export default function HomePage() {
     setTranscription(transcript);
   }, [transcript]);
 
+  const reportLimitToastShownRef = useRef(false);
+  const lastReportUsageRef = useRef<
+    { used: number; limit: number; remaining: number; stage: string } | null
+  >(null);
+
+  const readSessionFlag = useCallback((key: string) => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.sessionStorage.getItem(key) === "1";
+    } catch {
+      try {
+        return window.localStorage.getItem(key) === "1";
+      } catch {
+        return false;
+      }
+    }
+  }, []);
+
+  const writeSessionFlag = useCallback((key: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(key, "1");
+    } catch {
+      try {
+        window.localStorage.setItem(key, "1");
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  const handleReportLimitReached = useCallback(() => {
+    setIsReportLimitReached(true);
+    toast({
+      title: t("errors.generic"),
+      description:
+        language === "es"
+          ? "Alcanzaste el límite mensual de informes gratuitos. Para generar más informes, actualiza al plan Pro."
+          : "You reached the monthly free report limit. To generate more reports, upgrade to the Pro plan.",
+      variant: "destructive",
+      action: (
+        <ToastAction
+          altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+          className="ml-3 shrink-0 whitespace-nowrap border-0 bg-destructive px-4 text-white hover:bg-destructive/90 hover:text-white"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("open-subscriptions"));
+          }}
+        >
+          {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+        </ToastAction>
+      ),
+    });
+  }, [language, t, toast]);
+
+  const showReportUsageToast = useCallback(
+    (payload: { used: number; limit: number; remaining: number; stage: string }) => {
+      const { used, limit, remaining, stage } = payload;
+
+      const sessionKey = `warn_reports_${stage}`;
+      if (readSessionFlag(sessionKey)) {
+        return;
+      }
+      writeSessionFlag(sessionKey);
+
+      if (stage === "reached") {
+        handleReportLimitReached();
+        return;
+      }
+
+      if (stage === "one_left") {
+        toast({
+          title: language === "es" ? "Te queda 1 informe gratis" : "1 free report left",
+          description:
+            language === "es"
+              ? "Te queda 1 informe gratuito este mes. Actualiza a Pro para reportes ilimitados."
+              : "You have 1 free report left this month. Upgrade to Pro for unlimited reports.",
+          action: (
+            <ToastAction
+              altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+              className="ml-3 shrink-0 whitespace-nowrap border-0 bg-primary px-4 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-subscriptions"));
+              }}
+            >
+              {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+            </ToastAction>
+          ),
+        });
+        return;
+      }
+
+      if (stage === "half") {
+        toast({
+          title: language === "es" ? "Aviso de uso" : "Usage warning",
+          description:
+            language === "es"
+              ? `Has usado ${used} de ${limit} informes gratuitos este mes.`
+              : `You have used ${used} of ${limit} free reports this month.`,
+          action: (
+            <ToastAction
+              altText={language === "es" ? "Ver planes" : "View plans"}
+              className="ml-3 shrink-0 whitespace-nowrap border-0 bg-primary px-4 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-subscriptions"));
+              }}
+            >
+              {language === "es" ? "Ver planes" : "View plans"}
+            </ToastAction>
+          ),
+        });
+        return;
+      }
+
+      if (remaining <= 0) {
+        handleReportLimitReached();
+      }
+    },
+    [handleReportLimitReached, language, readSessionFlag, toast, writeSessionFlag]
+  );
+
+  const prevDemoStateRef = useRef<DemoState>(demoState);
+
+  useEffect(() => {
+    const prev = prevDemoStateRef.current;
+    prevDemoStateRef.current = demoState;
+
+    if (demoState !== "recording") {
+      reportLimitToastShownRef.current = false;
+      return;
+    }
+
+    const enteredRecording = prev !== "recording" && demoState === "recording";
+    if (!enteredRecording) {
+      return;
+    }
+
+    const checkUsage = async () => {
+      try {
+        const response = await fetch("/api/usage/monthly", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          isPaidUser: boolean;
+          reports?: {
+            used: number;
+            limit: number;
+            remaining: number;
+            stage: string;
+          };
+        };
+
+        if (data.isPaidUser || !data.reports) {
+          setIsReportLimitReached(false);
+          return;
+        }
+
+        const reached = data.reports.stage === "reached" || data.reports.remaining <= 0;
+        setIsReportLimitReached(reached);
+
+        lastReportUsageRef.current = data.reports;
+
+        if (!reportLimitToastShownRef.current) {
+          reportLimitToastShownRef.current = true;
+          showReportUsageToast(data.reports);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    void checkUsage();
+  }, [demoState, handleReportLimitReached, showReportUsageToast]);
+
+  const checkReportUsageAfterGeneration = useCallback(
+    async (
+      previousUsage?: { used: number; limit: number; remaining: number; stage: string } | null
+    ) => {
+    try {
+      const response = await fetch("/api/usage/monthly", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = (await response.json()) as {
+        isPaidUser: boolean;
+        reports?: {
+          used: number;
+          limit: number;
+          remaining: number;
+          stage: string;
+        };
+      };
+
+      if (data.isPaidUser || !data.reports) {
+        return;
+      }
+
+      const reached = data.reports.stage === "reached" || data.reports.remaining <= 0;
+      setIsReportLimitReached(reached);
+
+      const prevRemaining = previousUsage?.remaining;
+      const justConsumedLastFreeReport =
+        reached && typeof prevRemaining === "number" && prevRemaining === 1;
+
+      lastReportUsageRef.current = data.reports;
+
+      if (justConsumedLastFreeReport) {
+        const sessionKey = "warn_reports_final_generated";
+        if (!readSessionFlag(sessionKey)) {
+          writeSessionFlag(sessionKey);
+          toast({
+            title:
+              language === "es"
+                ? "Ya no te quedan informes gratis"
+                : "No free reports left",
+            description:
+              language === "es"
+                ? "El informe que acabas de generar fue el último gratuito de este mes. Actualiza a Pro para seguir generando informes."
+                : "The report you just generated was your last free report this month. Upgrade to Pro to keep generating reports.",
+            variant: "destructive",
+            action: (
+              <ToastAction
+                altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                className="ml-3 shrink-0 whitespace-nowrap border-0 bg-destructive px-4 text-white hover:bg-destructive/90 hover:text-white"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                }}
+              >
+                {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+              </ToastAction>
+            ),
+          });
+        }
+        return;
+      }
+
+      showReportUsageToast(data.reports);
+    } catch {
+      // ignore
+    }
+    },
+    [language, readSessionFlag, showReportUsageToast, toast, writeSessionFlag]
+  );
+
+  const isReportLimitError = useCallback((error: unknown) => {
+    const apiError = error as ApiError | undefined;
+    return apiError?.status === 402 && apiError?.details === "REPORT_LIMIT_REACHED";
+  }, []);
+
   const ensureDraftReport = useCallback(async (): Promise<string | null> => {
+    if (isReportLimitReached) {
+      return null;
+    }
     if (currentReportId) {
       return currentReportId;
     }
@@ -294,6 +562,12 @@ export default function HomePage() {
           return [mapped, ...prev];
         });
         return reportId;
+      } catch (error) {
+        if (isReportLimitError(error)) {
+          handleReportLimitReached();
+          return null;
+        }
+        throw error;
       } finally {
         isCreatingDraftRef.current = false;
         inFlightCreateRef.current = null;
@@ -302,7 +576,7 @@ export default function HomePage() {
 
     inFlightCreateRef.current = createPromise;
     return createPromise;
-  }, [currentReportId, currentReportTitle, language, setReportHistory]);
+  }, [currentReportId, currentReportTitle, handleReportLimitReached, isReportLimitError, isReportLimitReached, language, setReportHistory]);
 
   const { firstName, isLoading: isGreetingLoading } = useUserGreeting();
 
@@ -386,6 +660,10 @@ export default function HomePage() {
         return [mapped, ...prev];
       });
     } catch (error) {
+      if (isReportLimitError(error)) {
+        handleReportLimitReached();
+        return;
+      }
       toast({
         title: t("errors.generic"),
         description: error instanceof Error ? error.message : undefined,
@@ -394,7 +672,7 @@ export default function HomePage() {
     } finally {
       isCreatingDraftRef.current = false;
     }
-  }, [currentReportId, language, setReportHistory, toast, t]);
+  }, [currentReportId, handleReportLimitReached, isReportLimitError, language, setReportHistory, toast, t]);
 
   const handleTitleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -580,6 +858,7 @@ export default function HomePage() {
           uploadLabel={generatedReport ? t("recording.regenerate") : t("recording.upload")}
           onChange={setTranscription}
           onUpload={handleStartUpload}
+          isReportLimitReached={isReportLimitReached}
           disabled={isGenerating}
           sttState={sttState}
           onStartRecording={handleStartRecording}
@@ -590,6 +869,10 @@ export default function HomePage() {
           selectedStudyType={selectedStudyType}
           onStudyTypeChange={handleStudyTypeChange}
           onRunAutoDetect={() => {
+            if (isReportLimitReached) {
+              handleReportLimitReached();
+              return;
+            }
             const normalizedText = (transcription.trim() || transcript.trim()).trim();
 
             if (!normalizedText) {
@@ -635,16 +918,34 @@ export default function HomePage() {
 
 
     if (showWelcome) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+      return (
+        <WelcomeSection
+          onGenerateReport={handleGenerateReport}
+          onToggleChat={handleToggleChat}
+          showGreeting={false}
+        />
+      );
     }
 
     // When in reports view but no report selected, show welcome section
     if (sidebarView === "reports" && !currentReportId) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+      return (
+        <WelcomeSection
+          onGenerateReport={handleGenerateReport}
+          onToggleChat={handleToggleChat}
+          showGreeting={false}
+        />
+      );
     }
 
     // Default: show welcome section
-    return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+    return (
+      <WelcomeSection
+        onGenerateReport={handleGenerateReport}
+        onToggleChat={handleToggleChat}
+        showGreeting={false}
+      />
+    );
   };
 
   useEffect(() => {
@@ -802,6 +1103,21 @@ export default function HomePage() {
 
     void open();
   }, [t, toast]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handler = () => {
+      handleSidebarSubscriptions();
+    };
+
+    window.addEventListener("open-subscriptions", handler);
+    return () => {
+      window.removeEventListener("open-subscriptions", handler);
+    };
+  }, [handleSidebarSubscriptions]);
 
   const dateTimeFormatter = useMemo(() => {
     return new Intl.DateTimeFormat(language === "es" ? "es-CO" : "en-US", {
@@ -971,6 +1287,10 @@ export default function HomePage() {
   }, [currentReportId, currentReportTitle, generatedReport, reportHistory, t, toast]);
 
   const handleStartUpload = async () => {
+    if (isReportLimitReached) {
+      handleReportLimitReached();
+      return;
+    }
     if (!selectedStudyType && !detectedStudyType && !isTemplateCustom) {
       toast({
         title: t("errors.validation.templateRequired"),
@@ -1069,6 +1389,9 @@ export default function HomePage() {
             setIsGenerating(false);
             toast({ title: t("app.generatedToast") });
 
+            const previousReportUsage = lastReportUsageRef.current;
+            await checkReportUsageAfterGeneration(previousReportUsage);
+
             if (reportTitle) {
               const existingSessionId = reportChatSessions[reportId];
               if (existingSessionId) {
@@ -1111,6 +1434,12 @@ export default function HomePage() {
         }
       );
     } catch (error) {
+      if (isReportLimitError(error)) {
+        handleReportLimitReached();
+        setIsGenerating(false);
+        setGeneratedReport(null);
+        return;
+      }
       const message = (error as ApiError)?.message ?? t("errors.requestFailed");
       setIsGenerating(false);
       setGeneratedReport(null);

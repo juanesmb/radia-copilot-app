@@ -13,7 +13,11 @@ interface WelcomeSectionProps {
   showGreeting?: boolean;
 }
 
-export function WelcomeSection({ onGenerateReport, onToggleChat, showGreeting = true }: WelcomeSectionProps) {
+export function WelcomeSection({
+  onGenerateReport,
+  onToggleChat,
+  showGreeting = true,
+}: WelcomeSectionProps) {
   const { t } = useLanguage();
   const { firstName, isLoading } = useUserGreeting();
 

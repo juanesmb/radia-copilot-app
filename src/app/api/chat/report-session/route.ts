@@ -5,9 +5,13 @@ import { z } from "zod";
 import { createAIClient } from "../../clients/aiClient";
 import { createSupabaseClient } from "../../clients/supabaseClient";
 import { getAIConfig } from "../../lib/config";
+import { getAppLimits } from "../../lib/limits";
 import { mapErrorToResponse } from "../../lib/errorHandler";
+import { estimateTokenCount } from "../../lib/tokenEstimate";
 import { createChatRepository } from "../../repositories/chatRepository";
 import { createReportRepository } from "../../repositories/reportRepository";
+import { createSubscriptionRepository } from "../../repositories/subscriptionRepository";
+import { createUserMonthlyUsageRepository } from "../../repositories/userMonthlyUsageRepository";
 import { getChatReportContextPrompt, getChatSystemPrompt } from "../../lib/prompts";
 import type { Language } from "../../types/language";
 
@@ -38,6 +42,30 @@ export async function POST(request: NextRequest) {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
       serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
     });
+
+    const limits = getAppLimits();
+    const subscriptionRepository = createSubscriptionRepository({
+      supabaseClient: supabaseClient.getClient(),
+    });
+    const userMonthlyUsageRepository = createUserMonthlyUsageRepository({
+      supabaseClient: supabaseClient.getClient(),
+    });
+
+    const subscription = await subscriptionRepository.getLatestByUserId(userId);
+    const isPaidUser = subscription?.status === "active";
+    if (!isPaidUser) {
+      const usage = await userMonthlyUsageRepository.getOrCreate(userId);
+      if (usage.chat_token_count >= limits.free.monthly.chatTokens) {
+        return NextResponse.json(
+          {
+            message: "Monthly chat token limit reached",
+            details: "CHAT_TOKEN_LIMIT_REACHED",
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     const chatRepository = createChatRepository({
       supabaseClient: supabaseClient.getClient(),
     });
@@ -71,6 +99,13 @@ export async function POST(request: NextRequest) {
       { role: "system", content: systemPrompt },
       { role: "user", content: `${contextPrompt}\n\n${userPrompt}` },
     ]);
+
+    if (!isPaidUser) {
+      const promptText = [systemPrompt, contextPrompt, userPrompt].join("\n");
+      const estimatedTokens =
+        estimateTokenCount(promptText) + estimateTokenCount(response);
+      await userMonthlyUsageRepository.addChatTokens(userId, estimatedTokens);
+    }
 
     await chatRepository.createMessage(userId, {
       session_id: session.id,

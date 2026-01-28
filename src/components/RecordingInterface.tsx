@@ -32,6 +32,7 @@ interface RecordingInterfaceProps {
   onChange: (value: string) => void;
   onUpload: () => void;
   disabled?: boolean;
+  isReportLimitReached?: boolean;
   // Speech-to-text props
   sttState: STTState;
   onStartRecording: () => void;
@@ -79,6 +80,7 @@ export function RecordingInterface({
   onChange,
   onUpload,
   disabled,
+  isReportLimitReached = false,
   sttState,
   onStartRecording,
   onStopRecording,
@@ -287,6 +289,9 @@ export function RecordingInterface({
   const HISTORY_DEBOUNCE_MS = 10;
 
   const handleMicClick = async () => {
+    if (isReportLimitReached) {
+      return;
+    }
     if (isProcessingRef.current) {
       return;
     }
@@ -497,7 +502,7 @@ export function RecordingInterface({
                     <button
                     type="button"
                     onClick={handleMicClick}
-                    disabled={disabled || isConnecting || isStopping}
+                    disabled={disabled || isConnecting || isStopping || isReportLimitReached}
                     className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
                       isRecording
                         ? 'bg-red-500 hover:bg-red-600 text-white'
@@ -561,6 +566,7 @@ export function RecordingInterface({
               selectedStudyType={selectedStudyType || detectedStudyType || ''}
               onStudyTypeChange={onStudyTypeChange}
               onRunAutoDetect={onRunAutoDetect}
+              isReportLimitReached={isReportLimitReached}
               hasTranscriptionText={hasTranscriptionText}
               isActive={isActive}
               disabled={disabled}
@@ -619,20 +625,38 @@ export function RecordingInterface({
                     </Button>
                   )}
                   {hasAvailableStudyTypes && (
-                    <Button
-                      type="button"
-                      className="gap-2 text-base h-10 px-3 sm:px-6 shrink-0"
-                      onClick={onUpload}
-                      disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
-                    >
-                      <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />
-                      <span className="hidden sm:inline">{uploadLabel}</span>
-                      <span className="sm:hidden">
-                        {uploadLabel === t("recording.regenerate")
-                          ? t("recording.regenerateMobile")
-                          : language === "es" ? "Generar" : "Generate"}
-                      </span>
-                    </Button>
+                    isReportLimitReached ? (
+                      <Button
+                        type="button"
+                        className="gap-2 text-base h-10 px-3 sm:px-6 shrink-0 whitespace-nowrap"
+                        onClick={() => {
+                          window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                        }}
+                      >
+                        <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />
+                        <span className="hidden sm:inline">
+                          {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                        </span>
+                        <span className="sm:hidden">
+                          {language === "es" ? "Pro" : "Pro"}
+                        </span>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        className="gap-2 text-base h-10 px-3 sm:px-6 shrink-0"
+                        onClick={onUpload}
+                        disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
+                      >
+                        <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />
+                        <span className="hidden sm:inline">{uploadLabel}</span>
+                        <span className="sm:hidden">
+                          {uploadLabel === t("recording.regenerate")
+                            ? t("recording.regenerateMobile")
+                            : language === "es" ? "Generar" : "Generate"}
+                        </span>
+                      </Button>
+                    )
                   )}
                 </div>
               </div>

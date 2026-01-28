@@ -79,12 +79,15 @@ import {
   type Report,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { ToastAction } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MessageType {
   key: string;
   from: "user" | "assistant";
   content: string;
+  cta?: "upgrade";
   sources?: { href: string; title: string }[];
   reasoning?: {
     content: string;
@@ -159,6 +162,7 @@ const PromptInputAttachmentsDisplay = () => {
 
 export function ChatWidget() {
   const { t, language } = useLanguage();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState(DEFAULT_PANEL_POSITION);
   const [bubblePosition, setBubblePosition] = useState(DEFAULT_BUBBLE_POSITION);
@@ -299,6 +303,122 @@ export function ChatWidget() {
       return;
     }
 
+    const readSessionFlag = (key: string) => {
+      try {
+        return window.sessionStorage.getItem(key) === "1";
+      } catch {
+        try {
+          return window.localStorage.getItem(key) === "1";
+        } catch {
+          return false;
+        }
+      }
+    };
+
+    const writeSessionFlag = (key: string) => {
+      try {
+        window.sessionStorage.setItem(key, "1");
+      } catch {
+        try {
+          window.localStorage.setItem(key, "1");
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    let cancelled = false;
+
+    const warnUsage = async () => {
+      try {
+        const response = await fetch("/api/usage/monthly", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as {
+          isPaidUser: boolean;
+          chatTokens?: { used: number; limit: number; remaining: number; stage: string };
+        };
+
+        if (cancelled || data.isPaidUser || !data.chatTokens) {
+          return;
+        }
+
+        const stage = data.chatTokens.stage;
+
+        const sessionKey = `warn_chatTokens_${stage}`;
+        if (readSessionFlag(sessionKey)) {
+          return;
+        }
+        writeSessionFlag(sessionKey);
+
+        if (stage === "reached") {
+          toast({
+            title:
+              language === "es"
+                ? "Tokens gratuitos agotados"
+                : "Monthly free tokens used",
+            description:
+              language === "es"
+                ? "Se te acabaron los tokens gratuitos de este mes. Actualiza al plan Pro para seguir usando el chat."
+                : "You have used all your monthly free tokens. Upgrade to Pro to keep using the chat.",
+            variant: "destructive",
+            action: (
+              <ToastAction
+                altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                className="ml-3 shrink-0 whitespace-nowrap border-0 bg-destructive px-4 text-white hover:bg-destructive/90 hover:text-white"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                }}
+              >
+                {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+              </ToastAction>
+            ),
+          });
+          return;
+        }
+
+        if (stage === "low") {
+          toast({
+            title: language === "es" ? "Te quedan pocos tokens" : "Low tokens",
+            description:
+              language === "es"
+                ? `Te quedan aproximadamente ${data.chatTokens.remaining} tokens este mes.`
+                : `You have about ${data.chatTokens.remaining} tokens left this month.`,
+            action: (
+              <ToastAction
+                altText={language === "es" ? "Ver planes" : "View plans"}
+                className="ml-3 shrink-0 whitespace-nowrap border-0 bg-primary px-4 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                }}
+              >
+                {language === "es" ? "Ver planes" : "View plans"}
+              </ToastAction>
+            ),
+          });
+          return;
+        }
+
+        if (stage === "half") {
+          toast({
+            title: language === "es" ? "Aviso de uso" : "Usage warning",
+            description:
+              language === "es"
+                ? `Has usado ${data.chatTokens.used} de ${data.chatTokens.limit} tokens gratuitos este mes.`
+                : `You have used ${data.chatTokens.used} of ${data.chatTokens.limit} free tokens this month.`,
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     const loadSessions = async () => {
       setLoadingSessions(true);
       try {
@@ -329,7 +449,11 @@ export function ChatWidget() {
       }
     };
 
+    void warnUsage();
     void loadSessions();
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -613,7 +737,29 @@ export function ChatWidget() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch response");
+          const errorBody = (await response
+            .json()
+            .catch(() => null)) as { message?: string; details?: string } | null;
+          const details = errorBody?.details;
+          if (response.status === 402 && details === "CHAT_TOKEN_LIMIT_REACHED") {
+            const err = new Error(
+              language === "es"
+                ? "Se te acabaron los tokens gratuitos de este mes. Para seguir usando el chat, actualiza al plan Pro."
+                : "You have used all your monthly free tokens. To keep using the chat, upgrade to the Pro plan."
+            ) as Error & { code?: string };
+            err.code = "CHAT_TOKEN_LIMIT_REACHED";
+            throw err;
+          }
+          if (response.status === 402 && details === "REPORT_LIMIT_REACHED") {
+            const err = new Error(
+              language === "es"
+                ? "Alcanzaste el límite mensual de reportes del plan gratuito. Para seguir, actualiza al plan Pro."
+                : "You reached the monthly report limit on the free plan. To continue, upgrade to the Pro plan."
+            ) as Error & { code?: string };
+            err.code = "REPORT_LIMIT_REACHED";
+            throw err;
+          }
+          throw new Error(errorBody?.message ?? "Failed to fetch response");
         }
 
         let finalAssistantText = "";
@@ -689,7 +835,15 @@ export function ChatWidget() {
             msg.key === assistantMessageId
               ? {
                   ...msg,
-                  content: t("chat.error.response"),
+                  content:
+                    error instanceof Error && error.message
+                      ? error.message
+                      : t("chat.error.response"),
+                  cta:
+                    (error as Error & { code?: string })?.code ===
+                    "CHAT_TOKEN_LIMIT_REACHED"
+                      ? "upgrade"
+                      : undefined,
                 }
               : msg
           )
@@ -1037,6 +1191,26 @@ export function ChatWidget() {
                                 <div className="whitespace-pre-wrap break-words pr-6">
                                   {message.content}
                                 </div>
+                                {message.cta === "upgrade" && (
+                                  <div className="mt-3">
+                                    <button
+                                      type="button"
+                                      className={cn(
+                                        "inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5",
+                                        "text-sm font-medium text-primary transition hover:bg-primary/15"
+                                      )}
+                                      onClick={() => {
+                                        window.dispatchEvent(
+                                          new CustomEvent("open-subscriptions")
+                                        );
+                                      }}
+                                    >
+                                      {language === "es"
+                                        ? "Actualizar al plan Pro"
+                                        : "Upgrade to Pro"}
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="whitespace-pre-wrap break-words">
