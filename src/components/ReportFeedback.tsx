@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { submitFeedback } from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
@@ -19,6 +18,7 @@ interface ReportFeedbackProps {
   onSubmitted: () => void;
   onMinimize: () => void;
   isMinimized: boolean;
+  rightOffset?: number;
 }
 
 export function ReportFeedback({
@@ -26,9 +26,9 @@ export function ReportFeedback({
   onSubmitted,
   onMinimize,
   isMinimized,
+  rightOffset = 16,
 }: ReportFeedbackProps) {
   const { t } = useLanguage();
-  const { toast } = useToast();
   const [confidence, setConfidence] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,11 +61,7 @@ export function ReportFeedback({
     } catch (error) {
       const errorMessage =
         (error as ApiError)?.message ?? t("feedback.error");
-      toast({
-        title: t("feedback.error"),
-        description: errorMessage,
-        variant: "destructive",
-      });
+      console.error("[ReportFeedback] Failed to submit feedback", errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -73,7 +69,10 @@ export function ReportFeedback({
 
   if (isSubmitted) {
     return (
-      <Card className="fixed bottom-4 right-4 z-50 w-80 p-4 shadow-lg">
+      <Card
+        className="fixed top-16 z-50 w-80 max-w-[90vw] p-4 shadow-lg"
+        style={{ right: rightOffset }}
+      >
         <p className="text-sm font-medium text-foreground">
           {t("feedback.submitted")}
         </p>
@@ -81,23 +80,17 @@ export function ReportFeedback({
     );
   }
 
-  // Minimized state: show small floating button
+  // Minimized state: handled externally (no floating button)
   if (isMinimized) {
-    return (
-      <Button
-        onClick={onMinimize}
-        className="fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg"
-        size="icon"
-        aria-label={t("feedback.maximize")}
-      >
-        <MessageSquare className="h-5 w-5" />
-      </Button>
-    );
+    return null;
   }
 
   // Expanded state: show full feedback form
   return (
-    <Card className="fixed bottom-4 right-4 z-50 w-80 p-4 shadow-lg transition-all">
+    <Card
+      className="fixed top-16 z-50 w-80 max-w-[90vw] p-4 shadow-lg transition-all"
+      style={{ right: rightOffset }}
+    >
       <div className="flex items-start justify-between gap-2 mb-3">
         <h3 className="text-sm font-semibold text-foreground">
           {t("feedback.title")}
