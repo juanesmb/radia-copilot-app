@@ -59,7 +59,7 @@ export function WelcomeSection({ onGenerateReport, onToggleChat, showGreeting = 
             onClick={onGenerateReport}
           >
             <Sparkles className="w-4 h-4" aria-hidden="true" />
-            {t("recording.upload")}
+            {t("welcome.generate")}
           </Button>
         </div>
 

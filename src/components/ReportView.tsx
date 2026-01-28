@@ -5,7 +5,6 @@ import { Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
 import { EditableTextarea } from "@/components/EditableTextarea";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 
@@ -37,7 +36,6 @@ export function ReportView({
   onUpdateReport,
   onUpdateTranscription,
 }: ReportViewProps) {
-  const { toast } = useToast();
   const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -53,14 +51,9 @@ export function ReportView({
       
       await navigator.clipboard.writeText(textToCopy);
       setIsCopied(true);
-      toast({ title: labels.copied });
       setTimeout(() => setIsCopied(false), COPY_FEEDBACK_DURATION_MS);
     } catch (error) {
-      toast({
-        title: labels.copy,
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      console.error("[ReportView] Failed to copy report", error);
     }
   };
 

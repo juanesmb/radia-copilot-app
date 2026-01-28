@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { Menu } from "lucide-react";
+import { Menu, MessageCircle, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -12,7 +12,8 @@ import { ReportFeedback } from "@/components/ReportFeedback";
 import { WelcomeSection } from "@/components/WelcomeSection";
 import { ContentHeader } from "@/components/ContentHeader";
 import { MainContentLayout } from "@/components/MainContentLayout";
-import { useToast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
+import { ChatWidget } from "@/components/ChatWidget";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
@@ -46,7 +47,6 @@ const sttProvider = createSpeechToTextProvider('speechmatics');
 
 export default function HomePage() {
   const { language, t } = useLanguage();
-  const { toast } = useToast();
   const {
     transcript,
     state: sttState,
@@ -61,6 +61,8 @@ export default function HomePage() {
   const [reportChatSessions, setReportChatSessions] = useState<Record<string, string>>({});
   const [sidebarView, setSidebarView] = useState<SidebarView>("home");
   const [isReportsOpen, setIsReportsOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [hasChatBadge, setHasChatBadge] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [demoState, setDemoState] = useState<DemoState>("main");
   const [transcription, setTranscription] = useState("");
@@ -70,6 +72,7 @@ export default function HomePage() {
   const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
   const [editedTemplate, setEditedTemplate] = useState<string>("");
   const [isTemplateCustom, setIsTemplateCustom] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   // Study type detection state
   const [isDetectingStudyType, setIsDetectingStudyType] = useState(false);
@@ -212,11 +215,7 @@ export default function HomePage() {
           ),
         );
       } catch (error) {
-        toast({
-          title: t("errors.generic"),
-          description: error instanceof Error ? error.message : undefined,
-          variant: "destructive",
-        });
+        console.error("[HomePage] Failed to update report title", error);
       }
       return;
     }
@@ -230,15 +229,11 @@ export default function HomePage() {
         return [mapped, ...prev];
       });
     } catch (error) {
-      toast({
-        title: t("errors.generic"),
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      console.error("[HomePage] Failed to create draft report", error);
     } finally {
       isCreatingDraftRef.current = false;
     }
-  }, [currentReportId, language, setReportHistory, toast, t]);
+  }, [currentReportId, language, setReportHistory, t]);
 
   const handleTitleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -280,16 +275,12 @@ export default function HomePage() {
         setEditedTemplate("");
         setIsTemplateCustom(false);
       } catch (error) {
-        toast({
-          title: t("errors.generic"),
-          description: error instanceof Error ? error.message : undefined,
-          variant: "destructive",
-        });
+      console.error("[HomePage] Failed to detect study type", error);
       } finally {
         isCreatingDraftRef.current = false;
       }
     },
-    [ensureDraftReport, t, toast],
+    [ensureDraftReport, t],
   );
 
   const handleTemplateSave = useCallback(
@@ -352,16 +343,12 @@ export default function HomePage() {
           setDetectedStudyType(effectiveStudyType);
         }
       } catch (error) {
-        toast({
-          title: t("errors.generic"),
-          description: error instanceof Error ? error.message : undefined,
-          variant: "destructive",
-        });
+      console.error("[HomePage] Failed to save template", error);
       } finally {
         isCreatingDraftRef.current = false;
       }
     },
-    [currentReportId, currentReportTitle, detectedStudyType, language, selectedStudyType, t, toast],
+    [currentReportId, currentReportTitle, detectedStudyType, language, selectedStudyType, t],
   );
 
   const runStudyTypeDetection = useCallback((textToDetect: string) => {
@@ -395,11 +382,7 @@ export default function HomePage() {
       .catch((error) => {
         const message = (error as ApiError)?.message ?? t("errors.requestFailed");
         console.error('[StudyType] Detection failed:', error);
-        toast({
-          title: t("errors.generic"),
-          description: message,
-          variant: "destructive",
-        });
+        console.error("[HomePage] Study type detection error:", message);
         lastStudyTypeDetectionTextRef.current = "";
       })
       .finally(() => {
@@ -413,6 +396,13 @@ export default function HomePage() {
     if (demoState === "recording") return t("header.generateReport");
     return null;
   }, [demoState, t]);
+
+  const mobileHeaderTitle = useMemo(() => {
+    if (headerSubtitle) return headerSubtitle;
+    if (isReportsOpen && sidebarView === "reports") return t("reports.subtitle");
+    if (demoState !== "recording") return greetingText;
+    return null;
+  }, [demoState, greetingText, headerSubtitle, isReportsOpen, sidebarView, t]);
 
   const renderContentPanel = () => {
     if (demoState === "recording") {
@@ -479,16 +469,37 @@ export default function HomePage() {
 
 
     if (showWelcome) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+      return (
+        <WelcomeSection
+          onGenerateReport={handleGenerateReport}
+          onToggleChat={handleToggleChat}
+          onOpenNewChat={handleOpenNewChat}
+          showGreeting={false}
+        />
+      );
     }
 
     // When in reports view but no report selected, show welcome section
     if (sidebarView === "reports" && !currentReportId) {
-      return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+      return (
+        <WelcomeSection
+          onGenerateReport={handleGenerateReport}
+          onToggleChat={handleToggleChat}
+          onOpenNewChat={handleOpenNewChat}
+          showGreeting={false}
+        />
+      );
     }
 
     // Default: show welcome section
-    return <WelcomeSection onGenerateReport={handleGenerateReport} onToggleChat={handleToggleChat} showGreeting={false} />;
+    return (
+      <WelcomeSection
+        onGenerateReport={handleGenerateReport}
+        onToggleChat={handleToggleChat}
+        onOpenNewChat={handleOpenNewChat}
+        showGreeting={false}
+      />
+    );
   };
 
   useEffect(() => {
@@ -506,11 +517,7 @@ export default function HomePage() {
         setReportChatSessions(sessionMap);
       } catch (error) {
         const message = (error as ApiError)?.message ?? t("errors.requestFailed");
-        toast({
-          title: t("errors.generic"),
-          description: message,
-          variant: "destructive",
-        });
+        console.error("[HomePage] Failed to load reports/sessions:", message);
       }
     };
 
@@ -572,13 +579,9 @@ export default function HomePage() {
         sampleRate: 16000,
       }, transcription);
     } catch (error) {
-      toast({
-        title: t("errors.generic"),
-        description: error instanceof Error ? error.message : t("errors.microphoneAccess"),
-        variant: "destructive",
-      });
+      console.error("[HomePage] Microphone access/start error", error);
     }
-  }, [startSTT, language, toast, t, transcription]);
+  }, [startSTT, language, t, transcription]);
 
   const handleStopRecording = useCallback(async () => {
     await stopSTT();
@@ -586,6 +589,27 @@ export default function HomePage() {
 
   const handleToggleChat = useCallback(() => {
     window.dispatchEvent(new CustomEvent("chat-toggle"));
+  }, []);
+
+  const handleOpenNewChat = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("chat-new"));
+  }, []);
+
+  const handleChatOpenChange = useCallback((open: boolean) => {
+    setIsChatOpen(open);
+  }, []);
+
+  const handleChatBadgeChange = useCallback((hasBadge: boolean) => {
+    setHasChatBadge(hasBadge);
+  }, []);
+
+  useEffect(() => {
+    const updateIsMobile = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+    };
+    updateIsMobile();
+    window.addEventListener("resize", updateIsMobile);
+    return () => window.removeEventListener("resize", updateIsMobile);
   }, []);
 
   /**
@@ -677,22 +701,14 @@ export default function HomePage() {
         : content;
       
       await navigator.clipboard.writeText(textToCopy);
-      toast({ title: t("report.copied") });
     } catch (error) {
-      toast({
-        title: t("errors.generic"),
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      console.error("[HomePage] Failed to copy report", error);
     }
-  }, [currentReportId, currentReportTitle, generatedReport, reportHistory, t, toast]);
+  }, [currentReportId, currentReportTitle, generatedReport, reportHistory]);
 
   const handleStartUpload = async () => {
     if (!selectedStudyType && !detectedStudyType && !isTemplateCustom) {
-      toast({
-        title: t("errors.validation.templateRequired"),
-        variant: "destructive",
-      });
+      console.warn("[HomePage] Template selection required before upload");
       return;
     }
 
@@ -784,7 +800,6 @@ export default function HomePage() {
           onComplete: async (reportId: string) => {
             savedReportId = reportId;
             setIsGenerating(false);
-            toast({ title: t("app.generatedToast") });
 
             if (reportTitle) {
               const existingSessionId = reportChatSessions[reportId];
@@ -819,11 +834,7 @@ export default function HomePage() {
             console.error("Stream error:", error);
             setIsGenerating(false);
             setGeneratedReport(null);
-            toast({
-              title: t("errors.generic"),
-              description: error.message || t("errors.requestFailed"),
-              variant: "destructive",
-            });
+            console.error("[HomePage] Generate report stream error:", error.message || t("errors.requestFailed"));
           },
         }
       );
@@ -831,11 +842,7 @@ export default function HomePage() {
       const message = (error as ApiError)?.message ?? t("errors.requestFailed");
       setIsGenerating(false);
       setGeneratedReport(null);
-      toast({
-        title: t("errors.generic"),
-        description: message,
-        variant: "destructive",
-      });
+      console.error("[HomePage] Generate report failed:", message);
     }
   };
 
@@ -891,6 +898,29 @@ export default function HomePage() {
     return true;
   }, [demoState, currentReportId, newlyGeneratedReportIds, submittedFeedbackReports, feedbackDelayElapsed, hasScrolledPastThreshold]);
 
+  useEffect(() => {
+    if (isMobileViewport && shouldShowFeedback && currentReportId) {
+      setMinimizedFeedbackReports((prev) => {
+        const next = new Set(prev);
+        next.add(currentReportId);
+        return next;
+      });
+    }
+  }, [currentReportId, isMobileViewport, shouldShowFeedback]);
+
+  const handleShowFeedbackButton = useCallback(() => {
+    if (!currentReportId || !shouldShowFeedback) return;
+    setMinimizedFeedbackReports((prev) => {
+      const next = new Set(prev);
+      if (next.has(currentReportId)) {
+        next.delete(currentReportId);
+      } else {
+        next.add(currentReportId);
+      }
+      return next;
+    });
+  }, [currentReportId, shouldShowFeedback]);
+
   const handleCopyReportCard = useCallback(async (report: ReportHistoryItem) => {
     try {
       await navigator.clipboard.writeText(
@@ -899,13 +929,9 @@ export default function HomePage() {
       setCopiedReportId(report.id);
       setTimeout(() => setCopiedReportId(null), COPY_FEEDBACK_DURATION_MS);
     } catch (error) {
-      toast({
-        title: t("errors.generic"),
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
-      });
+      console.error("[HomePage] Failed to copy report card", error);
     }
-  }, [toast, t]);
+  }, []);
 
   const handleOpenReportChat = useCallback((reportId: string, sessionId: string) => {
     window.dispatchEvent(
@@ -979,17 +1005,26 @@ export default function HomePage() {
   const renderMainContent = () => {
     // On mobile, show reports panel in main content when reports are open
     // On desktop, always show content panel (reports panel is in overlay)
+    const feedbackButtonVisible = shouldShowFeedback;
+    const feedbackLabel = language === "es" ? "Comentarios" : "Feedback";
+
     const headerNode = (
       <ContentHeader
         mode={demoState === "recording" ? "recording" : "home"}
         greeting={greetingText}
         title={currentReportTitle ?? ""}
-        placeholder="Titulo del Informe"
+        placeholder={language === "es" ? "Título del informe" : "Report title"}
         copyDisabled={!currentReportId || !generatedReport}
         onCopy={handleCopyReport}
         onTitleChange={handleTitleChange}
         onTitleCommit={handleTitleCommit}
         onTitleKeyDown={handleTitleKeyDown}
+        onToggleChat={handleToggleChat}
+        isChatOpen={isChatOpen}
+        showChatBadge={hasChatBadge}
+        onShowFeedback={feedbackButtonVisible ? handleShowFeedbackButton : undefined}
+        feedbackVisible={feedbackButtonVisible && currentReportId ? !minimizedFeedbackReports.has(currentReportId) : false}
+        feedbackLabel={feedbackLabel}
       />
     );
 
@@ -1027,14 +1062,47 @@ export default function HomePage() {
                 <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </Button>
             </div>
-            {(headerSubtitle || (isReportsOpen && sidebarView === "reports")) && (
+            {mobileHeaderTitle && (
               <div className="flex-1 flex justify-center">
                 <h2 className="text-base sm:text-lg font-medium text-foreground">
-                  {headerSubtitle || t("reports.subtitle")}
+                  {mobileHeaderTitle}
                 </h2>
               </div>
             )}
-            <div className="w-8 sm:w-10" /> {/* Spacer to balance the hamburger button */}
+            <div className="flex items-center gap-2">
+              {shouldShowFeedback && currentReportId && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleShowFeedbackButton}
+                  className={cn(
+                    "relative w-8 h-8 sm:w-10 sm:h-10",
+                    !minimizedFeedbackReports.has(currentReportId) &&
+                      "border-primary bg-primary/10 text-primary hover:bg-primary/20"
+                  )}
+                  aria-label={t("feedback.maximize")}
+                >
+                  <span className="text-lg leading-none font-semibold text-amber-400">!</span>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleToggleChat}
+                className={cn(
+                  "relative w-8 h-8 sm:w-10 sm:h-10 mr-1",
+                  isChatOpen && "border-primary bg-primary/10 text-primary hover:bg-primary/20"
+                )}
+                aria-label={isChatOpen ? "Cerrar chat" : "Abrir chat"}
+              >
+                <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                {hasChatBadge && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-semibold text-white ring-2 ring-background">
+                    1
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -1053,10 +1121,6 @@ export default function HomePage() {
               handleSidebarReports();
               setIsMobileMenuOpen(false);
             }}
-            onToggleChat={() => {
-              handleToggleChat();
-              setIsMobileMenuOpen(false);
-            }}
             onGenerateReport={handleGenerateReport}
             onCloseReports={handleCloseReports}
             reportsPanel={reportsPanel}
@@ -1071,7 +1135,6 @@ export default function HomePage() {
           isReportsOpen={isReportsOpen}
           onSelectHome={handleSidebarHome}
           onToggleReports={handleSidebarReports}
-          onToggleChat={handleToggleChat}
           onGenerateReport={handleGenerateReport}
           onCloseReports={handleCloseReports}
           reportsPanel={reportsPanel}
@@ -1082,6 +1145,11 @@ export default function HomePage() {
             <div className="flex-1 flex flex-col min-h-0">{renderMainContent()}</div>
           </div>
         </section>
+        <ChatWidget
+          className="h-[calc(100dvh-4rem)] lg:h-screen"
+          onOpenChange={handleChatOpenChange}
+          onReportBadgeChange={handleChatBadgeChange}
+        />
       </main>
       {shouldShowFeedback && (
         <ReportFeedback
@@ -1089,6 +1157,7 @@ export default function HomePage() {
           onSubmitted={() => handleFeedbackSubmitted(currentReportId!)}
           onMinimize={() => handleFeedbackMinimized(currentReportId!)}
           isMinimized={minimizedFeedbackReports.has(currentReportId!)}
+          rightOffset={isChatOpen ? 520 : 16}
         />
       )}
     </div>
