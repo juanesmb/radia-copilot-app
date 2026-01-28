@@ -118,6 +118,31 @@ export async function POST(request: NextRequest) {
               );
             }
 
+            if (result.usage) {
+              const usage = await result.usage;
+              const usageRecord = usage as unknown as {
+                promptTokens?: number;
+                completionTokens?: number;
+                totalTokens?: number;
+              };
+
+              const totalTokens =
+                usageRecord.totalTokens ??
+                (usageRecord.promptTokens ?? 0) + (usageRecord.completionTokens ?? 0);
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    usage: {
+                      promptTokens: usageRecord.promptTokens,
+                      completionTokens: usageRecord.completionTokens,
+                      totalTokens,
+                    },
+                  })}\n\n`
+                )
+              );
+            }
+
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
             controller.close();
           } catch (error) {
