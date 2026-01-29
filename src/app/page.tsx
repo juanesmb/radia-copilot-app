@@ -1030,16 +1030,14 @@ export default function HomePage() {
 
     const content = (
       <div className="flex-1 min-h-0 flex flex-col">
-        {isReportsOpen ? (
-          <>
-            {/* Mobile: Show reports panel */}
-            <div className="lg:hidden flex-1 min-h-0">{reportsPanel}</div>
-            {/* Desktop: Show content panel */}
-            <div className="hidden lg:flex flex-1 min-h-0">{renderContentPanel()}</div>
-          </>
-        ) : (
-          renderContentPanel()
-        )}
+        {/* Mobile: reports panel when open */}
+        <div className={cn("flex-1 min-h-0", isReportsOpen ? "lg:hidden" : "hidden")}>
+          {reportsPanel}
+        </div>
+        {/* Content panel: always rendered; hidden on mobile when reports are open */}
+        <div className={cn("flex-1 min-h-0 flex flex-col", isReportsOpen && "hidden lg:flex")}>
+          {renderContentPanel()}
+        </div>
       </div>
     );
     
