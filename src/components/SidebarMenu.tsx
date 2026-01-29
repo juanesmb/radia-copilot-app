@@ -1,9 +1,9 @@
 'use client';
 
 import Image from "next/image";
-import { BookOpen, ChevronLeft, ChevronRight, Home, MessageCircle, Sparkles } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Home, Sparkles } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -17,7 +17,6 @@ interface SidebarMenuProps {
   reportsPanel: React.ReactNode;
   onSelectHome: () => void;
   onToggleReports: () => void;
-  onToggleChat: () => void;
   onGenerateReport: () => void;
   onCloseReports: () => void;
   className?: string;
@@ -29,7 +28,6 @@ export function SidebarMenu({
   reportsPanel,
   onSelectHome,
   onToggleReports,
-  onToggleChat,
   onGenerateReport,
   onCloseReports,
   className = "",
@@ -39,16 +37,21 @@ export function SidebarMenu({
   const isMobile = className.includes("flex");
   const reportsActive = activeView === "reports" && isReportsOpen;
   const [isExpanded, setIsExpanded] = useState(isMobile);
+  const [isMounted, setIsMounted] = useState(false);
 
   const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
   const userName = user?.fullName || user?.firstName || user?.username || "";
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const asideClasses = [
     isMobile ? "flex" : "hidden lg:flex",
-    `flex-col gap-3 flex-shrink-0 border-r border-border pt-4 pb-4 transition-all duration-500 ${
+    `flex-col gap-3 flex-shrink-0 border-r border-border pt-2 pb-4 transition-all duration-500 ${
       isExpanded ? "w-56" : "w-14"
     }`,
-    isMobile ? "h-screen" : "h-[calc(100dvh-4rem)] lg:h-screen",
+    isMobile ? "h-[100dvh]" : "h-[calc(100dvh-4rem)] lg:h-screen",
     className,
   ]
     .filter(Boolean)
@@ -81,7 +84,7 @@ export function SidebarMenu({
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsExpanded(false)}
-                className="h-10 w-10 rounded-xl"
+                className={`h-10 w-10 rounded-xl ${isMobile ? "hidden" : "flex"}`}
                 title={t("sidebar.collapse")}
                 aria-label={t("sidebar.collapse")}
               >
@@ -129,7 +132,6 @@ export function SidebarMenu({
             {isExpanded && (
               <span className="ml-3 text-left">
                 <span className="block text-sm font-medium">{t("sidebar.home")}</span>
-                <span className="block text-xs text-muted-foreground">{t("sidebar.homeDescription")}</span>
               </span>
             )}
           </Button>
@@ -151,40 +153,26 @@ export function SidebarMenu({
               </span>
             )}
           </Button>
-
-          <Button
-            variant="ghost"
-            onClick={onToggleChat}
-            className={`w-12 h-12 hover:bg-muted transition-colors rounded-xl border border-transparent ${
-              isExpanded ? "w-full justify-start px-3" : ""
-            }`}
-            title={t("sidebar.chat")}
-            aria-label={t("sidebar.chat")}
-          >
-            <MessageCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
-            {isExpanded && (
-              <span className="ml-3 text-left">
-                <span className="block text-sm font-medium">{t("sidebar.chat")}</span>
-                <span className="block text-xs text-muted-foreground">{t("sidebar.chatDescription")}</span>
-              </span>
-            )}
-          </Button>
         </div>
 
         <div className={`flex flex-col gap-3 ${isExpanded ? "px-3" : "items-center"}`}>
           <LanguageSwitcher showFullLabel={isExpanded} />
           <div className={`flex items-center gap-3 ${isExpanded ? "justify-start" : "justify-center"}`}>
-            <UserButton
-              appearance={{
-                elements: {
-                  userButtonPopoverCard: {
-                    pointerEvents: "initial",
-                    zIndex: 9999,
+            {isMounted ? (
+              <UserButton
+                appearance={{
+                  elements: {
+                    userButtonPopoverCard: {
+                      pointerEvents: "initial",
+                      zIndex: 9999,
+                    },
                   },
-                },
-              }}
-            />
-            {isExpanded && (
+                }}
+              />
+            ) : (
+              <div className="h-10 w-10" aria-hidden="true" />
+            )}
+            {isExpanded && isMounted && (
               <div className="min-w-0">
                 <div className="text-sm font-medium text-foreground truncate">{userName}</div>
                 <div className="text-xs text-muted-foreground truncate">{userEmail}</div>

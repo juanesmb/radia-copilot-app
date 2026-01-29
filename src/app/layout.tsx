@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ClerkProvider } from "@clerk/nextjs";
 
-import { ChatWidget } from "@/components/ChatWidget";
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
@@ -43,7 +42,6 @@ export default async function RootLayout({
           <ThemeProvider forcedTheme="dark" attribute="class" enableSystem={false}>
             <LanguageProvider>
               {children}
-              <ChatWidget />
               <Toaster />
             </LanguageProvider>
           </ThemeProvider>
