@@ -14,6 +14,7 @@ export interface ReportHistoryItem {
   report: string;
   createdAt: Date;
   usedTemplate?: string;
+  templateId?: string | null;
   templateContent?: string | null;
   studyType?: string | null;
   metadata: ReportMetadata;
@@ -59,6 +60,7 @@ export const createReportHistoryItem = ({
     report: response.report?.trim() || "",
     createdAt: now,
     usedTemplate: response.selectedTemplate,
+    templateId: response.templateId ?? null,
     studyType: response.studyType ?? response.selectedTemplate ?? null,
     metadata: {
       patientName: extractPatientName(transcription),
@@ -75,6 +77,7 @@ export const mapReportToHistoryItem = (report: Report): ReportHistoryItem => {
     report: report.updated_report,
     createdAt: new Date(report.created_at),
     usedTemplate: report.used_template,
+    templateId: report.template_id ?? null,
     templateContent: report.template_content ?? null,
     studyType: report.used_template === "custom"
       ? report.study_type ?? null

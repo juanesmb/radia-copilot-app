@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
 
 import { createSupabaseClient } from "../../clients/supabaseClient";
 import { mapErrorToResponse } from "../../lib/errorHandler";
@@ -22,6 +23,7 @@ const templateLoader = createTemplateLoader({
 
 const requestSchema = z.object({
   language: z.enum(["en", "es"]),
+  useDefault: z.boolean().optional(),
 });
 
 export async function POST(
@@ -57,16 +59,54 @@ export async function POST(
     }
 
     const { language } = parsed.data;
-    // loadTemplate will throw 404 if template doesn't exist, no need to check separately
-    const content = await templateLoader.loadTemplate(
-      studyType,
-      language as Language
-    );
+
+    const { userId } = await auth();
+    const useDefault = Boolean(parsed.data.useDefault);
+
+    if (userId) {
+      const preferred = await templateRepository.getPreferredTemplate(
+        userId,
+        studyType,
+        language as Language,
+        { useDefault }
+      );
+
+      if (!preferred) {
+        // fall back to system loader (keeps existing error behavior)
+        const content = await templateLoader.loadTemplate(studyType, language as Language);
+        return NextResponse.json({
+          content,
+          studyType,
+          language,
+        });
+      }
+
+      return NextResponse.json({
+        content: preferred.content.trim(),
+        studyType,
+        language,
+        templateId: preferred.template_id,
+        isSystem: Boolean(preferred.is_system),
+      });
+    }
+
+    // Unauthenticated: return system template only
+    const system = await templateRepository.getSystemTemplate(studyType, language as Language);
+    if (!system) {
+      const content = await templateLoader.loadTemplate(studyType, language as Language);
+      return NextResponse.json({
+        content,
+        studyType,
+        language,
+      });
+    }
 
     return NextResponse.json({
-      content,
+      content: system.content.trim(),
       studyType,
       language,
+      templateId: system.template_id,
+      isSystem: true,
     });
   } catch (error) {
     console.error("[GetTemplateContent] Error:", error);

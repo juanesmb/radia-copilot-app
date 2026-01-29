@@ -10,6 +10,7 @@ export interface ReportData {
   generated_report: string;
   updated_report: string;
   used_template: string;
+  template_id?: string | null;
   template_content?: string | null;
   study_type: string | null;
   detection_confidence: number | null;
@@ -26,6 +27,7 @@ export interface Report {
   generated_report: string;
   updated_report: string;
   used_template: string;
+  template_id?: string | null;
   template_content: string | null;
   study_type: string | null;
   detection_confidence: number | null;
@@ -43,6 +45,7 @@ export interface UpdateReportData {
   generated_report?: string;
   generated_transcription?: string;
   used_template?: string;
+  template_id?: string | null;
   template_content?: string | null;
   study_type?: string | null;
   detection_confidence?: number | null;
@@ -60,6 +63,10 @@ type Dependencies = {
   supabaseClient: SupabaseClient;
 };
 
+const tableSuffix = process.env.NEXT_PUBLIC_DB_TABLE_SUFFIX ?? "";
+
+const tableName = (base: string) => `${base}${tableSuffix}`;
+
 export const createReportRepository = (deps: Dependencies): ReportRepository => {
   const { supabaseClient } = deps;
 
@@ -67,7 +74,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     async createReport(data: ReportData): Promise<Report> {
       try {
         const { data: report, error } = await supabaseClient
-          .from("reports")
+          .from(tableName("reports"))
           .insert(data)
           .select()
           .single();
@@ -100,7 +107,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     async getReportById(reportId: string, userId: string): Promise<Report> {
       try {
         const { data: report, error } = await supabaseClient
-          .from("reports")
+          .from(tableName("reports"))
           .select("*")
           .eq("report_id", reportId)
           .eq("user_id", userId)
@@ -131,7 +138,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     ): Promise<Report> {
       try {
         const { data: existingReport, error: fetchError } = await supabaseClient
-          .from("reports")
+          .from(tableName("reports"))
           .select("user_id")
           .eq("report_id", reportId)
           .single();
@@ -149,7 +156,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
         }
 
         const { data: report, error } = await supabaseClient
-          .from("reports")
+          .from(tableName("reports"))
           .update({
             ...updates,
             updated_at: new Date().toISOString(),
@@ -187,7 +194,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     async getUserReports(userId: string): Promise<Report[]> {
       try {
         const { data: reports, error } = await supabaseClient
-          .from("reports")
+          .from(tableName("reports"))
           .select("*")
           .eq("user_id", userId)
           .order("created_at", { ascending: false });

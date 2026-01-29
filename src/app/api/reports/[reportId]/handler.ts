@@ -69,6 +69,9 @@ export const updateReportHandler = async (
     if ("template_content" in payloadRecord && (payloadRecord.template_content === null || typeof payloadRecord.template_content === "string")) {
       updates.template_content = payloadRecord.template_content as string | null;
     }
+    if ("template_id" in payloadRecord && (payloadRecord.template_id === null || typeof payloadRecord.template_id === "string")) {
+      updates.template_id = payloadRecord.template_id as string | null;
+    }
     if ("study_type" in payloadRecord && (payloadRecord.study_type === null || typeof payloadRecord.study_type === "string")) {
       updates.study_type = payloadRecord.study_type as string | null;
     }

@@ -100,6 +100,7 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
           ? await deps.reportRepository.updateReport(reportId, userId, {
               ...baseReportFields,
               report_title: reportData.title || undefined,
+              template_id: input.templateId ?? undefined,
               template_content: input.isCustomTemplate && input.template ? input.template : undefined,
               study_type: reportData.studyType || undefined,
               detection_confidence: reportData.detectionConfidence || undefined,
@@ -108,6 +109,7 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
               user_id: userId,
               ...baseReportFields,
               report_title: reportData.title || null,
+              template_id: input.templateId ?? null,
               template_content: input.isCustomTemplate && input.template ? input.template : null,
               study_type: reportData.studyType || null,
               detection_confidence: reportData.detectionConfidence || null,
@@ -124,6 +126,7 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
             detectionConfidence: savedReport.detection_confidence || undefined,
             modelUsed: savedReport.model_used,
             selectedTemplate: usedTemplate,
+            templateId: savedReport.template_id ?? input.templateId,
           },
         };
       } catch (error) {

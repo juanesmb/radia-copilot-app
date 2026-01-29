@@ -16,6 +16,7 @@ export interface Report {
   generated_report: string;
   updated_report: string;
   used_template: string;
+  template_id?: string | null;
   template_content?: string | null;
   study_type: string | null;
   detection_confidence: number | null;
@@ -59,6 +60,7 @@ export interface UpdateReportRequest {
   updated_report?: string;
   updated_transcription?: string;
   used_template?: string;
+  template_id?: string | null;
   study_type?: string | null;
   template_content?: string | null;
 }
@@ -91,6 +93,117 @@ export async function generateReport(
 
     const data = (await response.json()) as GenerateReportResponse;
     return data;
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+// Create custom template
+const CREATE_CUSTOM_TEMPLATE_PATH = "/api/templates/custom";
+
+export async function createCustomTemplate(payload: {
+  studyType: string;
+  language: "en" | "es";
+  content: string;
+}): Promise<{ templateId: string; studyType: string; language: string }> {
+  try {
+    const response = await fetch(CREATE_CUSTOM_TEMPLATE_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to create custom template",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return (await response.json()) as { templateId: string; studyType: string; language: string };
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+// Update custom template
+export async function updateCustomTemplate(
+  templateId: string,
+  payload: { content: string }
+): Promise<{ ok: true }> {
+  try {
+    const response = await fetch(`${CREATE_CUSTOM_TEMPLATE_PATH}/${templateId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to update custom template",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    if ((error as ApiError)?.message) {
+      throw error;
+    }
+    throw <ApiError>{
+      message: "Network error",
+      details: error instanceof Error ? error.message : undefined,
+    };
+  }
+}
+
+// Set template preference
+const SET_TEMPLATE_PREFERENCE_PATH = "/api/templates/preference";
+
+export async function setTemplatePreference(payload: {
+  studyType: string;
+  language: "en" | "es";
+  useDefault: boolean;
+}): Promise<{ ok: true }> {
+  try {
+    const response = await fetch(SET_TEMPLATE_PREFERENCE_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const details = await safeParse<ApiError>(response);
+      throw <ApiError>{
+        message: details?.message ?? "Failed to set template preference",
+        status: response.status,
+        details: details?.details,
+      };
+    }
+
+    return { ok: true };
   } catch (error) {
     if ((error as ApiError)?.message) {
       throw error;
@@ -519,7 +632,7 @@ export async function getTemplateContent(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ language: payload.language }),
+      body: JSON.stringify({ language: payload.language, useDefault: payload.useDefault }),
     });
 
     if (!response.ok) {
@@ -554,6 +667,7 @@ export interface GenerateReportStreamCallbacks {
     detectionConfidence?: number;
     modelUsed: string;
     selectedTemplate: string;
+    templateId?: string;
   }) => void;
   onComplete: (reportId: string) => void;
   onError: (error: Error) => void;
@@ -616,6 +730,7 @@ export async function generateReportStream(
                     detectionConfidence: data.detectionConfidence,
                     modelUsed: data.modelUsed,
                     selectedTemplate: data.selectedTemplate,
+                    templateId: data.templateId,
                   });
                   break;
                 case "done":

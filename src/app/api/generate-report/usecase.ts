@@ -74,6 +74,7 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
         generated_report: reportData.report,
         updated_report: reportData.report,
         used_template: usedTemplate,
+        template_id: input.templateId ?? null,
         template_content: input.isCustomTemplate && input.template ? input.template : null,
         study_type: reportData.studyType || null,
         detection_confidence: reportData.detectionConfidence || null,

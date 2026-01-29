@@ -5,6 +5,8 @@ import { getTemplateContent } from '@/lib/api';
 
 interface UseTemplateContentReturn {
   content: string | null;
+  templateId: string | null;
+  isSystem: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -12,9 +14,12 @@ interface UseTemplateContentReturn {
 export function useTemplateContent(
   studyType: string | null,
   language: "en" | "es",
-  customTemplateContent?: string | null
+  customTemplateContent?: string | null,
+  opts?: { useDefault?: boolean }
 ): UseTemplateContentReturn {
   const [content, setContent] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [isSystem, setIsSystem] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -23,6 +28,8 @@ export function useTemplateContent(
     // If custom template content is provided, use it directly (no API call)
     if (customTemplateContent !== undefined && customTemplateContent !== null && customTemplateContent.trim().length > 0) {
       setContent(customTemplateContent);
+      setTemplateId(null);
+      setIsSystem(false);
       setError(null);
       setIsLoading(false);
       return;
@@ -30,6 +37,8 @@ export function useTemplateContent(
 
     if (!studyType || studyType.trim().length === 0) {
       setContent(null);
+      setTemplateId(null);
+      setIsSystem(true);
       setError(null);
       setIsLoading(false);
       return;
@@ -49,6 +58,7 @@ export function useTemplateContent(
       const result = await getTemplateContent({
         studyType: studyType.trim(),
         language,
+        useDefault: opts?.useDefault,
       });
 
       if (abortController.signal.aborted) {
@@ -56,6 +66,8 @@ export function useTemplateContent(
       }
 
       setContent(result.content);
+      setTemplateId(result.templateId ?? null);
+      setIsSystem(Boolean(result.isSystem));
       setError(null);
     } catch (err) {
       if (abortController.signal.aborted) {
@@ -65,13 +77,15 @@ export function useTemplateContent(
       const errorMessage = err instanceof Error ? err.message : 'Failed to load template';
       setError(errorMessage);
       setContent(null);
+      setTemplateId(null);
+      setIsSystem(true);
       console.error('[useTemplateContent] Error:', err);
     } finally {
       if (!abortController.signal.aborted) {
         setIsLoading(false);
       }
     }
-  }, [studyType, language, customTemplateContent]);
+  }, [studyType, language, customTemplateContent, opts?.useDefault]);
 
   useEffect(() => {
     fetchTemplate();
@@ -85,6 +99,8 @@ export function useTemplateContent(
 
   return {
     content,
+    templateId,
+    isSystem,
     isLoading,
     error,
   };

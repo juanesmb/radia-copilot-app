@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { Maximize2, Minimize2, Sparkles } from "lucide-react";
+import { Maximize2, Minimize2, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
@@ -20,9 +21,13 @@ interface TemplatePreviewProps {
   isLoading: boolean;
   error: string | null;
   studyType: string | null;
+  useDefault?: boolean;
+  onUseDefaultChange?: (next: boolean) => void;
   isDetectingStudyType?: boolean;
   onContentChange?: (value: string) => void;
   onContentBlur?: (value: string) => void;
+  showSaveButton?: boolean;
+  onSaveClick?: () => void;
   onRunAutoDetect?: () => void;
   hasTranscriptionText?: boolean;
   availableStudyTypes?: StudyTypeOption[];
@@ -42,9 +47,13 @@ export function TemplatePreview({
   isLoading,
   error,
   studyType,
+  useDefault = false,
+  onUseDefaultChange,
   isDetectingStudyType = false,
   onContentChange,
   onContentBlur,
+  showSaveButton = false,
+  onSaveClick,
   onRunAutoDetect,
   hasTranscriptionText = false,
   availableStudyTypes,
@@ -69,7 +78,7 @@ export function TemplatePreview({
   }, [templateScrollbarRef]);
 
   const renderHeader = () => (
-    <div className="px-3 py-4 border-b border-border shrink-0 flex items-center gap-2 lg:gap-3 min-w-0">
+    <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col sm:flex-row sm:items-center gap-2 lg:gap-3 min-w-0">
       {onMobileFullscreenToggle && (
         <button
           type="button"
@@ -89,16 +98,12 @@ export function TemplatePreview({
       </h3>
 
       {availableStudyTypes && availableStudyTypes.length > 0 && (
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0 flex-1">
           <select
             id="study-type"
-            value={isCustom ? 'custom' : (selectedStudyType || '')}
+            value={selectedStudyType || ''}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => {
               const value = e.target.value;
-              if (value === 'custom') {
-                // Don't allow selecting custom - it's just a display value
-                return;
-              }
               if (value) {
                 onStudyTypeChange?.(value);
                 // Reset custom state when a new template is selected
@@ -109,27 +114,49 @@ export function TemplatePreview({
               }
             }}
             disabled={isActive || disabled || isDetectingStudyType}
-            className="min-w-0 flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 w-full sm:flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">{t("recording.studyTypePlaceholder")}</option>
-            <option value="custom" disabled={!isCustom}>
-              {t("recording.customTemplate")}
-            </option>
             {availableStudyTypes.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
-          <Button
-            type="button"
-            className="gap-2 text-sm h-10 px-3 sm:px-3 shrink-0 whitespace-nowrap"
-            onClick={onRunAutoDetect}
-            disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
-          >
-            <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" />
-            <span className="hidden sm:inline">{t("template.autoDetect")}</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {typeof onUseDefaultChange === "function" && studyType && (
+              <div className="flex items-center gap-2 shrink-0">
+              <Switch
+                checked={useDefault}
+                onCheckedChange={(checked) => onUseDefaultChange(checked)}
+                disabled={isActive || disabled || isDetectingStudyType}
+              />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Usar plantilla por defecto
+              </span>
+              </div>
+            )}
+            {showSaveButton && (
+              <Button
+                type="button"
+                className="gap-2 text-sm h-10 px-3 shrink-0 whitespace-nowrap"
+                onClick={onSaveClick}
+                disabled={!onSaveClick || isActive || disabled || isDetectingStudyType}
+              >
+                <Save className="w-5 h-5" />
+                <span className="hidden sm:inline">Guardar</span>
+              </Button>
+            )}
+            <Button
+              type="button"
+              className="gap-2 text-sm h-10 px-3 sm:px-3 shrink-0 whitespace-nowrap"
+              onClick={onRunAutoDetect}
+              disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
+            >
+              <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">{t("template.autoDetect")}</span>
+            </Button>
+          </div>
         </div>
       )}
     </div>

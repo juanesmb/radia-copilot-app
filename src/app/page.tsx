@@ -21,13 +21,15 @@ import { useUserGreeting } from "@/hooks/useUserGreeting";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
 import {
   createDraftReport,
+  createCustomTemplate,
+  updateCustomTemplate,
   createReportChatSession,
+  detectStudyType,
   generateReportStream,
+  getAvailableTemplates,
   getChatSessions,
   getReports,
   updateReport,
-  detectStudyType,
-  getAvailableTemplates,
 } from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
@@ -72,6 +74,10 @@ export default function HomePage() {
   const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
   const [editedTemplate, setEditedTemplate] = useState<string>("");
   const [isTemplateCustom, setIsTemplateCustom] = useState(false);
+  const [currentTemplateMeta, setCurrentTemplateMeta] = useState<{ templateId: string | null; isSystem: boolean }>({
+    templateId: null,
+    isSystem: true,
+  });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   // Study type detection state
@@ -257,6 +263,7 @@ export default function HomePage() {
           used_template: studyType,
           study_type: studyType,
           template_content: null,
+          template_id: null,
         });
 
         setReportHistory((prev) => {
@@ -274,6 +281,7 @@ export default function HomePage() {
         setDetectedStudyType(studyType);
         setEditedTemplate("");
         setIsTemplateCustom(false);
+        setCurrentTemplateMeta({ templateId: null, isSystem: true });
       } catch (error) {
       console.error("[HomePage] Failed to detect study type", error);
       } finally {
@@ -312,14 +320,32 @@ export default function HomePage() {
           return;
         }
 
-        // If user has edited and wants custom, force used_template = "custom" and freeze dropdown to custom
-        const usedTemplate = isCustom ? "custom" : (effectiveStudyType || "custom");
-        const nextSelectedStudy = isCustom ? "custom" : (effectiveStudyType || "");
+        if (!effectiveStudyType) {
+          return;
+        }
+
+        // If we're editing an existing custom template, update that template record too
+        if (isCustom && !currentTemplateMeta.isSystem && currentTemplateMeta.templateId) {
+          await updateCustomTemplate(currentTemplateMeta.templateId, { content: trimmedValue });
+        }
+
+        // If user edited a system template, create a new custom template record and persist template_id
+        const nextTemplateId =
+          isCustom && currentTemplateMeta.isSystem
+            ? (
+                await createCustomTemplate({
+                  studyType: effectiveStudyType,
+                  language,
+                  content: trimmedValue,
+                })
+              ).templateId
+            : currentTemplateMeta.templateId;
 
         const updated = await updateReport(reportId, {
           template_content: trimmedValue,
-          used_template: usedTemplate,
-          study_type: isCustom ? (effectiveStudyType || null) : effectiveStudyType,
+          template_id: nextTemplateId,
+          used_template: effectiveStudyType,
+          study_type: effectiveStudyType,
         });
 
         setReportHistory((prev) => {
@@ -335,20 +361,24 @@ export default function HomePage() {
 
         setIsTemplateCustom(isCustom);
         setEditedTemplate(trimmedValue);
-        if (isCustom) {
-          setSelectedStudyType("custom");
-          setDetectedStudyType(null);
-        } else if (effectiveStudyType) {
-          setSelectedStudyType(effectiveStudyType);
-          setDetectedStudyType(effectiveStudyType);
+        setSelectedStudyType(effectiveStudyType);
+        setDetectedStudyType(effectiveStudyType);
+        if (isCustom && currentTemplateMeta.isSystem) {
+          setCurrentTemplateMeta({ templateId: nextTemplateId ?? null, isSystem: false });
         }
       } catch (error) {
-      console.error("[HomePage] Failed to save template", error);
+      const apiError = error as ApiError;
+      console.error("[HomePage] Failed to save template", {
+        message: apiError?.message,
+        status: apiError?.status,
+        details: apiError?.details,
+        error,
+      });
       } finally {
         isCreatingDraftRef.current = false;
       }
     },
-    [currentReportId, currentReportTitle, detectedStudyType, language, selectedStudyType, t],
+    [currentReportId, currentReportTitle, currentTemplateMeta.isSystem, currentTemplateMeta.templateId, detectedStudyType, language, selectedStudyType, t],
   );
 
   const runStudyTypeDetection = useCallback((textToDetect: string) => {
@@ -455,13 +485,34 @@ export default function HomePage() {
           onTemplateSave={handleTemplateSave}
           initialTemplateContent={(() => {
             const report = reportHistory.find((r) => r.id === currentReportId);
-            if (report?.usedTemplate === "custom") {
+            if (report?.usedTemplate === "custom" && !report.templateId) {
               return report.templateContent ?? null;
             }
             return null;
           })()}
           onTemplateEditStatusChange={setIsTemplateCustom}
           isTemplateCustom={isTemplateCustom}
+          onTemplateMetaChange={async ({ templateId, isSystem }) => {
+            setCurrentTemplateMeta({ templateId, isSystem });
+            if (!templateId) return;
+            const reportId = currentReportId;
+            if (!reportId) return;
+            try {
+              const updated = await updateReport(reportId, { template_id: templateId });
+              setReportHistory((prev) => {
+                const mapped = mapReportToHistoryItem(updated);
+                const existingIndex = prev.findIndex((r) => r.id === mapped.id);
+                if (existingIndex >= 0) {
+                  const next = [...prev];
+                  next[existingIndex] = mapped;
+                  return next;
+                }
+                return [mapped, ...prev];
+              });
+            } catch (error) {
+              console.error("[HomePage] Failed to persist template_id", error);
+            }
+          }}
         />
       );
     }
@@ -736,6 +787,7 @@ export default function HomePage() {
           studyType: selectedStudyType || detectedStudyType || undefined,
           template: editedTemplate || undefined,
           isCustomTemplate: isTemplateCustom,
+          templateId: currentTemplateMeta.templateId || undefined,
           reportId: currentReportId || undefined,
         },
         {
@@ -825,7 +877,13 @@ export default function HomePage() {
                     })
                   );
                 } catch (error) {
-                  console.error("[ReportChat] Failed to create report chat", error);
+                  const apiError = error as ApiError;
+                  console.warn("[ReportChat] Failed to create report chat", {
+                    message: apiError?.message,
+                    status: apiError?.status,
+                    details: apiError?.details,
+                    error,
+                  });
                 }
               }
             }

@@ -12,6 +12,7 @@ const generateReportSchema = z.object({
   studyType: z.string().min(1, "Study type (template) is required.").optional(),
   template: z.string().optional(),
   isCustomTemplate: z.boolean().optional(),
+  templateId: z.string().optional(),
   reportId: z.string().optional(),
 }).refine((data) => {
   // Either studyType must be provided, or isCustomTemplate must be true with template provided

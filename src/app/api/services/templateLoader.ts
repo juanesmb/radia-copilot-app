@@ -20,7 +20,7 @@ export const createTemplateLoader = (deps: Dependencies): TemplateLoader => {
       templateRepository.templateExists(studyType, language),
 
     async loadTemplate(studyType: string, language: Language): Promise<string> {
-      const template = await templateRepository.getTemplate(studyType, language);
+      const template = await templateRepository.getSystemTemplate(studyType, language);
 
       if (!template) {
         throw new HttpError(
