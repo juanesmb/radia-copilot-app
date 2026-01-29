@@ -703,11 +703,21 @@ export async function generateReportStream(
     });
 
     if (!response.ok) {
-      const details = await safeParse<ApiError>(response);
+      const errorBody = (await safeParse<ApiError>(response)) as ApiError | null;
+      const details = errorBody?.details;
+
+      if (response.status === 402 && details === "REPORT_LIMIT_REACHED") {
+        const err = new Error(
+          "You reached the monthly report limit on the free plan. To continue, upgrade to the Pro plan."
+        ) as Error & { code?: string };
+        err.code = "REPORT_LIMIT_REACHED";
+        throw err;
+      }
+
       throw <ApiError>{
-        message: details?.message ?? "Failed to start stream",
+        message: errorBody?.message ?? "Failed to start stream",
         status: response.status,
-        details: details?.details,
+        details,
       };
     }
 
@@ -764,15 +774,16 @@ export async function generateReportStream(
       reader.releaseLock();
     }
   } catch (error) {
-    if (error instanceof Error && "message" in error) {
-      callbacks.onError(error as Error);
-    } else {
-      callbacks.onError(
-        new Error("Network error", {
-          cause: error instanceof Error ? error : undefined,
-        })
-      );
+    if (error instanceof Error) {
+      callbacks.onError(error);
+      return;
     }
+
+    callbacks.onError(
+      new Error("Network error", {
+        cause: error instanceof Error ? error : undefined,
+      })
+    );
   }
 }
 

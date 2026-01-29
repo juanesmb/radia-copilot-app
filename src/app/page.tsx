@@ -17,6 +17,8 @@ import { ContentHeader } from "@/components/ContentHeader";
 import { MainContentLayout } from "@/components/MainContentLayout";
 import { cn } from "@/lib/utils";
 import { ChatWidget } from "@/components/ChatWidget";
+import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useReportScroll } from "@/hooks/useReportScroll";
@@ -56,6 +58,8 @@ const sttProvider = createSpeechToTextProvider('speechmatics');
 
 export default function HomePage() {
   const { language, t } = useLanguage();
+  const { toast } = useToast();
+  const triggerMonthlyUsageWarningsRef = useRef<(() => void) | null>(null);
   const {
     transcript,
     state: sttState,
@@ -157,6 +161,194 @@ export default function HomePage() {
 
     loadSubscription();
   }, [isSubscriptionModalOpen, isSubscriptionManagementModalOpen, t, toast]);
+
+  useEffect(() => {
+    const readSessionFlag = (key: string) => {
+      try {
+        return window.sessionStorage.getItem(key) === "1";
+      } catch {
+        try {
+          return window.localStorage.getItem(key) === "1";
+        } catch {
+          return false;
+        }
+      }
+    };
+
+    const writeSessionFlag = (key: string) => {
+      try {
+        window.sessionStorage.setItem(key, "1");
+      } catch {
+        try {
+          window.localStorage.setItem(key, "1");
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    let cancelled = false;
+
+    const warnUsage = async () => {
+      try {
+        const response = await fetch("/api/usage/monthly", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          isPaidUser: boolean;
+          reports?: { used: number; limit: number; remaining: number; stage: string };
+          chatTokens?: { used: number; limit: number; remaining: number; stage: string };
+        };
+
+        if (cancelled || data.isPaidUser) {
+          return;
+        }
+
+        if (data.reports) {
+          const stage = data.reports.stage;
+          const sessionKey = `warn_reports_${stage}`;
+          if (!readSessionFlag(sessionKey)) {
+            writeSessionFlag(sessionKey);
+
+            if (stage === "reached") {
+              toast({
+                title:
+                  language === "es"
+                    ? "Límite de reportes alcanzado"
+                    : "Monthly report limit reached",
+                description:
+                  language === "es"
+                    ? "Alcanzaste el límite mensual de reportes del plan gratuito. Actualiza al plan Pro para seguir generando reportes."
+                    : "You reached the monthly report limit on the free plan. Upgrade to Pro to keep generating reports.",
+                variant: "destructive",
+                action: (
+                  <ToastAction
+                    altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                    className="ml-3 shrink-0 whitespace-nowrap border-0 bg-destructive px-4 text-white hover:bg-destructive/90 hover:text-white"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                    }}
+                  >
+                    {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                  </ToastAction>
+                ),
+              });
+            } else if (stage === "one_left") {
+              toast({
+                title:
+                  language === "es"
+                    ? "Te queda 1 reporte"
+                    : "1 report left",
+                description:
+                  language === "es"
+                    ? "Solo te queda 1 reporte este mes en el plan gratuito."
+                    : "You have only 1 report left this month on the free plan.",
+                action: (
+                  <ToastAction
+                    altText={language === "es" ? "Ver planes" : "View plans"}
+                    className="ml-3 shrink-0 whitespace-nowrap border-0 bg-primary px-4 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                    }}
+                  >
+                    {language === "es" ? "Ver planes" : "View plans"}
+                  </ToastAction>
+                ),
+              });
+            } else if (stage === "half") {
+              toast({
+                title: language === "es" ? "Aviso de uso" : "Usage warning",
+                description:
+                  language === "es"
+                    ? `Has usado ${data.reports.used} de ${data.reports.limit} reportes gratuitos este mes.`
+                    : `You have used ${data.reports.used} of ${data.reports.limit} free reports this month.`,
+              });
+            }
+          }
+        }
+
+        if (data.chatTokens) {
+          const stage = data.chatTokens.stage;
+          const sessionKey = `warn_chatTokens_${stage}`;
+          if (!readSessionFlag(sessionKey)) {
+            writeSessionFlag(sessionKey);
+
+            if (stage === "reached") {
+              toast({
+                title:
+                  language === "es"
+                    ? "Tokens gratuitos agotados"
+                    : "Monthly free tokens used",
+                description:
+                  language === "es"
+                    ? "Se te acabaron los tokens gratuitos de este mes. Actualiza al plan Pro para seguir usando el chat."
+                    : "You have used all your monthly free tokens. Upgrade to Pro to keep using the chat.",
+                variant: "destructive",
+                action: (
+                  <ToastAction
+                    altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                    className="ml-3 shrink-0 whitespace-nowrap border-0 bg-destructive px-4 text-white hover:bg-destructive/90 hover:text-white"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                    }}
+                  >
+                    {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                  </ToastAction>
+                ),
+              });
+            } else if (stage === "low") {
+              toast({
+                title: language === "es" ? "Te quedan pocos tokens" : "Low tokens",
+                description:
+                  language === "es"
+                    ? `Te quedan aproximadamente ${data.chatTokens.remaining} tokens este mes.`
+                    : `You have about ${data.chatTokens.remaining} tokens left this month.`,
+                action: (
+                  <ToastAction
+                    altText={language === "es" ? "Ver planes" : "View plans"}
+                    className="ml-3 shrink-0 whitespace-nowrap border-0 bg-primary px-4 text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                    }}
+                  >
+                    {language === "es" ? "Ver planes" : "View plans"}
+                  </ToastAction>
+                ),
+              });
+            } else if (stage === "half") {
+              toast({
+                title: language === "es" ? "Aviso de uso" : "Usage warning",
+                description:
+                  language === "es"
+                    ? `Has usado ${data.chatTokens.used} de ${data.chatTokens.limit} tokens gratuitos este mes.`
+                    : `You have used ${data.chatTokens.used} of ${data.chatTokens.limit} free tokens this month.`,
+              });
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    triggerMonthlyUsageWarningsRef.current = () => {
+      void warnUsage();
+    };
+
+    void warnUsage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language, toast]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -887,6 +1079,15 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const handler = () => {
+      handleSidebarSubscriptions();
+    };
+
+    window.addEventListener("open-subscriptions", handler);
+    return () => window.removeEventListener("open-subscriptions", handler);
+  }, [handleSidebarSubscriptions]);
+
+  useEffect(() => {
     const updateIsMobile = () => {
       setIsMobileViewport(window.innerWidth < 768);
     };
@@ -1083,6 +1284,7 @@ export default function HomePage() {
           onComplete: async (reportId: string) => {
             savedReportId = reportId;
             setIsGenerating(false);
+            triggerMonthlyUsageWarningsRef.current?.();
 
             if (reportTitle) {
               const existingSessionId = reportChatSessions[reportId];
@@ -1117,7 +1319,43 @@ export default function HomePage() {
             console.error("Stream error:", error);
             setIsGenerating(false);
             setGeneratedReport(null);
-            console.error("[HomePage] Generate report stream error:", error.message || t("errors.requestFailed"));
+            const code = (error as Error & { code?: string })?.code;
+            if (code === "REPORT_LIMIT_REACHED") {
+              toast({
+                title:
+                  language === "es"
+                    ? "Límite de reportes alcanzado"
+                    : "Monthly report limit reached",
+                description:
+                  language === "es"
+                    ? "Alcanzaste el límite mensual de reportes del plan gratuito. Actualiza al plan Pro para seguir generando reportes."
+                    : "You reached the monthly report limit on the free plan. Upgrade to Pro to keep generating reports.",
+                variant: "destructive",
+                action: (
+                  <ToastAction
+                    altText={language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                    className="ml-3 shrink-0 whitespace-nowrap border-0 bg-destructive px-4 text-white hover:bg-destructive/90 hover:text-white"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("open-subscriptions"));
+                    }}
+                  >
+                    {language === "es" ? "Actualizar a Pro" : "Upgrade to Pro"}
+                  </ToastAction>
+                ),
+              });
+            } else {
+              toast({
+                title: t("errors.generic"),
+                description: error.message || t("errors.requestFailed"),
+                variant: "destructive",
+              });
+            }
+
+            triggerMonthlyUsageWarningsRef.current?.();
+            console.error(
+              "[HomePage] Generate report stream error:",
+              error.message || t("errors.requestFailed")
+            );
           },
         }
       );
@@ -1125,6 +1363,12 @@ export default function HomePage() {
       const message = (error as ApiError)?.message ?? t("errors.requestFailed");
       setIsGenerating(false);
       setGeneratedReport(null);
+      toast({
+        title: t("errors.generic"),
+        description: message,
+        variant: "destructive",
+      });
+      triggerMonthlyUsageWarningsRef.current?.();
       console.error("[HomePage] Generate report failed:", message);
     }
   };

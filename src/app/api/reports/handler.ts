@@ -93,10 +93,6 @@ export const createReportHandler = async (request: NextRequest) => {
     }
 
     const report = await createUseCase.execute(userId, { report_title, language });
-
-    if (!isPaidUser) {
-      await userMonthlyUsageRepository.incrementReportCount(userId);
-    }
     return NextResponse.json(report, { status: 201 });
   } catch (error) {
     console.error("[createReportHandler] Error:", error);
