@@ -312,6 +312,24 @@ export function RecordingInterface({
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        if (e.repeat) {
+          return;
+        }
+
+        const active = document.activeElement as HTMLElement | null;
+        const tag = active?.tagName?.toLowerCase();
+        const isEditable =
+          tag === 'input' ||
+          tag === 'textarea' ||
+          Boolean(active?.isContentEditable);
+
+        if (!isEditable) {
+          e.preventDefault();
+          toggleDictation();
+        }
+      }
+
       if (e.code === 'MediaPlayPause') {
         e.preventDefault();
         toggleDictation();
