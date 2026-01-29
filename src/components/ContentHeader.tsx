@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback } from "react";
-import { Copy, FileText } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Check, Copy, FileText, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type HeaderMode = "home" | "recording";
 
@@ -19,19 +20,34 @@ interface ContentHeaderProps {
   onTitleChange?: (value: string) => void;
   onTitleCommit?: (value: string) => void;
   onTitleKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onToggleChat?: () => void;
+  isChatOpen?: boolean;
+  showChatBadge?: boolean;
+  onShowFeedback?: () => void;
+  feedbackVisible?: boolean;
+  feedbackLabel?: string;
 }
 
 export function ContentHeader({
   mode,
   greeting,
   title = "",
-  placeholder = "Titulo del Informe",
+  placeholder = "Report title",
   copyDisabled = true,
   onCopy,
   onTitleChange,
   onTitleCommit,
   onTitleKeyDown,
+  onToggleChat,
+  isChatOpen = false,
+  showChatBadge = false,
+  onShowFeedback,
+  feedbackVisible = false,
+  feedbackLabel,
 }: ContentHeaderProps) {
+  const { language, t } = useLanguage();
+  const copyLabel = language === "es" ? "Copiar" : "Copy";
+  const copiedLabel = language === "es" ? "Copiado" : "Copied";
   const handleBlur = useCallback(
     (event: React.FocusEvent<HTMLInputElement>) => {
       onTitleCommit?.(event.target.value);
@@ -46,14 +62,47 @@ export function ContentHeader({
     [onTitleChange],
   );
 
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
+
+  const handleCopyClick = () => {
+    onCopy?.();
+    setCopiedFeedback(true);
+    window.setTimeout(() => setCopiedFeedback(false), 1200);
+  };
+
   return (
-    <div className="hidden lg:flex items-center h-20 min-h-[5rem] px-4 border-b border-border bg-background/80 backdrop-blur-sm">
+    <div className="hidden lg:flex items-center h-[4.25rem] min-h-[4.25rem] px-3 border-b border-border bg-background/80 backdrop-blur-sm">
       {mode === "home" ? (
-        <div className="flex-1 flex justify-center">
-          <h2 className="text-lg font-semibold text-foreground text-center truncate">
-            {greeting}
-          </h2>
-        </div>
+        <>
+          <div className="flex-1" />
+          <div className="flex-1 flex justify-center">
+            <h2 className="text-lg font-semibold text-foreground text-center truncate">
+              {greeting}
+            </h2>
+          </div>
+          <div className="flex flex-1 justify-end">
+            {onToggleChat && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "relative h-10 w-10 mr-3",
+                  isChatOpen && "border-primary bg-primary/10 text-primary hover:bg-primary/20"
+                )}
+                onClick={onToggleChat}
+                aria-label={isChatOpen ? t("chat.close") : t("chat.open")}
+              >
+                <MessageCircle className="h-4 w-4" />
+                {showChatBadge && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-semibold text-white ring-2 ring-background">
+                    1
+                  </span>
+                )}
+              </Button>
+            )}
+          </div>
+        </>
       ) : (
         <div className="flex items-center gap-2 w-full">
           <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
@@ -68,16 +117,54 @@ export function ContentHeader({
               "bg-background border-transparent hover:border-border focus:border-border transition-colors",
             )}
           />
-          <Button
-            type="button"
-            className="ml-auto gap-2 text-base h-10 px-4 sm:px-6"
-            disabled={copyDisabled}
-            onClick={onCopy}
-            aria-label="Copiar"
-          >
-            <Copy className="h-4 w-4" />
-            <span className="hidden sm:inline">Copiar</span>
-          </Button>
+          <div className="flex flex-1 justify-end items-center gap-2">
+            <Button
+              type="button"
+              className="gap-2 text-base h-10 px-4 sm:px-6 active:scale-[0.98] active:bg-primary/80 active:text-primary-foreground"
+              disabled={copyDisabled}
+              onClick={handleCopyClick}
+              aria-label={copiedFeedback ? copiedLabel : copyLabel}
+            >
+              {copiedFeedback ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">{copiedFeedback ? copiedLabel : copyLabel}</span>
+            </Button>
+            {onShowFeedback && (
+              <Button
+                type="button"
+                variant={feedbackVisible ? "default" : "outline"}
+                size="icon"
+                className="h-10 w-10"
+                onClick={onShowFeedback}
+                aria-label={feedbackLabel || "Feedback"}
+              >
+              <span className="text-lg leading-none font-semibold text-amber-400">!</span>
+              </Button>
+            )}
+            {onToggleChat && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "relative h-10 w-10",
+                  isChatOpen && "border-primary bg-primary/10 text-primary hover:bg-primary/20"
+                )}
+                onClick={onToggleChat}
+                aria-label={isChatOpen ? t("chat.close") : t("chat.open")}
+              >
+                <MessageCircle className="h-4 w-4" />
+                {showChatBadge && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-semibold text-white ring-2 ring-background">
+                    1
+                  </span>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -10,12 +10,14 @@ import { useUserGreeting } from "@/hooks/useUserGreeting";
 interface WelcomeSectionProps {
   onGenerateReport: () => void;
   onToggleChat: () => void;
+  onOpenNewChat?: () => void;
   showGreeting?: boolean;
 }
 
 export function WelcomeSection({
   onGenerateReport,
   onToggleChat,
+  onOpenNewChat,
   showGreeting = true,
 }: WelcomeSectionProps) {
   const { t } = useLanguage();
@@ -63,7 +65,7 @@ export function WelcomeSection({
             onClick={onGenerateReport}
           >
             <Sparkles className="w-4 h-4" aria-hidden="true" />
-            {t("recording.upload")}
+            {t("welcome.generate")}
           </Button>
         </div>
 
@@ -79,7 +81,7 @@ export function WelcomeSection({
             type="button"
             variant="outline"
             className="gap-2 min-w-[162px]"
-            onClick={onToggleChat}
+            onClick={onOpenNewChat ?? onToggleChat}
           >
             <MessageCircle className="w-4 h-4" aria-hidden="true" />
             {welcomeLabels.chatButton}

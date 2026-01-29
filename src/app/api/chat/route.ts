@@ -148,13 +148,47 @@ export async function POST(request: NextRequest) {
               );
             }
 
+            let usageTotalTokens: number | null = null;
+            if (result.usage) {
+              const usage = await result.usage;
+              const usageRecord = usage as unknown as {
+                promptTokens?: number;
+                completionTokens?: number;
+                totalTokens?: number;
+              };
+
+              const totalTokens =
+                usageRecord.totalTokens ??
+                (usageRecord.promptTokens ?? 0) + (usageRecord.completionTokens ?? 0);
+              usageTotalTokens = Number.isFinite(totalTokens) ? totalTokens : null;
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    usage: {
+                      promptTokens: usageRecord.promptTokens,
+                      completionTokens: usageRecord.completionTokens,
+                      totalTokens,
+                    },
+                  })}\n\n`
+                )
+              );
+            }
+
             if (!isPaidUser) {
-              const promptText = [...systemMessages, ...normalizedMessages]
-                .map((m) => m.content)
-                .join("\n");
-              const estimatedTokens =
-                estimateTokenCount(promptText) + estimateTokenCount(accumulatedText);
-              await userMonthlyUsageRepository.addChatTokens(userId, estimatedTokens);
+              const tokensToRecord = (() => {
+                if (usageTotalTokens !== null) {
+                  return usageTotalTokens;
+                }
+                const promptText = [...systemMessages, ...normalizedMessages]
+                  .map((m) => m.content)
+                  .join("\n");
+                return (
+                  estimateTokenCount(promptText) + estimateTokenCount(accumulatedText)
+                );
+              })();
+
+              await userMonthlyUsageRepository.addChatTokens(userId, tokensToRecord);
             }
 
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));

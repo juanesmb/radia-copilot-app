@@ -6,7 +6,6 @@ import {
   CopyIcon,
   GlobeIcon,
   HistoryIcon,
-  MessageCircleIcon,
   MicIcon,
   PlusIcon,
   XIcon,
@@ -95,20 +94,13 @@ interface MessageType {
   };
 }
 
-const DEFAULT_PANEL_POSITION = { x: 0, y: 0 };
-const DEFAULT_BUBBLE_POSITION: { x: number | null; y: number | null } = {
-  x: null,
-  y: null,
-};
-const DRAG_OFFSET = 16;
-const DRAG_THRESHOLD = 4;
-const PANEL_WIDTH = 580;
-const PANEL_HEIGHT = 680;
-const BUBBLE_SIZE = 56;
-const BUBBLE_DEFAULT_LEFT = 88;
-const BUBBLE_DEFAULT_BOTTOM = 24;
+const PANEL_DEFAULT_WIDTH = 420;
+const PANEL_MIN_WIDTH = 360;
+const PANEL_MAX_WIDTH = 760;
 const MOBILE_BREAKPOINT = 640;
 const TEMP_SESSION_ID = "temp-chat";
+const TEXTAREA_MIN_HEIGHT = 44;
+const TEXTAREA_MAX_HEIGHT = 240;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -137,6 +129,12 @@ const models = [
   },
 ];
 
+interface ChatWidgetProps {
+  className?: string;
+  onOpenChange?: (isOpen: boolean) => void;
+  onReportBadgeChange?: (hasBadge: boolean) => void;
+}
+
 const PromptInputAttachmentsDisplay = () => {
   const attachments = usePromptInputAttachments();
 
@@ -160,19 +158,21 @@ const PromptInputAttachmentsDisplay = () => {
   );
 };
 
-export function ChatWidget() {
+export function ChatWidget({
+  className,
+  onOpenChange,
+  onReportBadgeChange,
+}: ChatWidgetProps = {}) {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [panelPosition, setPanelPosition] = useState(DEFAULT_PANEL_POSITION);
-  const [bubblePosition, setBubblePosition] = useState(DEFAULT_BUBBLE_POSITION);
+  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_WIDTH);
   const [copiedMessageKey, setCopiedMessageKey] = useState<string | null>(null);
-  const [draggingPanel, setDraggingPanel] = useState(false);
-  const [draggingBubble, setDraggingBubble] = useState(false);
-  const draggingBubbleRef = useRef(false);
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const bubbleMovedRef = useRef(false);
+  const resizeStateRef = useRef({
+    active: false,
+    startX: 0,
+    startWidth: PANEL_DEFAULT_WIDTH,
+  });
   const [model, setModel] = useState<string>(models[0].id);
   const modelRef = useRef(model);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -197,6 +197,7 @@ export function ChatWidget() {
   >("ready");
   const [messages, setMessages] = useState<MessageType[]>([]);
   const messagesRef = useRef<MessageType[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -228,6 +229,7 @@ export function ChatWidget() {
       if (!detail) {
         return;
       }
+      const isMobileNow = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
       setReportChatBadge(true);
       setSelectedReportId(detail.reportId);
       setHasTemporaryChat(false);
@@ -241,7 +243,9 @@ export function ChatWidget() {
       }
       setActiveSessionId(detail.sessionId);
       autoOpenedRef.current = true;
-      setIsOpen(true);
+      if (!isMobileNow) {
+        setIsOpen(true);
+      }
     };
 
     window.addEventListener("report-chat-created", handleReportChatCreated);
@@ -258,6 +262,7 @@ export function ChatWidget() {
       if (!detail) {
         return;
       }
+      const isMobileNow = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
       setSelectedReportId(detail.reportId);
       try {
         const sessionData = await getChatSessions();
@@ -268,7 +273,9 @@ export function ChatWidget() {
         console.error("[ChatWidget] Failed to load report chat", error);
       }
       setActiveSessionId(detail.sessionId);
-      setIsOpen(true);
+      if (!isMobileNow) {
+        setIsOpen(true);
+      }
     };
 
     window.addEventListener("report-chat-open", handleReportChatOpen);
@@ -281,9 +288,6 @@ export function ChatWidget() {
     const handleChatToggle = () => {
       setIsOpen((prev) => {
         const next = !prev;
-        if (!prev && next) {
-          positionPanelNearBubble();
-        }
         if (prev && !next && autoOpenedRef.current) {
           setReportChatBadge(false);
           autoOpenedRef.current = false;
@@ -295,6 +299,71 @@ export function ChatWidget() {
     window.addEventListener("chat-toggle", handleChatToggle);
     return () => {
       window.removeEventListener("chat-toggle", handleChatToggle);
+    };
+  }, []);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
+
+  useEffect(() => {
+    onReportBadgeChange?.(reportChatBadge);
+  }, [onReportBadgeChange, reportChatBadge]);
+
+  const autoResizeTextarea = useCallback((target?: HTMLTextAreaElement | null) => {
+    const element = target ?? textareaRef.current;
+    if (!element) return;
+    element.style.height = "auto";
+    const nextHeight = Math.min(
+      Math.max(element.scrollHeight, TEXTAREA_MIN_HEIGHT),
+      TEXTAREA_MAX_HEIGHT
+    );
+    element.style.height = `${nextHeight}px`;
+    element.style.overflowY =
+      element.scrollHeight > TEXTAREA_MAX_HEIGHT ? "auto" : "hidden";
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const candidate = document.querySelector<HTMLTextAreaElement>(
+      'textarea[data-slot="input-group-control"][name="message"]'
+    );
+    if (candidate) {
+      textareaRef.current = candidate;
+      candidate.style.height = `${TEXTAREA_MIN_HEIGHT}px`;
+      candidate.style.overflowY = "hidden";
+      autoResizeTextarea(candidate);
+    }
+  }, [autoResizeTextarea, isOpen]);
+
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [autoResizeTextarea, text]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!resizeStateRef.current.active) {
+        return;
+      }
+      const delta = resizeStateRef.current.startX - event.clientX;
+      const nextWidth = clamp(
+        resizeStateRef.current.startWidth + delta,
+        PANEL_MIN_WIDTH,
+        PANEL_MAX_WIDTH
+      );
+      setPanelWidth(nextWidth);
+    };
+
+    const handlePointerUp = () => {
+      resizeStateRef.current.active = false;
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   }, []);
 
@@ -467,93 +536,6 @@ export function ChatWidget() {
       return [activeSessionId, ...prev].slice(0, 6);
     });
   }, [activeSessionId]);
-
-  const positionPanelNearBubble = useCallback(() => {
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const bubbleX = bubblePosition.x ?? BUBBLE_DEFAULT_LEFT;
-    const bubbleY =
-      bubblePosition.y ?? viewportHeight - BUBBLE_DEFAULT_BOTTOM - BUBBLE_SIZE;
-
-    const targetX = clamp(
-      bubbleX - PANEL_WIDTH + 56,
-      DRAG_OFFSET,
-      viewportWidth - PANEL_WIDTH - DRAG_OFFSET
-    );
-    const targetY = clamp(
-      bubbleY - PANEL_HEIGHT - 12,
-      DRAG_OFFSET,
-      viewportHeight - PANEL_HEIGHT - DRAG_OFFSET
-    );
-
-    setPanelPosition({ x: targetX, y: targetY });
-  }, [bubblePosition]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    positionPanelNearBubble();
-  }, [isOpen, positionPanelNearBubble]);
-
-  useEffect(() => {
-    if (!draggingPanel) {
-      return;
-    }
-
-    const handlePointerMove = (event: PointerEvent) => {
-      setPanelPosition({
-        x: event.clientX - dragOffsetRef.current.x,
-        y: event.clientY - dragOffsetRef.current.y,
-      });
-    };
-
-    const handlePointerUp = () => {
-      setDraggingPanel(false);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-  }, [draggingPanel]);
-
-  useEffect(() => {
-    const handlePointerMove = (event: PointerEvent) => {
-      if (!draggingBubbleRef.current) {
-        return;
-      }
-      const next = {
-        x: event.clientX - dragOffsetRef.current.x,
-        y: event.clientY - dragOffsetRef.current.y,
-      };
-      setBubblePosition(next);
-      const deltaX = event.clientX - dragStartRef.current.x;
-      const deltaY = event.clientY - dragStartRef.current.y;
-      if (Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
-        bubbleMovedRef.current = true;
-      }
-    };
-
-    const handlePointerUp = () => {
-      if (!draggingBubbleRef.current) {
-        return;
-      }
-      draggingBubbleRef.current = false;
-      setDraggingBubble(false);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-  }, []);
 
   const mapStoredMessage = (message: ChatMessage): MessageType => ({
     key: message.id,
@@ -763,6 +745,7 @@ export function ChatWidget() {
         }
 
         let finalAssistantText = "";
+        let finalAssistantTokens: number | null = null;
         streamingTextRef.current = "";
         streamingQueueRef.current = [];
 
@@ -792,10 +775,20 @@ export function ChatWidget() {
                 break;
               }
               try {
-                const parsed = JSON.parse(payload) as { text?: string };
+                const parsed = JSON.parse(payload) as {
+                  text?: string;
+                  usage?: { totalTokens?: number };
+                };
                 if (parsed.text) {
                   finalAssistantText += parsed.text;
                   enqueueStreamingText(parsed.text);
+                }
+                if (
+                  parsed.usage &&
+                  typeof parsed.usage.totalTokens === "number" &&
+                  Number.isFinite(parsed.usage.totalTokens)
+                ) {
+                  finalAssistantTokens = parsed.usage.totalTokens;
                 }
               } catch {
                 // ignore malformed chunks
@@ -824,6 +817,7 @@ export function ChatWidget() {
             await createChatMessage(sessionId, {
               role: "assistant",
               content: finalAssistantText,
+              token_count: finalAssistantTokens ?? undefined,
             });
           } catch (error) {
             console.error("[ChatWidget] Failed to save assistant message", error);
@@ -871,52 +865,15 @@ export function ChatWidget() {
     setText("");
   };
 
-  const handleDragStart = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     if (isMobile) {
       return;
     }
-    const bounds = event.currentTarget.getBoundingClientRect();
-    dragOffsetRef.current = {
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top,
+    resizeStateRef.current = {
+      active: true,
+      startX: event.clientX,
+      startWidth: panelWidth,
     };
-    setDraggingPanel(true);
-  };
-
-  const handleBubblePointerDown = (
-    event: React.PointerEvent<HTMLButtonElement>
-  ) => {
-    if (isOpen) {
-      return;
-    }
-    const bounds = event.currentTarget.getBoundingClientRect();
-    dragOffsetRef.current = {
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top,
-    };
-    dragStartRef.current = { x: event.clientX, y: event.clientY };
-    bubbleMovedRef.current = false;
-    draggingBubbleRef.current = true;
-    setDraggingBubble(true);
-  };
-
-  const handleBubbleClick = () => {
-    if (bubbleMovedRef.current) {
-      bubbleMovedRef.current = false;
-      return;
-    }
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (!prev && next) {
-        positionPanelNearBubble();
-        setReportChatBadge(false);
-      }
-      if (prev && !next && autoOpenedRef.current) {
-        setReportChatBadge(false);
-        autoOpenedRef.current = false;
-      }
-      return next;
-    });
   };
 
   const handleCopyAssistantMessage = useCallback(
@@ -932,92 +889,81 @@ export function ChatWidget() {
     []
   );
 
-  return (
-    <>
-      <button
-        className={cn(
-          "fixed z-50 flex size-14 items-center justify-center rounded-full",
-          "bg-gradient-to-br from-white via-slate-200 to-slate-400 text-slate-900",
-          "shadow-[0_12px_30px_rgba(0,0,0,0.35)] ring-2 ring-white/70",
-          "transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-        )}
-        onClick={handleBubbleClick}
-        onPointerDown={handleBubblePointerDown}
-        style={{
-          left: bubblePosition.x ?? BUBBLE_DEFAULT_LEFT,
-          top: bubblePosition.y ?? undefined,
-          right: undefined,
-          bottom: bubblePosition.y == null ? BUBBLE_DEFAULT_BOTTOM : undefined,
-        }}
-        type="button"
-      >
-        <MessageCircleIcon className="size-6" />
-        {reportChatBadge && (
-          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-semibold text-white shadow ring-2 ring-white">
-            1
-          </span>
-        )}
-        <span className="sr-only">{t("chat.open")}</span>
-      </button>
+  if (!isOpen) {
+    return null;
+  }
 
-      {isOpen && (
+  const desktopPanelStyle = {
+    width: panelWidth,
+    minWidth: PANEL_MIN_WIDTH,
+    maxWidth: PANEL_MAX_WIDTH,
+    flexShrink: 0,
+  };
+
+  return (
+    <div
+      className={cn(
+        "relative z-50 flex min-h-0 flex-col bg-background self-stretch",
+        isMobile
+          ? "fixed inset-0 shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-y-auto"
+          : "border-l shadow-[0_20px_60px_rgba(0,0,0,0.4)]",
+        className
+      )}
+      style={
+        isMobile
+          ? { width: "100vw", height: "100dvh" }
+          : { ...desktopPanelStyle }
+      }
+      role="complementary"
+      aria-label={t("chat.open")}
+    >
+      {!isMobile && (
         <div
-          className={cn(
-            "fixed z-50 flex flex-col rounded-2xl border",
-            "bg-background shadow-[0_20px_60px_rgba(0,0,0,0.4)]"
-          )}
-          style={
-            isMobile
-              ? {
-                  left: 0,
-                  top: 0,
-                  width: "100vw",
-                  height: "100vh",
-                  borderRadius: 0,
-                  resize: "none",
-                  overflow: "hidden",
-                }
-              : {
-                  left: panelPosition.x,
-                  top: panelPosition.y,
-                  width: PANEL_WIDTH,
-                  height: PANEL_HEIGHT,
-                  resize: "both",
-                  overflow: "hidden",
-                  minWidth: 340,
-                  minHeight: 420,
-                }
-          }
-        >
-          <div
-            className="flex flex-col gap-2 border-b bg-muted/50 px-4 py-3"
-            onPointerDown={handleDragStart}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="scrollbar-subtle flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-muted-foreground">
-              {(
-                hasTemporaryChat
-                  ? ([
-                      { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
-                      ...recentSessionIds
-                        .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                        .filter((session): session is ChatSession => Boolean(session)),
-                    ] as Array<ChatSession & { isTemp?: boolean }>)
-                  : recentSessionIds
+          className="absolute left-[-3px] top-0 h-full w-3 cursor-col-resize touch-none"
+          onPointerDown={handleResizeStart}
+          role="separator"
+          aria-label="Resize chat panel"
+        />
+      )}
+
+      <div className="sticky top-0 z-10 flex flex-col gap-2 bg-background/95 px-4 py-3 backdrop-blur-sm shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="scrollbar-subtle flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-muted-foreground">
+            {(
+              hasTemporaryChat
+                ? ([
+                    { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
+                    ...recentSessionIds
                       .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                      .filter((session): session is ChatSession => Boolean(session))
-              ).map((session) => (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className={cn(
-                    "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition",
-                    session.id === activeSessionId
-                      ? "border-primary/60 bg-primary/10 text-foreground"
-                      : "border-transparent bg-background/60 text-muted-foreground hover:text-foreground"
-                  )}
-                  key={session.id}
-                  onClick={() => {
+                      .filter((session): session is ChatSession => Boolean(session)),
+                  ] as Array<ChatSession & { isTemp?: boolean }>)
+                : recentSessionIds
+                    .map((sessionId) => sessions.find((session) => session.id === sessionId))
+                    .filter((session): session is ChatSession => Boolean(session))
+            ).map((session) => (
+              <div
+                role="button"
+                tabIndex={0}
+                className={cn(
+                  "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition",
+                  session.id === activeSessionId
+                    ? "border-primary/60 bg-primary/10 text-foreground"
+                    : "border-transparent bg-background/60 text-muted-foreground hover:text-foreground"
+                )}
+                key={session.id}
+                onClick={() => {
+                  if (session.id === TEMP_SESSION_ID) {
+                    setHasTemporaryChat(true);
+                    setActiveSessionId(null);
+                    setMessages([]);
+                    setSelectedReportId(null);
+                    return;
+                  }
+                  void handleSelectSession(session.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
                     if (session.id === TEMP_SESSION_ID) {
                       setHasTemporaryChat(true);
                       setActiveSessionId(null);
@@ -1026,306 +972,275 @@ export function ChatWidget() {
                       return;
                     }
                     void handleSelectSession(session.id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      if (session.id === TEMP_SESSION_ID) {
-                        setHasTemporaryChat(true);
-                        setActiveSessionId(null);
-                        setMessages([]);
-                        setSelectedReportId(null);
-                        return;
-                      }
-                      void handleSelectSession(session.id);
-                    }
-                  }}
-                  onDoubleClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (session.id !== TEMP_SESSION_ID) {
-                      startEditingSession(session);
-                    }
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    {editingSessionId === session.id ? (
-                      <input
-                        autoFocus
-                        className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
-                        onBlur={() => saveEditingSession(session.id)}
-                        onChange={(event) => setEditingTitle(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void saveEditingSession(session.id);
-                          }
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            cancelEditingSession();
-                          }
-                        }}
-                        value={editingTitle}
-                      />
-                    ) : (
-                      <span className="max-w-[220px] truncate">
-                        {session.title || t("chat.untitled")}
-                      </span>
-                    )}
-                    {editingSessionId !== session.id && session.id !== TEMP_SESSION_ID && (
-                      <button
-                        className="text-muted-foreground transition hover:text-foreground"
-                        onClick={(event) => {
+                  }
+                }}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (session.id !== TEMP_SESSION_ID) {
+                    startEditingSession(session);
+                  }
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  {editingSessionId === session.id ? (
+                    <input
+                      autoFocus
+                      className="w-full min-w-[140px] bg-transparent text-xs text-foreground outline-none"
+                      onBlur={() => saveEditingSession(session.id)}
+                      onChange={(event) => setEditingTitle(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
                           event.preventDefault();
-                          event.stopPropagation();
-                          handleCloseRecentSession(session.id);
-                        }}
-                        type="button"
-                      >
-                        <XIcon className="size-3" />
-                        <span className="sr-only">Close tab</span>
-                      </button>
-                    )}
-                  </span>
-                </div>
-              ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <Select
-                  disabled={loadingSessions}
-                  onValueChange={handleSelectSession}
-                  value={activeSessionId ?? undefined}
-                >
-                  <SelectTrigger className="h-7 w-9 justify-center gap-0 px-0 text-xs [&>svg:last-child]:hidden [&>span]:hidden">
-                    <HistoryIcon className="size-4" />
-                    <SelectValue
-                      className="hidden"
-                      placeholder={t("chat.sessionPlaceholder")}
+                          void saveEditingSession(session.id);
+                        }
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          cancelEditingSession();
+                        }
+                      }}
+                      value={editingTitle}
                     />
-                    <span className="sr-only">{t("chat.sessionPlaceholder")}</span>
-                  </SelectTrigger>
-                  <SelectContent className="min-w-[260px]">
-                    {sessions.map((session) => (
-                      <SelectItem key={session.id} value={session.id}>
-                        <span className="block max-w-[220px] truncate">
-                          {session.title || t("chat.untitled")}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <button
-                  className="rounded-md p-1 text-muted-foreground transition hover:text-foreground"
-                  onClick={handleNewChat}
-                  type="button"
-                >
-                  <PlusIcon className="size-4" />
-                  <span className="sr-only">{t("chat.new")}</span>
-                </button>
-                <button
-                  className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
-                  onClick={() => setIsOpen(false)}
-                  type="button"
-                >
-                  <XIcon className="size-4" />
-                  <span className="sr-only">{t("chat.close")}</span>
-                </button>
+                  ) : (
+                    <span className="max-w-[220px] truncate">
+                      {session.title || t("chat.untitled")}
+                    </span>
+                  )}
+                  {editingSessionId !== session.id && session.id !== TEMP_SESSION_ID && (
+                    <button
+                      className="text-muted-foreground transition hover:text-foreground"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleCloseRecentSession(session.id);
+                      }}
+                      type="button"
+                    >
+                      <XIcon className="size-3" />
+                      <span className="sr-only">Close tab</span>
+                    </button>
+                  )}
+                </span>
               </div>
-            </div>
+            ))}
           </div>
-
-          <div className="flex min-h-0 flex-1 flex-col divide-y">
-            <Conversation className="scrollbar-subtle overflow-x-hidden overflow-y-auto">
-              <ConversationContent>
-                {messages.map((message) => (
-                  <MessageBranch defaultBranch={0} key={message.key}>
-                    <MessageBranchContent>
-                      <Message from={message.from} key={message.key}>
-                        <div>
-                          {message.sources?.length && (
-                            <Sources>
-                              <SourcesTrigger count={message.sources.length} />
-                              <SourcesContent>
-                                {message.sources.map((source) => (
-                                  <Source
-                                    href={source.href}
-                                    key={source.href}
-                                    title={source.title}
-                                  />
-                                ))}
-                              </SourcesContent>
-                            </Sources>
-                          )}
-                          {message.reasoning && (
-                            <Reasoning duration={message.reasoning.duration}>
-                              <ReasoningTrigger />
-                              <ReasoningContent>
-                                {message.reasoning.content}
-                              </ReasoningContent>
-                            </Reasoning>
-                          )}
-                          <MessageContent>
-                            {message.from === "assistant" ? (
-                              <div className="relative rounded-xl border border-border/60 bg-muted/20 px-4 py-3 shadow-sm">
-                                <button
-                                  className={cn(
-                                    "absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition hover:text-foreground",
-                                    "hover:bg-muted/40"
-                                  )}
-                                  onClick={() =>
-                                    void handleCopyAssistantMessage(
-                                      message.key,
-                                      message.content
-                                    )
-                                  }
-                                  type="button"
-                                  aria-label={t("chat.message.copy")}
-                                  title={t("chat.message.copy")}
-                                >
-                                  {copiedMessageKey === message.key ? (
-                                    <CheckIcon className="h-4 w-4" />
-                                  ) : (
-                                    <CopyIcon className="h-4 w-4" />
-                                  )}
-                                </button>
-                                <div className="whitespace-pre-wrap break-words pr-6">
-                                  {message.content}
-                                </div>
-                                {message.cta === "upgrade" && (
-                                  <div className="mt-3">
-                                    <button
-                                      type="button"
-                                      className={cn(
-                                        "inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5",
-                                        "text-sm font-medium text-primary transition hover:bg-primary/15"
-                                      )}
-                                      onClick={() => {
-                                        window.dispatchEvent(
-                                          new CustomEvent("open-subscriptions")
-                                        );
-                                      }}
-                                    >
-                                      {language === "es"
-                                        ? "Actualizar al plan Pro"
-                                        : "Upgrade to Pro"}
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="whitespace-pre-wrap break-words">
-                                {message.content}
-                              </div>
-                            )}
-                          </MessageContent>
-                        </div>
-                      </Message>
-                    </MessageBranchContent>
-                    <MessageBranchSelector from={message.from}>
-                      <MessageBranchPrevious />
-                      <MessageBranchPage />
-                      <MessageBranchNext />
-                    </MessageBranchSelector>
-                  </MessageBranch>
+          <div className="flex items-center gap-2">
+            <Select
+              disabled={loadingSessions}
+              onValueChange={handleSelectSession}
+              value={activeSessionId ?? undefined}
+            >
+              <SelectTrigger className="h-7 w-9 justify-center gap-0 px-0 text-xs [&>svg:last-child]:hidden [&>span]:hidden">
+                <HistoryIcon className="size-4" />
+                <SelectValue
+                  className="hidden"
+                  placeholder={t("chat.sessionPlaceholder")}
+                />
+                <span className="sr-only">{t("chat.sessionPlaceholder")}</span>
+              </SelectTrigger>
+              <SelectContent className="min-w-[260px]">
+                {sessions.map((session) => (
+                  <SelectItem key={session.id} value={session.id}>
+                    <span className="block max-w-[220px] truncate">
+                      {session.title || t("chat.untitled")}
+                    </span>
+                  </SelectItem>
                 ))}
-              </ConversationContent>
-              <ConversationScrollButton />
-            </Conversation>
-
-            <div className="w-full px-4 pb-4 pt-3">
-              <PromptInput globalDrop multiple onSubmit={handleSubmit}>
-                <PromptInputHeader>
-                  <PromptInputAttachmentsDisplay />
-                </PromptInputHeader>
-                <PromptInputBody>
-                  <PromptInputTextarea
-                    className="min-h-8 max-h-[280px] overflow-y-auto"
-                    onChange={(event) => {
-                      const textarea = event.currentTarget;
-                      textarea.style.height = "auto";
-                      textarea.style.height = `${textarea.scrollHeight}px`;
-                      setText(event.target.value);
-                    }}
-                    placeholder={t("chat.input.placeholder")}
-                    value={text}
-                  />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  <PromptInputTools className="flex flex-wrap items-center gap-2">
-                    <div className="hidden">
-                      <PromptInputActionMenu>
-                        <PromptInputActionMenuTrigger disabled />
-                        <PromptInputActionMenuContent>
-                          <PromptInputActionAddAttachments />
-                        </PromptInputActionMenuContent>
-                      </PromptInputActionMenu>
-                      <PromptInputButton disabled variant="ghost">
-                        <MicIcon size={16} />
-                        <span className="sr-only">Microphone</span>
-                      </PromptInputButton>
-                      <PromptInputButton disabled variant="ghost">
-                        <GlobeIcon size={16} />
-                        <span>Search</span>
-                      </PromptInputButton>
-                    </div>
-                    <div className="flex w-full flex-nowrap items-center gap-2 sm:flex-wrap">
-                      <div className="flex-1 min-w-0 sm:flex-none">
-                        <Select onValueChange={setModel} value={model}>
-                          <SelectTrigger className="h-8 w-full text-xs sm:w-[180px]">
-                            <SelectValue placeholder={t("chat.model.placeholder")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {models.map((modelItem) => (
-                              <SelectItem key={modelItem.id} value={modelItem.id}>
-                                {modelItem.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex-1 min-w-0 sm:flex-none">
-                        <Select
-                          onValueChange={(value) =>
-                            setSelectedReportId(value === "none" ? null : value)
-                          }
-                          value={selectedReportId ?? "none"}
-                        >
-                          <SelectTrigger className="h-8 w-full text-xs sm:w-[150px]">
-                            <SelectValue placeholder={t("chat.report.placeholder")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem
-                              value="none"
-                              className="text-xs sm:text-sm"
-                            >
-                              {t("chat.report.none")}
-                            </SelectItem>
-                            {reports.map((report) => (
-                              <SelectItem
-                                key={report.report_id}
-                                value={report.report_id}
-                                className="text-xs sm:text-sm"
-                              >
-                                <span className="block max-w-[140px] truncate sm:max-w-[260px]">
-                                  {report.report_title || t("chat.untitled")}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </PromptInputTools>
-                  <PromptInputSubmit
-                    disabled={!(text.trim() || status) || status === "streaming"}
-                    status={status}
-                  />
-                </PromptInputFooter>
-              </PromptInput>
-            </div>
+              </SelectContent>
+            </Select>
+            <button
+              className="rounded-md p-1 text-muted-foreground transition hover:text-foreground"
+              onClick={handleNewChat}
+              type="button"
+            >
+              <PlusIcon className="size-4" />
+              <span className="sr-only">{t("chat.new")}</span>
+            </button>
+            <button
+              className="rounded-full p-1 text-muted-foreground transition hover:text-foreground"
+              onClick={() => {
+                setIsOpen(false);
+                setReportChatBadge(false);
+                autoOpenedRef.current = false;
+              }}
+              type="button"
+            >
+              <XIcon className="size-4" />
+              <span className="sr-only">{t("chat.close")}</span>
+            </button>
           </div>
         </div>
-      )}
-    </>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <Conversation className="scrollbar-subtle overflow-x-hidden overflow-y-auto flex-1 min-h-0">
+          <ConversationContent>
+            {messages.map((message) => (
+              <MessageBranch defaultBranch={0} key={message.key}>
+                <MessageBranchContent>
+                  <Message from={message.from} key={message.key}>
+                    <div>
+                      {message.sources?.length && (
+                        <Sources>
+                          <SourcesTrigger count={message.sources.length} />
+                          <SourcesContent>
+                            {message.sources.map((source) => (
+                              <Source
+                                href={source.href}
+                                key={source.href}
+                                title={source.title}
+                              />
+                            ))}
+                          </SourcesContent>
+                        </Sources>
+                      )}
+                      {message.reasoning && (
+                        <Reasoning duration={message.reasoning.duration}>
+                          <ReasoningTrigger />
+                          <ReasoningContent>
+                            {message.reasoning.content}
+                          </ReasoningContent>
+                        </Reasoning>
+                      )}
+                      <MessageContent>
+                        {message.from === "assistant" ? (
+                          <div className="relative rounded-xl border border-border/60 bg-muted/20 px-4 py-3 shadow-sm">
+                            <button
+                              className={cn(
+                                "absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition hover:text-foreground",
+                                "hover:bg-muted/40"
+                              )}
+                              onClick={() =>
+                                void handleCopyAssistantMessage(
+                                  message.key,
+                                  message.content
+                                )
+                              }
+                              type="button"
+                              aria-label={t("chat.message.copy")}
+                              title={t("chat.message.copy")}
+                            >
+                              {copiedMessageKey === message.key ? (
+                                <CheckIcon className="h-4 w-4" />
+                              ) : (
+                                <CopyIcon className="h-4 w-4" />
+                              )}
+                            </button>
+                            <div className="whitespace-pre-wrap break-words pr-6">
+                              {message.content}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap break-words">
+                            {message.content}
+                          </div>
+                        )}
+                      </MessageContent>
+                    </div>
+                  </Message>
+                </MessageBranchContent>
+                <MessageBranchSelector from={message.from}>
+                  <MessageBranchPrevious />
+                  <MessageBranchPage />
+                  <MessageBranchNext />
+                </MessageBranchSelector>
+              </MessageBranch>
+            ))}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+
+        <div className="w-full px-4 pb-4 pt-3 border-t-0">
+          <PromptInput globalDrop multiple onSubmit={handleSubmit}>
+            <PromptInputBody>
+              <PromptInputAttachmentsDisplay />
+              <div className="w-full">
+                <PromptInputTextarea
+                  className="w-full min-h-[44px] max-h-[240px] overflow-y-auto py-2 text-base leading-6"
+                  onChange={(event) => {
+                    autoResizeTextarea(event.currentTarget);
+                    setText(event.target.value);
+                  }}
+                  style={{ height: `${TEXTAREA_MIN_HEIGHT}px`, overflowY: "hidden" }}
+                  placeholder={t("chat.input.placeholder")}
+                  value={text}
+                />
+              </div>
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools className="flex flex-wrap items-center gap-2">
+                <div className="hidden">
+                  <PromptInputActionMenu>
+                    <PromptInputActionMenuTrigger disabled />
+                    <PromptInputActionMenuContent>
+                      <PromptInputActionAddAttachments />
+                    </PromptInputActionMenuContent>
+                  </PromptInputActionMenu>
+                  <PromptInputButton disabled variant="ghost">
+                    <MicIcon size={16} />
+                    <span className="sr-only">Microphone</span>
+                  </PromptInputButton>
+                  <PromptInputButton disabled variant="ghost">
+                    <GlobeIcon size={16} />
+                    <span>Search</span>
+                  </PromptInputButton>
+                </div>
+                <div className="flex w-full flex-nowrap items-center gap-2 sm:flex-wrap">
+                  <div className="flex-1 min-w-0 sm:flex-none">
+                    <Select onValueChange={setModel} value={model}>
+                      <SelectTrigger className="h-8 w-full text-xs sm:w-[96px]">
+                        <SelectValue placeholder={t("chat.model.placeholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {models.map((modelItem) => (
+                          <SelectItem key={modelItem.id} value={modelItem.id}>
+                            {modelItem.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1 min-w-0 sm:flex-none">
+                    <Select
+                      onValueChange={(value) =>
+                        setSelectedReportId(value === "none" ? null : value)
+                      }
+                      value={selectedReportId ?? "none"}
+                    >
+                      <SelectTrigger className="h-8 w-full text-xs sm:w-[150px]">
+                        <SelectValue placeholder={t("chat.report.placeholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value="none"
+                          className="text-xs sm:text-sm"
+                        >
+                          {t("chat.report.none")}
+                        </SelectItem>
+                        {reports.map((report) => (
+                          <SelectItem
+                            key={report.report_id}
+                            value={report.report_id}
+                            className="text-xs sm:text-sm"
+                          >
+                            <span className="block max-w-[140px] truncate sm:max-w-[260px]">
+                              {report.report_title || t("chat.untitled")}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </PromptInputTools>
+              <PromptInputSubmit
+                disabled={!(text.trim() || status) || status === "streaming"}
+                status={status}
+              />
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -181,7 +181,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
       try {
         const { data: session, error: sessionError } = await supabaseClient
           .from("chat_sessions")
-          .select("id, user_id, message_count")
+          .select("id, user_id, message_count, token_count")
           .eq("id", data.session_id)
           .single();
 
@@ -218,10 +218,12 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         }
 
         const nextCount = (session.message_count ?? 0) + 1;
+        const nextTokens = (session.token_count ?? 0) + (data.token_count ?? 0);
         await supabaseClient
           .from("chat_sessions")
           .update({
             message_count: nextCount,
+            token_count: nextTokens,
             last_message_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
