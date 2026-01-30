@@ -7,6 +7,7 @@ interface UseTemplateContentReturn {
   content: string | null;
   templateId: string | null;
   isSystem: boolean;
+  hasCustomTemplate: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -20,6 +21,7 @@ export function useTemplateContent(
   const [content, setContent] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [isSystem, setIsSystem] = useState<boolean>(true);
+  const [hasCustomTemplate, setHasCustomTemplate] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -30,6 +32,7 @@ export function useTemplateContent(
       setContent(customTemplateContent);
       setTemplateId(null);
       setIsSystem(false);
+      setHasCustomTemplate(false);
       setError(null);
       setIsLoading(false);
       return;
@@ -39,6 +42,7 @@ export function useTemplateContent(
       setContent(null);
       setTemplateId(null);
       setIsSystem(true);
+      setHasCustomTemplate(false);
       setError(null);
       setIsLoading(false);
       return;
@@ -68,6 +72,7 @@ export function useTemplateContent(
       setContent(result.content);
       setTemplateId(result.templateId ?? null);
       setIsSystem(Boolean(result.isSystem));
+      setHasCustomTemplate(Boolean(result.hasCustomTemplate));
       setError(null);
     } catch (err) {
       if (abortController.signal.aborted) {
@@ -79,6 +84,7 @@ export function useTemplateContent(
       setContent(null);
       setTemplateId(null);
       setIsSystem(true);
+      setHasCustomTemplate(false);
       console.error('[useTemplateContent] Error:', err);
     } finally {
       if (!abortController.signal.aborted) {
@@ -101,6 +107,7 @@ export function useTemplateContent(
     content,
     templateId,
     isSystem,
+    hasCustomTemplate,
     isLoading,
     error,
   };

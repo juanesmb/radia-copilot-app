@@ -143,7 +143,7 @@ export function RecordingInterface({
 
   const effectiveStudyType = selectedStudyType || detectedStudyType || null;
   const [useDefaultTemplate, setUseDefaultTemplate] = useState(false);
-  const { content, templateId, isSystem, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
+  const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
     effectiveStudyType,
     language,
     initialTemplateContent,
@@ -734,9 +734,13 @@ export function RecordingInterface({
               error={templateError}
               studyType={effectiveStudyType}
               useDefault={useDefaultTemplate}
-              onUseDefaultChange={(next) => {
-                handleUseDefaultToggle(next);
-              }}
+              onUseDefaultChange={
+                hasCustomTemplate || hasTemplateBeenEdited || !isSystem
+                  ? (next) => {
+                      handleUseDefaultToggle(next);
+                    }
+                  : undefined
+              }
               isDetectingStudyType={isDetectingStudyType}
               onContentChange={handleTemplateChange}
               onContentBlur={handleTemplateBlur}

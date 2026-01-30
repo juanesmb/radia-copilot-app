@@ -64,6 +64,12 @@ export async function POST(
     const useDefault = Boolean(parsed.data.useDefault);
 
     if (userId) {
+      const hasCustomTemplate = await templateRepository.hasCustomTemplate(
+        userId,
+        studyType,
+        language as Language
+      );
+
       const preferred = await templateRepository.getPreferredTemplate(
         userId,
         studyType,
@@ -78,6 +84,7 @@ export async function POST(
           content,
           studyType,
           language,
+          hasCustomTemplate,
         });
       }
 
@@ -87,6 +94,7 @@ export async function POST(
         language,
         templateId: preferred.template_id,
         isSystem: Boolean(preferred.is_system),
+        hasCustomTemplate,
       });
     }
 

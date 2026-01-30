@@ -12,6 +12,7 @@ export interface TemplateRepository {
     language: Language,
     opts?: { useDefault?: boolean }
   ): Promise<Template | null>;
+  hasCustomTemplate(userId: string, studyType: string, language: Language): Promise<boolean>;
   createCustomTemplateFromSystem(
     userId: string,
     studyType: string,
@@ -197,6 +198,35 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
         return await getSystemTemplate(studyType, language);
       } catch (error) {
         return handleSupabaseError(error, "fetch preferred template", "Failed to fetch preferred template");
+      }
+    },
+
+    async hasCustomTemplate(userId: string, studyType: string, language: Language): Promise<boolean> {
+      try {
+        const { data, error } = await supabaseClient
+          .from(tableName("templates"))
+          .select("template_id")
+          .eq("user_id", userId)
+          .eq("study_type", studyType)
+          .eq("language", language)
+          .eq("is_system", false)
+          .limit(1)
+          .maybeSingle();
+
+        if (error) {
+          throw new HttpError(`Failed to check custom template existence: ${error.message}`, {
+            status: 500,
+            details: error.code,
+          });
+        }
+
+        return Boolean(data);
+      } catch (error) {
+        return handleSupabaseError(
+          error,
+          "check custom template existence",
+          "Failed to check custom template existence"
+        );
       }
     },
 

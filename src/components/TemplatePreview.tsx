@@ -78,27 +78,30 @@ export function TemplatePreview({
   }, [templateScrollbarRef]);
 
   const renderHeader = () => (
-    <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col sm:flex-row sm:items-center gap-2 lg:gap-3 min-w-0">
-      {onMobileFullscreenToggle && (
-        <button
-          type="button"
-          onClick={onMobileFullscreenToggle}
-          className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors shrink-0"
-          aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          {isMobileFullscreen ? (
-            <Minimize2 className="w-4 h-4" />
-          ) : (
-            <Maximize2 className="w-4 h-4" />
-          )}
-        </button>
-      )}
-      <h3 className="text-base font-semibold text-foreground shrink-0 whitespace-nowrap">
-        {t("template.title")}
-      </h3>
+    <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col gap-2 lg:gap-3 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
+        {onMobileFullscreenToggle && (
+          <button
+            type="button"
+            onClick={onMobileFullscreenToggle}
+            className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors shrink-0"
+            aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isMobileFullscreen ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </button>
+        )}
+
+        <h3 className="text-base font-semibold text-foreground shrink-0 whitespace-nowrap">
+          {t("template.title")}
+        </h3>
+      </div>
 
       {availableStudyTypes && availableStudyTypes.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-2 min-w-0">
           <select
             id="study-type"
             value={selectedStudyType || ''}
@@ -114,7 +117,7 @@ export function TemplatePreview({
               }
             }}
             disabled={isActive || disabled || isDetectingStudyType}
-            className="min-w-0 w-full sm:flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 sm:flex-none sm:w-[240px] md:w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">{t("recording.studyTypePlaceholder")}</option>
             {availableStudyTypes.map((option) => (
@@ -123,7 +126,7 @@ export function TemplatePreview({
               </option>
             ))}
           </select>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="flex items-center gap-2 shrink-0">
             {typeof onUseDefaultChange === "function" && studyType && (
               <div className="flex items-center gap-2 shrink-0">
               <Switch
@@ -131,7 +134,7 @@ export function TemplatePreview({
                 onCheckedChange={(checked) => onUseDefaultChange(checked)}
                 disabled={isActive || disabled || isDetectingStudyType}
               />
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
+              <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">
                 Usar plantilla por defecto
               </span>
               </div>
@@ -139,17 +142,16 @@ export function TemplatePreview({
             {showSaveButton && (
               <Button
                 type="button"
-                className="gap-2 text-sm h-10 px-3 shrink-0 whitespace-nowrap"
+                className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap"
                 onClick={onSaveClick}
                 disabled={!onSaveClick || isActive || disabled || isDetectingStudyType}
               >
                 <Save className="w-5 h-5" />
-                <span className="hidden sm:inline">Guardar</span>
               </Button>
             )}
             <Button
               type="button"
-              className="gap-2 text-sm h-10 px-3 sm:px-3 shrink-0 whitespace-nowrap"
+              className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap"
               onClick={onRunAutoDetect}
               disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
             >

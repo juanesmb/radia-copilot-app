@@ -30,5 +30,6 @@ export interface GetTemplateContentResponse {
   language: string;
   templateId?: string;
   isSystem?: boolean;
+  hasCustomTemplate?: boolean;
 }
 
