@@ -286,7 +286,7 @@ export function RecordingInterface({
   const MAX_HISTORY_SIZE = 50;
   const HISTORY_DEBOUNCE_MS = 10;
 
-  const handleMicClick = async () => {
+  const handleMicClick = useCallback(async () => {
     if (isProcessingRef.current) {
       return;
     }
@@ -304,7 +304,7 @@ export function RecordingInterface({
         isProcessingRef.current = false;
       }, 500);
     }
-  };
+  }, [isRecording, isActive, onStopRecording, onStartRecording]);
 
   useEffect(() => {
     const toggleDictation = () => {
