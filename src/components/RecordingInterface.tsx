@@ -466,7 +466,6 @@ export function RecordingInterface({
 
   const handleGenerateReport = useCallback(async () => {
     await onUpload();
-    setIsInputPanelCollapsed(true);
   }, [onUpload]);
 
   return (
