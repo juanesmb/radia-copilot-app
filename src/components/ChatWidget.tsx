@@ -102,6 +102,19 @@ const TEXTAREA_MAX_HEIGHT = 240;
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
+const setGlobalResizeCursor = (isResizing: boolean) => {
+  if (typeof document === "undefined") return;
+  const style = isResizing ? "col-resize" : "";
+  document.body.style.cursor = style;
+  document.documentElement.style.cursor = style;
+  const userSelect = isResizing ? "none" : "";
+  document.body.style.userSelect = userSelect;
+  document.documentElement.style.userSelect = userSelect;
+  // Safari/WebKit
+  (document.body.style as any).webkitUserSelect = userSelect;
+  (document.documentElement.style as any).webkitUserSelect = userSelect;
+};
+
 const models = [
   {
     id: "openai/gpt-5.1",
@@ -299,6 +312,18 @@ export function ChatWidget({
   }, []);
 
   useEffect(() => {
+    const handleChatNew = () => {
+      setIsOpen(true);
+      void handleNewChat();
+    };
+
+    window.addEventListener("chat-new", handleChatNew);
+    return () => {
+      window.removeEventListener("chat-new", handleChatNew);
+    };
+  }, []);
+
+  useEffect(() => {
     onOpenChange?.(isOpen);
   }, [isOpen, onOpenChange]);
 
@@ -341,6 +366,7 @@ export function ChatWidget({
       if (!resizeStateRef.current.active) {
         return;
       }
+      setGlobalResizeCursor(true);
       const delta = resizeStateRef.current.startX - event.clientX;
       const nextWidth = clamp(
         resizeStateRef.current.startWidth + delta,
@@ -352,6 +378,7 @@ export function ChatWidget({
 
     const handlePointerUp = () => {
       resizeStateRef.current.active = false;
+      setGlobalResizeCursor(false);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -360,6 +387,7 @@ export function ChatWidget({
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
+      setGlobalResizeCursor(false);
     };
   }, []);
 
@@ -715,6 +743,8 @@ export function ChatWidget({
     if (isMobile) {
       return;
     }
+    event.preventDefault();
+    setGlobalResizeCursor(true);
     resizeStateRef.current = {
       active: true,
       startX: event.clientX,
