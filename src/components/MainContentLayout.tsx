@@ -12,7 +12,7 @@ export function MainContentLayout({ header, rightPanel, className = "" }: MainCo
   return (
     <div className={cn("flex-1 min-w-0 flex flex-col min-h-0 overflow-y-auto", className)}>
       <div className="w-full flex-shrink-0">{header}</div>
-      <div className="flex-1 min-h-0 p-3 flex flex-col">{rightPanel}</div>
+      <div className="flex-1 min-h-0 pt-2 pr-2 pb-2 pl-1 flex flex-col">{rightPanel}</div>
     </div>
   );
 }

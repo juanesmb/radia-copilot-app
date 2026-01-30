@@ -36,7 +36,10 @@ export default async function RootLayout({
   if (params) await params;
   if (searchParams) await searchParams;
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning translate="no">
+      <head>
+        <meta name="google" content="notranslate" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClerkProvider>
           <ThemeProvider forcedTheme="dark" attribute="class" enableSystem={false}>
