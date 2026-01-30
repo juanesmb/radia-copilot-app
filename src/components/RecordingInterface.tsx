@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { cn } from "@/lib/utils";
+import { InputPanelCollapseToggle } from "@/components/InputPanelCollapseToggle";
 import { useTemplateContent } from "@/hooks/useTemplateContent";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoSave } from "@/hooks/useAutoSave";
@@ -15,6 +16,9 @@ import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
 import { toast } from "@/components/ui/use-toast";
 import { setTemplatePreference } from "@/lib/api";
 import type { STTState } from "@/domain/speech-to-text";
+
+const INPUT_PANEL_ANIMATION_CLASSES = "transition-[max-width,width,flex-basis,opacity] duration-300 ease-in-out";
+const REPORT_PANEL_ANIMATION_CLASSES = "transition-[max-width,width,flex-basis] duration-300 ease-in-out";
 
 type HistoryEntry = {
   text: string;
@@ -32,7 +36,7 @@ interface RecordingInterfaceProps {
   label: string;
   uploadLabel: string;
   onChange: (value: string) => void;
-  onUpload: () => void;
+  onUpload: () => void | Promise<void>;
   disabled?: boolean;
   // Speech-to-text props
   sttState: STTState;
@@ -113,11 +117,16 @@ export function RecordingInterface({
 }: RecordingInterfaceProps) {
   const { t } = useLanguage();
   const [isCopied, setIsCopied] = useState(false);
+  const [isInputPanelCollapsed, setIsInputPanelCollapsed] = useState(false);
   const [mobileFullscreen, setMobileFullscreen] = useState<'transcription' | 'template' | 'report' | null>(null);
   const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
   const transcriptionScrollbarRef = useAutoHideScrollbar();
   const reportScrollbarRef = useAutoHideScrollbar();
   const mobileContainerRef = useAutoHideScrollbar();
+  const prevHasGeneratedReportRef = useRef(false);
+  const userToggledInputPanelRef = useRef(false);
+
+  const hasGeneratedReport = Boolean(generatedReport && generatedReport.trim().length > 0);
 
   // Sync scrollbar refs with textarea refs
   useEffect(() => {
@@ -166,7 +175,24 @@ export function RecordingInterface({
 
     lastTemplateMetaRef.current = next;
     onTemplateMetaChange(next);
-  }, [isSystem, templateId]);
+  }, [isSystem, onTemplateMetaChange, templateId]);
+
+  useEffect(() => {
+    const wasHasReport = prevHasGeneratedReportRef.current;
+
+    // First time we see a generated report after not having one: auto-collapse unless user already toggled
+    if (!wasHasReport && hasGeneratedReport && !userToggledInputPanelRef.current) {
+      setIsInputPanelCollapsed(true);
+    }
+
+    // When there is no generated report, keep 2-column and reset user toggle flag
+    if (!hasGeneratedReport) {
+      setIsInputPanelCollapsed(false);
+      userToggledInputPanelRef.current = false;
+    }
+
+    prevHasGeneratedReportRef.current = hasGeneratedReport;
+  }, [hasGeneratedReport]);
 
   const {
     value: templateValue,
@@ -349,7 +375,7 @@ export function RecordingInterface({
   const MAX_HISTORY_SIZE = 50;
   const HISTORY_DEBOUNCE_MS = 10;
 
-  const handleMicClick = async () => {
+  const handleMicClick = useCallback(async () => {
     if (isProcessingRef.current) {
       return;
     }
@@ -367,7 +393,74 @@ export function RecordingInterface({
         isProcessingRef.current = false;
       }, 500);
     }
-  };
+  }, [isRecording, isActive, onStopRecording, onStartRecording]);
+
+  useEffect(() => {
+    const toggleDictation = () => {
+      void handleMicClick();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        if (e.repeat) {
+          return;
+        }
+
+        const active = document.activeElement as HTMLElement | null;
+        const tag = active?.tagName?.toLowerCase();
+        const isEditable =
+          tag === 'input' ||
+          tag === 'textarea' ||
+          Boolean(active?.isContentEditable);
+
+        if (!isEditable) {
+          e.preventDefault();
+          toggleDictation();
+        }
+      }
+
+      if (e.code === 'MediaPlayPause') {
+        e.preventDefault();
+        toggleDictation();
+      }
+      if (e.code === 'MediaStop') {
+        if (sttState === 'recording') {
+          e.preventDefault();
+          void onStopRecording();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    const mediaSession = navigator.mediaSession;
+    if (mediaSession?.setActionHandler) {
+      try {
+        mediaSession.setActionHandler('play', toggleDictation);
+        mediaSession.setActionHandler('pause', toggleDictation);
+        mediaSession.setActionHandler('stop', () => {
+          if (sttState === 'recording') {
+            void onStopRecording();
+          }
+        });
+      } catch {
+        // Some browsers throw if an action isn't supported.
+      }
+    }
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (mediaSession?.setActionHandler) {
+        try {
+          mediaSession.setActionHandler('play', null);
+          mediaSession.setActionHandler('pause', null);
+          mediaSession.setActionHandler('stop', null);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, [handleMicClick, onStopRecording, sttState]);
 
   useEffect(() => {
     if (historyRef.current.length === 0) {
@@ -491,6 +584,20 @@ export function RecordingInterface({
 
   const hasAvailableStudyTypes = availableStudyTypes && availableStudyTypes.length > 0;
 
+  const inputPanelExpandedClasses = "lg:flex-1 lg:basis-1/2 lg:max-w-[50%] lg:opacity-100 lg:overflow-hidden";
+  const inputPanelCollapsedClasses = "lg:basis-0 lg:w-0 lg:min-w-0 lg:max-w-0 lg:overflow-hidden lg:opacity-0 lg:flex-[0_0_0]";
+  const reportPanelExpandedClasses = "lg:flex-1 lg:basis-1/2 lg:max-w-[50%]";
+  const reportPanelFullWidthClasses = "lg:flex-1 lg:basis-full lg:max-w-none";
+
+  const handleToggleInputPanel = useCallback(() => {
+    userToggledInputPanelRef.current = true;
+    setIsInputPanelCollapsed((prev) => !prev);
+  }, []);
+
+  const handleGenerateReport = useCallback(async () => {
+    await onUpload();
+  }, [onUpload]);
+
   return (
     <div 
       ref={(node) => {
@@ -511,15 +618,24 @@ export function RecordingInterface({
       {/* Mobile: Stack vertically and allow scrolling. Desktop: Side-by-side with overflow hidden */}
       {/* Mobile fullscreen: When a component is fullscreen, it takes full height */}
       <div className={cn(
-        "flex flex-col lg:flex-row gap-4 flex-1 h-full min-h-0 lg:min-h-0 lg:overflow-hidden mt-2",
+        "flex flex-col lg:flex-row gap-2 lg:gap-1.5 flex-1 h-full min-h-0 lg:min-h-0 lg:overflow-hidden",
         mobileFullscreen && "flex-1 h-full"
       )}>
+        <InputPanelCollapseToggle
+          collapsed={isInputPanelCollapsed}
+          onToggle={handleToggleInputPanel}
+          ariaLabelExpand={t("recording.expandInputPanel") ?? "Expand input panel"}
+          ariaLabelCollapse={t("recording.collapseInputPanel") ?? "Collapse input panel"}
+          disabled={!hasGeneratedReport}
+        />
         {/* Left column: Stacked Transcription and Template */}
         {/* Mobile: Use auto height to stack naturally. Desktop: Use flex-1 for equal sizing */}
         <div className={cn(
-          "flex flex-col gap-4 lg:flex-1 lg:max-w-[50%] lg:min-h-0",
+          "flex flex-col gap-4 lg:min-h-0 lg:overflow-hidden",
           mobileFullscreen === 'transcription' && "flex-1 h-full",
-          mobileFullscreen === 'template' && "flex-1 h-full"
+          mobileFullscreen === 'template' && "flex-1 h-full",
+          isInputPanelCollapsed ? inputPanelCollapsedClasses : inputPanelExpandedClasses,
+          INPUT_PANEL_ANIMATION_CLASSES
         )}>
           {/* Transcription panel */}
           {/* Mobile: Use min-height. Desktop: Use flex-1 */}
@@ -644,9 +760,11 @@ export function RecordingInterface({
         {/* Right column: Generated Report */}
         {/* Mobile: Use min-height. Desktop: Use flex-1 for equal sizing */}
         <div className={cn(
-          "flex flex-col min-h-[200px] lg:flex-1 lg:max-w-[50%] lg:min-h-0 shrink-0",
+          "flex flex-col min-h-[200px] lg:min-h-0 shrink-0",
           mobileFullscreen && mobileFullscreen !== 'report' && "hidden lg:flex",
-          mobileFullscreen === 'report' && "lg:flex flex-1 h-full"
+          mobileFullscreen === 'report' && "lg:flex flex-1 h-full",
+          isInputPanelCollapsed ? reportPanelFullWidthClasses : reportPanelExpandedClasses,
+          REPORT_PANEL_ANIMATION_CLASSES
         )}>
           <div className={cn(
             "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
@@ -691,7 +809,7 @@ export function RecordingInterface({
                     <Button
                       type="button"
                       className="gap-2 text-base h-10 px-3 sm:px-6 shrink-0"
-                      onClick={onUpload}
+                      onClick={handleGenerateReport}
                       disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
                     >
                       <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />

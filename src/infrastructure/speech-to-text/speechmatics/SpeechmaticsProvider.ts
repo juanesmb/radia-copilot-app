@@ -13,6 +13,27 @@ type ErrorCallback = (error: STTError) => void;
 const TOKEN_ENDPOINT = '/api/speechmatics/token';
 const SPEECHMATICS_WS_URL = 'wss://eu.rt.speechmatics.com/v2';
 
+const getDictatedPunctuationReplacements = (
+  language: 'en' | 'es'
+): Array<{ from: string; to: string }> => {
+  if (language === 'es') {
+    return [
+      { from: '/^(coma|Coma)$/', to: ',' },
+      { from: '/^(punto|Punto)$/', to: '.' },
+      { from: '/^(punto final|Punto final)$/', to: '.' },
+      { from: '/^(dos puntos|Dos puntos)$/', to: ':' }
+    ];
+  }
+
+  // English
+  return [
+    { from: '/^([cC]omma|[cC]oma)$/', to: ',' },
+    { from: '/^(period|Period)$/', to: '.' },
+    { from: '/^(full stop|Full stop)$/', to: '.' },
+    { from: '/^(colon|Colon)$/', to: ':' }
+  ];
+};
+
 const log = (context: string, message: string, data?: unknown) => {
   const timestamp = new Date().toISOString();
   console.log(`[STT ${timestamp}] [${context}] ${message}`, data ?? '');
@@ -23,6 +44,24 @@ const logError = (context: string, message: string, error?: unknown) => {
   console.error(`[STT ${timestamp}] [${context}] ERROR: ${message}`, error ?? '');
 };
 
+const appendTranscript = (base: string, addition: string): string => {
+  const a = addition.trim();
+  if (!a) {
+    return base;
+  }
+
+  if (!base) {
+    return a;
+  }
+
+  // Don't insert a space before punctuation tokens.
+  if (/^[\]\[(){}.,!?;:]/.test(a)) {
+    return `${base}${a}`;
+  }
+
+  return `${base} ${a}`;
+};
+
 export class SpeechmaticsProvider implements SpeechToTextProvider {
   private state: STTState = 'idle';
   private socket: WebSocket | null = null;
@@ -30,6 +69,9 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
   private audioContext: AudioContext | null = null;
   private scriptProcessor: ScriptProcessorNode | null = null;
   private config: STTConfig | null = null;
+
+  private silenceStartMs: number | null = null;
+  private hasAutoStoppedForSilence = false;
 
   private transcriptCallbacks: TranscriptCallback[] = [];
   private stateCallbacks: StateCallback[] = [];
@@ -89,6 +131,8 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     this.setState('connecting');
     this.accumulatedTranscript = '';
     this.audioChunkCount = 0;
+    this.silenceStartMs = null;
+    this.hasAutoStoppedForSilence = false;
 
     try {
       // Fetch temporary JWT from backend
@@ -131,6 +175,10 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
         this.socket.onopen = () => {
           log('WEBSOCKET', 'WebSocket connected, sending StartRecognition message');
           clearTimeout(timeout);
+
+          const dictatedPunctuationReplacements = getDictatedPunctuationReplacements(
+            config.language
+          );
           
           const startMessage = {
             message: 'StartRecognition',
@@ -140,6 +188,13 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
               enable_partials: config.enablePartials ?? true,
               max_delay: 2.0,
               ...(config.language === 'es' && { domain: 'medical' }),
+              transcript_filtering_config: {
+                replacements: dictatedPunctuationReplacements,
+              },
+              punctuation_overrides: {
+                permitted_marks: [','],
+                sensitivity: 0.2,
+              },
             },
             audio_format: {
               type: 'raw',
@@ -282,11 +337,13 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     log('TRANSCRIPT', `Processing transcript: isFinal=${isFinal}, newText="${text.slice(0, 50)}..."`);
 
     if (isFinal && text) {
-      this.accumulatedTranscript += this.accumulatedTranscript ? ` ${text}` : text;
+      this.accumulatedTranscript = appendTranscript(this.accumulatedTranscript, text);
       log('TRANSCRIPT', `Accumulated transcript length: ${this.accumulatedTranscript.length}`);
     }
 
-    const emittedText = isFinal ? this.accumulatedTranscript : this.accumulatedTranscript + (text ? ' ' + text : '');
+    const emittedText = isFinal
+      ? this.accumulatedTranscript
+      : appendTranscript(this.accumulatedTranscript, text);
 
     this.emitTranscript({
       text: emittedText,
@@ -336,6 +393,9 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
       
       log('AUDIO', `ScriptProcessor created: bufferSize=${bufferSize}`);
 
+      this.silenceStartMs = null;
+      this.hasAutoStoppedForSilence = false;
+
       this.scriptProcessor.onaudioprocess = (event) => {
         if (this.state !== 'recording') {
           return;
@@ -350,6 +410,36 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
 
         const inputData = event.inputBuffer.getChannelData(0);
         const buffer = new Float32Array(inputData);
+
+        const nowMs = performance.now();
+        let sumSquares = 0;
+        for (let i = 0; i < buffer.length; i++) {
+          const v = buffer[i];
+          sumSquares += v * v;
+        }
+        const rms = Math.sqrt(sumSquares / Math.max(1, buffer.length));
+
+        const SILENCE_RMS_THRESHOLD = 0.008;
+        const SILENCE_STOP_AFTER_MS = 12500;
+
+        if (rms < SILENCE_RMS_THRESHOLD) {
+          if (this.silenceStartMs === null) {
+            this.silenceStartMs = nowMs;
+          } else if (
+            !this.hasAutoStoppedForSilence &&
+            nowMs - this.silenceStartMs >= SILENCE_STOP_AFTER_MS
+          ) {
+            this.hasAutoStoppedForSilence = true;
+            log('RECORDING', `Auto-stopping due to silence: ${Math.round(nowMs - this.silenceStartMs)}ms`);
+            setTimeout(() => {
+              if (this.state === 'recording') {
+                void this.stopRecording();
+              }
+            }, 0);
+          }
+        } else {
+          this.silenceStartMs = null;
+        }
         
         this.audioChunkCount++;
         if (this.audioChunkCount % 50 === 0) {
