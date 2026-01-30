@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -286,7 +286,7 @@ export function RecordingInterface({
   const MAX_HISTORY_SIZE = 50;
   const HISTORY_DEBOUNCE_MS = 10;
 
-  const handleMicClick = async () => {
+  const handleMicClick = useCallback(async () => {
     if (isProcessingRef.current) {
       return;
     }
@@ -304,7 +304,74 @@ export function RecordingInterface({
         isProcessingRef.current = false;
       }, 500);
     }
-  };
+  }, [isRecording, isActive, onStopRecording, onStartRecording]);
+
+  useEffect(() => {
+    const toggleDictation = () => {
+      void handleMicClick();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        if (e.repeat) {
+          return;
+        }
+
+        const active = document.activeElement as HTMLElement | null;
+        const tag = active?.tagName?.toLowerCase();
+        const isEditable =
+          tag === 'input' ||
+          tag === 'textarea' ||
+          Boolean(active?.isContentEditable);
+
+        if (!isEditable) {
+          e.preventDefault();
+          toggleDictation();
+        }
+      }
+
+      if (e.code === 'MediaPlayPause') {
+        e.preventDefault();
+        toggleDictation();
+      }
+      if (e.code === 'MediaStop') {
+        if (sttState === 'recording') {
+          e.preventDefault();
+          void onStopRecording();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    const mediaSession = navigator.mediaSession;
+    if (mediaSession?.setActionHandler) {
+      try {
+        mediaSession.setActionHandler('play', toggleDictation);
+        mediaSession.setActionHandler('pause', toggleDictation);
+        mediaSession.setActionHandler('stop', () => {
+          if (sttState === 'recording') {
+            void onStopRecording();
+          }
+        });
+      } catch {
+        // Some browsers throw if an action isn't supported.
+      }
+    }
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (mediaSession?.setActionHandler) {
+        try {
+          mediaSession.setActionHandler('play', null);
+          mediaSession.setActionHandler('pause', null);
+          mediaSession.setActionHandler('stop', null);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, [handleMicClick, onStopRecording, sttState]);
 
   useEffect(() => {
     if (historyRef.current.length === 0) {
