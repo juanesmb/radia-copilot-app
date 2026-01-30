@@ -70,6 +70,12 @@ export function TemplatePreview({
   const templateScrollbarRef = useAutoHideScrollbar();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const placeholderText = !content
+    ? isCustom
+      ? t("template.customEmpty")
+      : t("template.empty")
+    : undefined;
+
   // Sync scrollbar ref with textarea ref
   useEffect(() => {
     if (textareaRef.current) {
@@ -78,8 +84,8 @@ export function TemplatePreview({
   }, [templateScrollbarRef]);
 
   const renderHeader = () => (
-    <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col gap-2 lg:gap-3 min-w-0">
-      <div className="flex items-center gap-2 min-w-0">
+    <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
         {onMobileFullscreenToggle && (
           <button
             type="button"
@@ -101,7 +107,7 @@ export function TemplatePreview({
       </div>
 
       {availableStudyTypes && availableStudyTypes.length > 0 && (
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-2 sm:flex-1">
           <select
             id="study-type"
             value={selectedStudyType || ''}
@@ -126,19 +132,20 @@ export function TemplatePreview({
               </option>
             ))}
           </select>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             {typeof onUseDefaultChange === "function" && studyType && (
               <div className="flex items-center gap-2 shrink-0">
-              <Switch
-                checked={useDefault}
-                onCheckedChange={(checked) => onUseDefaultChange(checked)}
-                disabled={isActive || disabled || isDetectingStudyType}
-              />
-              <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">
-                Usar plantilla por defecto
-              </span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {isCustom ? "custom" : "default"}
+                </span>
+                <Switch
+                  checked={Boolean(isCustom)}
+                  onCheckedChange={(checked) => onUseDefaultChange(!checked)}
+                  disabled={isActive || disabled || isDetectingStudyType || isLoading}
+                />
               </div>
             )}
+
             {showSaveButton && (
               <Button
                 type="button"
@@ -151,7 +158,7 @@ export function TemplatePreview({
             )}
             <Button
               type="button"
-              className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap"
+              className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap ml-auto"
               onClick={onRunAutoDetect}
               disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
             >
@@ -223,7 +230,7 @@ export function TemplatePreview({
           onBlur={(e) => onContentBlur?.(e.target.value)}
           className="flex-1 text-base leading-relaxed resize-none scrollbar-transparent"
           readOnly={!onContentChange}
-          placeholder={!content ? t("template.empty") : undefined}
+          placeholder={placeholderText}
         />
       </div>
     </Card>

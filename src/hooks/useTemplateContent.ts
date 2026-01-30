@@ -79,13 +79,20 @@ export function useTemplateContent(
         return;
       }
 
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load template';
+      // Handle various error formats (ApiError, Error, or unknown)
+      let errorMessage = 'Failed to load template';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        errorMessage = String((err as { message: unknown }).message);
+      }
+      
       setError(errorMessage);
       setContent(null);
       setTemplateId(null);
       setIsSystem(true);
       setHasCustomTemplate(false);
-      console.error('[useTemplateContent] Error:', err);
+      console.error('[useTemplateContent] Error:', errorMessage, err);
     } finally {
       if (!abortController.signal.aborted) {
         setIsLoading(false);

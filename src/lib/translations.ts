@@ -62,6 +62,7 @@ export const translations: TranslationMap = {
 
     "template.title": "Template",
     "template.empty": "Select a study type from the dropdown above, or start recording - the template will appear automatically after you finish recording",
+    "template.customEmpty": "Write your personalized template here…",
     "template.detecting": "Detecting study type...",
     "template.autoDetect": "Detect",
     "template.error": "Error loading template",
@@ -206,6 +207,7 @@ export const translations: TranslationMap = {
 
     "template.title": "Plantilla",
     "template.empty": "Selecciona una plantilla o dicta tus hallazgos positivos.",
+    "template.customEmpty": "Escribe tu plantilla personalizada aquí…",
     "template.detecting": "Detectando tipo de estudio...",
     "template.autoDetect": "Detectar",
     "template.error": "Error al cargar la plantilla",
