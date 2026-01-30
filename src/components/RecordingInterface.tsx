@@ -34,7 +34,7 @@ interface RecordingInterfaceProps {
   label: string;
   uploadLabel: string;
   onChange: (value: string) => void;
-  onUpload: () => void;
+  onUpload: () => void | Promise<void>;
   disabled?: boolean;
   // Speech-to-text props
   sttState: STTState;
@@ -465,10 +465,7 @@ export function RecordingInterface({
   }, []);
 
   const handleGenerateReport = useCallback(async () => {
-    const result = onUpload();
-    if (result instanceof Promise) {
-      await result;
-    }
+    await onUpload();
     setIsInputPanelCollapsed(true);
   }, [onUpload]);
 
