@@ -167,7 +167,6 @@ export function RecordingInterface({
   const [originalTemplateContent, setOriginalTemplateContent] = useState<string | null>(null);
   const [hasTemplateBeenEdited, setHasTemplateBeenEdited] = useState(false);
   const [isManualTemplateSaving, setIsManualTemplateSaving] = useState(false);
-  const templateSaveDisabled = !onTemplateSave;
   const lastTemplateMetaRef = useRef<{ templateId: string | null; isSystem: boolean } | null>(null);
 
   useEffect(() => {
@@ -221,25 +220,7 @@ export function RecordingInterface({
     prevHasGeneratedReportRef.current = hasGeneratedReport;
   }, [hasGeneratedReport]);
 
-  // Autosave should only work when in custom mode (useDefaultTemplate === false)
-  const isTemplateAutoSaveDisabled = templateSaveDisabled || useDefaultTemplate !== false;
-  
-  const {
-    value: templateValue,
-    onChange: onTemplateAutoSaveChange,
-    onBlur: onTemplateAutoSaveBlur,
-  } = useAutoSave({
-    initialValue: editedTemplateContent ?? "",
-    onSave: onTemplateSave
-      ? async (value: string) => {
-          // Pass true for isCustom only when switch is in custom mode
-          await onTemplateSave(value, useDefaultTemplate === false);
-        }
-      : async () => {},
-    debounceMs: 3000,
-    isDisabled: isTemplateAutoSaveDisabled,
-    reportId: currentReportId,
-  });
+  // Template autosave has been removed - only manual save via button is supported
 
   const handleTemplateChange = useCallback((value: string) => {
     setEditedTemplateContent(value);
@@ -252,28 +233,9 @@ export function RecordingInterface({
     onTemplateEditStatusChange?.(isDifferent);
     
     onTemplateChange?.(value);
+  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange]);
 
-    // Only trigger autosave when in custom mode
-    if (!isTemplateAutoSaveDisabled) {
-      onTemplateAutoSaveChange({
-        target: { value },
-      } as React.ChangeEvent<HTMLTextAreaElement>);
-    }
-  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange, onTemplateAutoSaveChange, isTemplateAutoSaveDisabled, effectiveStudyType]);
-
-  const handleTemplateBlur = useCallback(
-    (value: string) => {
-      // Only trigger autosave on blur when in custom mode
-      if (isTemplateAutoSaveDisabled) {
-        return;
-      }
-
-      onTemplateAutoSaveBlur({
-        target: { value },
-      } as React.FocusEvent<HTMLTextAreaElement>);
-    },
-    [onTemplateAutoSaveBlur, isTemplateAutoSaveDisabled],
-  );
+  // Template blur handler removed - no autosave on blur
 
   const handleCustomStateReset = useCallback(() => {
     // Reset custom state when a new template is selected
@@ -315,12 +277,6 @@ export function RecordingInterface({
             const restored = originalTemplateContent ?? "";
             setEditedTemplateContent(restored);
             onTemplateChange?.(restored);
-
-            if (!templateSaveDisabled) {
-              onTemplateAutoSaveChange({
-                target: { value: restored },
-              } as React.ChangeEvent<HTMLTextAreaElement>);
-            }
           }
           // Changing template source means current edits should be reset
           setHasTemplateBeenEdited(false);
@@ -330,7 +286,7 @@ export function RecordingInterface({
         console.error("[TemplatePreference] Failed to set preference", error);
       }
     },
-    [effectiveStudyType, hasCustomTemplate, isSystem, language, onTemplateAutoSaveChange, onTemplateChange, onTemplateEditStatusChange, originalTemplateContent, templateSaveDisabled]
+    [effectiveStudyType, hasCustomTemplate, isSystem, language, onTemplateChange, onTemplateEditStatusChange, originalTemplateContent]
   );
 
   const handleManualTemplateSave = useCallback(async () => {
@@ -356,7 +312,16 @@ export function RecordingInterface({
       }
       
       // Now save as custom (isCustom = true since we're now in custom mode)
-      await onTemplateSave(templateValue, true);
+      const contentToSave = editedTemplateContent?.trim() ?? "";
+      if (!contentToSave) {
+        toast({
+          variant: "destructive",
+          title: "No se puede guardar",
+          description: "La plantilla no puede estar vacía.",
+        });
+        return;
+      }
+      await onTemplateSave(contentToSave, true);
       
       toast({
         title: "Cambios guardados",
@@ -371,7 +336,7 @@ export function RecordingInterface({
     } finally {
       setIsManualTemplateSaving(false);
     }
-  }, [effectiveStudyType, language, onTemplateSave, templateValue, useDefaultTemplate]);
+  }, [effectiveStudyType, language, onTemplateSave, editedTemplateContent, useDefaultTemplate]);
 
   const handleCopyReport = useCallback(async () => {
     if (!reportTextareaRef.current || !generatedReport) return;
@@ -811,7 +776,7 @@ export function RecordingInterface({
             mobileFullscreen === 'template' && "lg:flex flex-1 h-full"
           )}>
             <TemplatePreview
-              content={onTemplateSave ? templateValue : editedTemplateContent}
+              content={editedTemplateContent}
               isLoading={isTemplateLoading}
               error={templateError}
               studyType={effectiveStudyType}
@@ -822,7 +787,7 @@ export function RecordingInterface({
               }}
               isDetectingStudyType={isDetectingStudyType}
               onContentChange={handleTemplateChange}
-              onContentBlur={handleTemplateBlur}
+              onContentBlur={undefined}
               showSaveButton={Boolean(onTemplateSave && hasTemplateBeenEdited && effectiveStudyType)}
               onSaveClick={onTemplateSave ? handleManualTemplateSave : undefined}
               onCustomStateReset={handleCustomStateReset}
