@@ -162,6 +162,14 @@ export function RecordingInterface({
       setUseDefaultTemplate(isSystem);
     }
   }, [isTemplateLoading, isSystem, effectiveStudyType]);
+
+  // Sync switch state when parent indicates a custom template is loaded (e.g., from saved report)
+  useEffect(() => {
+    if (isTemplateCustom && initialTemplateContent) {
+      setUseDefaultTemplate(false);
+      userToggledSwitchRef.current = false; // Allow backend sync on next study type change
+    }
+  }, [isTemplateCustom, initialTemplateContent]);
   
   const [editedTemplateContent, setEditedTemplateContent] = useState<string | null>(null);
   const [originalTemplateContent, setOriginalTemplateContent] = useState<string | null>(null);

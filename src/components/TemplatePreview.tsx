@@ -85,6 +85,7 @@ export function TemplatePreview({
 
   const renderHeader = () => (
     <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-3">
+      {/* Title + Select: side by side on all screen sizes */}
       <div className="flex items-center gap-2 min-w-0 shrink-0">
         {onMobileFullscreenToggle && (
           <button
@@ -104,10 +105,8 @@ export function TemplatePreview({
         <h3 className="text-base font-semibold text-foreground shrink-0 whitespace-nowrap">
           {t("template.title")}
         </h3>
-      </div>
 
-      {availableStudyTypes && availableStudyTypes.length > 0 && (
-        <div className="flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-2 sm:flex-1">
+        {availableStudyTypes && availableStudyTypes.length > 0 && (
           <select
             id="study-type"
             value={selectedStudyType || ''}
@@ -115,7 +114,6 @@ export function TemplatePreview({
               const value = e.target.value;
               if (value) {
                 onStudyTypeChange?.(value);
-                // Reset custom state when a new template is selected
                 onCustomStateReset?.();
               } else {
                 onStudyTypeChange?.('');
@@ -123,7 +121,7 @@ export function TemplatePreview({
               }
             }}
             disabled={isActive || disabled || isDetectingStudyType}
-            className="min-w-0 flex-1 sm:flex-none sm:w-[240px] md:w-[280px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 sm:flex-none sm:w-[200px] md:w-[240px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">{t("recording.studyTypePlaceholder")}</option>
             {availableStudyTypes.map((option) => (
@@ -132,40 +130,44 @@ export function TemplatePreview({
               </option>
             ))}
           </select>
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {typeof onUseDefaultChange === "function" && studyType && (
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {isCustom ? "custom" : "default"}
-                </span>
-                <Switch
-                  checked={Boolean(isCustom)}
-                  onCheckedChange={(checked) => onUseDefaultChange(!checked)}
-                  disabled={isActive || disabled || isDetectingStudyType || isLoading}
-                />
-              </div>
-            )}
+        )}
+      </div>
 
-            {showSaveButton && (
-              <Button
-                type="button"
-                className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap"
-                onClick={onSaveClick}
-                disabled={!onSaveClick || isActive || disabled || isDetectingStudyType}
-              >
-                <Save className="w-5 h-5" />
-              </Button>
-            )}
+      {/* Controls: second row on mobile, same row on desktop */}
+      {availableStudyTypes && availableStudyTypes.length > 0 && (
+        <div className="flex items-center gap-2 min-w-0 sm:flex-1">
+          {typeof onUseDefaultChange === "function" && studyType && (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {isCustom ? "custom" : "default"}
+              </span>
+              <Switch
+                checked={Boolean(isCustom)}
+                onCheckedChange={(checked) => onUseDefaultChange(!checked)}
+                disabled={isActive || disabled || isDetectingStudyType || isLoading}
+              />
+            </div>
+          )}
+
+          {showSaveButton && (
             <Button
               type="button"
-              className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap ml-auto"
-              onClick={onRunAutoDetect}
-              disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
+              className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap"
+              onClick={onSaveClick}
+              disabled={!onSaveClick || isActive || disabled || isDetectingStudyType}
             >
-              <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">{t("template.autoDetect")}</span>
+              <Save className="w-5 h-5" />
             </Button>
-          </div>
+          )}
+          <Button
+            type="button"
+            className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap ml-auto"
+            onClick={onRunAutoDetect}
+            disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
+          >
+            <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">{t("template.autoDetect")}</span>
+          </Button>
         </div>
       )}
     </div>

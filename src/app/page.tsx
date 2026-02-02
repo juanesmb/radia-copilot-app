@@ -485,8 +485,9 @@ export default function HomePage() {
           onTemplateSave={handleTemplateSave}
           initialTemplateContent={(() => {
             const report = reportHistory.find((r) => r.id === currentReportId);
-            if (report?.usedTemplate === "custom" && !report.templateId) {
-              return report.templateContent ?? null;
+            // Load saved template content if it exists (custom template was used)
+            if (report?.templateContent?.trim()) {
+              return report.templateContent;
             }
             return null;
           })()}
@@ -1028,21 +1029,31 @@ export default function HomePage() {
           setCurrentReportTitle(report.title);
           setTranscription(report.transcription);
           setGeneratedReport(report.report);
-          const effectiveStudyType = report.usedTemplate === "custom"
-            ? report.studyType || ""
-            : report.usedTemplate || report.studyType || "";
+          
+          // Determine the actual study type (not "custom")
+          const actualStudyType = report.studyType || report.usedTemplate || "";
+          const hasCustomContent = Boolean(report.templateContent?.trim());
+          const isCustomTemplate = report.usedTemplate === "custom" || hasCustomContent;
 
-          if (report.usedTemplate === "custom") {
-            setSelectedStudyType("custom");
-            setDetectedStudyType(report.studyType || "");
-            setEditedTemplate(report.templateContent || "");
+          // Always set the real study type in the selector
+          setSelectedStudyType(actualStudyType === "custom" ? "" : actualStudyType);
+          setDetectedStudyType(actualStudyType === "custom" ? "" : actualStudyType);
+          
+          // Set template content and custom flag based on saved data
+          if (isCustomTemplate && report.templateContent) {
+            setEditedTemplate(report.templateContent);
             setIsTemplateCustom(true);
           } else {
-            setSelectedStudyType(effectiveStudyType);
-            setDetectedStudyType(effectiveStudyType);
             setEditedTemplate("");
             setIsTemplateCustom(false);
           }
+          
+          // Update template metadata
+          setCurrentTemplateMeta({
+            templateId: report.templateId ?? null,
+            isSystem: !isCustomTemplate,
+          });
+          
           setDemoState("recording");
           setSidebarView("reports");
           setIsReportsOpen(false);
