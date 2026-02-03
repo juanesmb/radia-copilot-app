@@ -56,6 +56,10 @@ type Dependencies = {
   supabaseClient: SupabaseClient;
 };
 
+const tableSuffix = process.env.NEXT_PUBLIC_DB_TABLE_SUFFIX ?? "";
+
+const tableName = (base: string) => `${base}${tableSuffix}`;
+
 export const createChatRepository = (deps: Dependencies): ChatRepository => {
   const { supabaseClient } = deps;
 
@@ -63,7 +67,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async createSession(data: ChatSessionData): Promise<ChatSession> {
       try {
         const { data: session, error } = await supabaseClient
-          .from("chat_sessions")
+          .from(tableName("chat_sessions"))
           .insert({
             ...data,
             message_count: data.message_count ?? 0,
@@ -101,7 +105,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async listSessions(userId: string): Promise<ChatSession[]> {
       try {
         const { data: sessions, error } = await supabaseClient
-          .from("chat_sessions")
+          .from(tableName("chat_sessions"))
           .select("*")
           .eq("user_id", userId)
           .order("updated_at", { ascending: false });
@@ -128,7 +132,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async getSession(userId: string, sessionId: string): Promise<ChatSession> {
       try {
         const { data: session, error } = await supabaseClient
-          .from("chat_sessions")
+          .from(tableName("chat_sessions"))
           .select("*")
           .eq("id", sessionId)
           .eq("user_id", userId)
@@ -153,7 +157,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async listMessages(sessionId: string): Promise<ChatMessage[]> {
       try {
         const { data: messages, error } = await supabaseClient
-          .from("chat_messages")
+          .from(tableName("chat_messages"))
           .select("*")
           .eq("session_id", sessionId)
           .order("created_at", { ascending: true });
@@ -180,7 +184,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async createMessage(userId: string, data: ChatMessageData): Promise<ChatMessage> {
       try {
         const { data: session, error: sessionError } = await supabaseClient
-          .from("chat_sessions")
+          .from(tableName("chat_sessions"))
           .select("id, user_id, message_count, token_count")
           .eq("id", data.session_id)
           .single();
@@ -196,7 +200,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         }
 
         const { data: message, error } = await supabaseClient
-          .from("chat_messages")
+          .from(tableName("chat_messages"))
           .insert({
             ...data,
             token_count: data.token_count ?? 0,
@@ -220,7 +224,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         const nextCount = (session.message_count ?? 0) + 1;
         const nextTokens = (session.token_count ?? 0) + (data.token_count ?? 0);
         await supabaseClient
-          .from("chat_sessions")
+          .from(tableName("chat_sessions"))
           .update({
             message_count: nextCount,
             token_count: nextTokens,
@@ -248,7 +252,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     ): Promise<ChatSession> {
       try {
         const { data: existingSession, error: fetchError } = await supabaseClient
-          .from("chat_sessions")
+          .from(tableName("chat_sessions"))
           .select("user_id")
           .eq("id", sessionId)
           .single();
@@ -258,13 +262,11 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         }
 
         if (existingSession.user_id !== userId) {
-          throw new HttpError("Unauthorized: You do not own this chat", {
-            status: 403,
-          });
+          throw new HttpError("Unauthorized: You do not own this chat", { status: 403 });
         }
 
-        const { data: session, error } = await supabaseClient
-          .from("chat_sessions")
+        const { data: updated, error } = await supabaseClient
+          .from(tableName("chat_sessions"))
           .update({
             ...updates,
             updated_at: new Date().toISOString(),
@@ -281,13 +283,11 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
           });
         }
 
-        if (!session) {
-          throw new HttpError("Failed to update chat session: No data returned", {
-            status: 500,
-          });
+        if (!updated) {
+          throw new HttpError("Chat session not found", { status: 404 });
         }
 
-        return session as ChatSession;
+        return updated as ChatSession;
       } catch (error) {
         if (error instanceof HttpError) {
           throw error;

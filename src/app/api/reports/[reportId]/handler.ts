@@ -69,6 +69,9 @@ export const updateReportHandler = async (
     if ("template_content" in payloadRecord && (payloadRecord.template_content === null || typeof payloadRecord.template_content === "string")) {
       updates.template_content = payloadRecord.template_content as string | null;
     }
+    if ("template_id" in payloadRecord && (payloadRecord.template_id === null || typeof payloadRecord.template_id === "string")) {
+      updates.template_id = payloadRecord.template_id as string | null;
+    }
     if ("study_type" in payloadRecord && (payloadRecord.study_type === null || typeof payloadRecord.study_type === "string")) {
       updates.study_type = payloadRecord.study_type as string | null;
     }
@@ -76,6 +79,11 @@ export const updateReportHandler = async (
     // Nullable number field
     if ("detection_confidence" in payloadRecord && (payloadRecord.detection_confidence === null || typeof payloadRecord.detection_confidence === "number")) {
       updates.detection_confidence = payloadRecord.detection_confidence as number | null;
+    }
+    
+    // Nullable boolean field
+    if ("is_custom_template" in payloadRecord && (payloadRecord.is_custom_template === null || typeof payloadRecord.is_custom_template === "boolean")) {
+      updates.is_custom_template = payloadRecord.is_custom_template as boolean | null;
     }
 
     if (Object.keys(updates).length === 0) {

@@ -27,6 +27,13 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
       reportId?: string
     ): AsyncGenerator<StreamEvent> {
       try {
+        console.log("[StreamingUsecase] Input received:", {
+          isCustomTemplate: input.isCustomTemplate,
+          studyType: input.studyType,
+          templateLength: input.template?.length || 0,
+          reportId,
+        });
+
         // Build prompt
         const prompt = await deps.promptBuilder.build(input);
 
@@ -76,7 +83,7 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
 
         const reportData = {
           ...formatted,
-          studyType: prompt.detection?.studyType,
+          studyType: input.isCustomTemplate ? input.studyType : prompt.detection?.studyType,
           detectionConfidence: prompt.detection?.confidence,
           modelUsed: deps.modelUsed,
           selectedTemplate: prompt.selectedTemplate,
@@ -100,7 +107,9 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
           ? await deps.reportRepository.updateReport(reportId, userId, {
               ...baseReportFields,
               report_title: reportData.title || undefined,
+              template_id: input.templateId ?? undefined,
               template_content: input.isCustomTemplate && input.template ? input.template : undefined,
+              is_custom_template: input.isCustomTemplate ?? false,
               study_type: reportData.studyType || undefined,
               detection_confidence: reportData.detectionConfidence || undefined,
             })
@@ -108,7 +117,9 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
               user_id: userId,
               ...baseReportFields,
               report_title: reportData.title || null,
+              template_id: input.templateId ?? null,
               template_content: input.isCustomTemplate && input.template ? input.template : null,
+              is_custom_template: input.isCustomTemplate ?? false,
               study_type: reportData.studyType || null,
               detection_confidence: reportData.detectionConfidence || null,
               language: input.language,
@@ -124,6 +135,7 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
             detectionConfidence: savedReport.detection_confidence || undefined,
             modelUsed: savedReport.model_used,
             selectedTemplate: usedTemplate,
+            templateId: savedReport.template_id ?? input.templateId,
           },
         };
       } catch (error) {

@@ -6,6 +6,7 @@ export interface GenerateReportRequest {
   studyType?: string;
   template?: string;
   isCustomTemplate?: boolean;
+  templateId?: string;
   reportId?: string;
 }
 
@@ -17,6 +18,7 @@ export interface GenerateReportResponse {
   detectionConfidence?: number;
   modelUsed: string;
   selectedTemplate?: string;
+  templateId?: string;
 }
 
 export interface ApiError {

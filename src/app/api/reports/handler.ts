@@ -60,12 +60,24 @@ export const createReportHandler = async (request: NextRequest) => {
     const payloadRecord = payload as Record<string, unknown>;
     const report_title = typeof payloadRecord.report_title === "string" ? payloadRecord.report_title : null;
     const language = typeof payloadRecord.language === "string" ? payloadRecord.language : null;
+    const is_custom_template = payloadRecord.is_custom_template === null || typeof payloadRecord.is_custom_template === "boolean" 
+      ? payloadRecord.is_custom_template 
+      : null;
+
+    if (process.env.NODE_ENV !== "production") {
+      // Log only minimal, non-PII metadata in non-production environments.
+      console.log("[createReportHandler] Received payload:", {
+        hasTitle: Boolean(report_title),
+        language,
+        is_custom_template,
+      });
+    }
 
     if (!language) {
       return NextResponse.json({ message: "language is required" }, { status: 400 });
     }
 
-    const report = await createUseCase.execute(userId, { report_title, language });
+    const report = await createUseCase.execute(userId, { report_title, language, is_custom_template });
     return NextResponse.json(report, { status: 201 });
   } catch (error) {
     console.error("[createReportHandler] Error:", error);
