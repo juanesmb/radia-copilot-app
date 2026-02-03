@@ -53,6 +53,12 @@ export async function POST(request: NextRequest) {
     const systemMessages: Array<{ role: "system"; content: string }> = [];
     let chatLanguage: Language = parsed.data.language ?? "en";
 
+    // Only add system messages if this is the start of a new conversation
+    // or if there are no previous messages in the conversation
+    const hasPreviousMessages = parsed.data.messages.some(msg => 
+      msg.role === "user" || msg.role === "assistant"
+    );
+
     if (parsed.data.reportId) {
       const supabaseClient = createSupabaseClient({
         url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -67,16 +73,23 @@ export async function POST(request: NextRequest) {
       }
       const report = await reportRepository.getReportById(parsed.data.reportId, userId);
       chatLanguage = report.language === "es" ? "es" : "en";
-      systemMessages.push({
-        role: "system" as const,
-        content: getChatReportContextPrompt(report, chatLanguage),
-      });
+      
+      // Only add report context if this is a new conversation or first message about this report
+      if (!hasPreviousMessages) {
+        systemMessages.push({
+          role: "system" as const,
+          content: getChatReportContextPrompt(report, chatLanguage),
+        });
+      }
     }
 
-    systemMessages.unshift({
-      role: "system",
-      content: getChatSystemPrompt(chatLanguage),
-    });
+    // Only add system prompt if this is the start of a new conversation
+    if (!hasPreviousMessages) {
+      systemMessages.unshift({
+        role: "system",
+        content: getChatSystemPrompt(chatLanguage),
+      });
+    }
 
     const normalizedMessages: Array<{
       role: "user" | "assistant" | "system";

@@ -612,7 +612,7 @@ export function ChatWidget({
             Accept: "text/event-stream",
           },
           body: JSON.stringify({
-            messages: [...messagesRef.current, userMessage].map((msg) => ({
+            messages: messagesRef.current.map((msg) => ({
               role: msg.from,
               content: msg.content,
             })),
