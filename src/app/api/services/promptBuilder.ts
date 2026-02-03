@@ -52,13 +52,17 @@ const createDetectionFromInput = (
   input: GenerateReportRequest,
   mode: "transcription" | "enhancement"
 ): { studyType: string; confidence: number; keywords?: string[] } | null => {
-  // Check for custom template FIRST, before checking provided studyType
+  // For custom templates, use the provided studyType (the original study type)
   if (input.isCustomTemplate && input.template) {
-    return {
-      studyType: "custom",
-      confidence: 1.0,
-      keywords: [],
-    };
+    if (input.studyType?.trim()) {
+      return {
+        studyType: input.studyType.trim(), // Use the original study type (e.g., "abdomen")
+        confidence: 1.0,
+        keywords: [],
+      };
+    }
+    // If no studyType provided, we can't determine the original type
+    return null;
   }
 
   if (input.studyType?.trim()) {
@@ -88,7 +92,7 @@ export const createPromptBuilder = (
       const mode = deps.modeDetector.detectMode(input.transcription);
       const strategy =
         mode === "transcription"
-          ? deps.transcriptionStrategy
+        ? deps.transcriptionStrategy
           : deps.enhancementStrategy;
 
       // Determine study type detection

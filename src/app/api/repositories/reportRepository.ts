@@ -12,6 +12,7 @@ export interface ReportData {
   used_template: string;
   template_id?: string | null;
   template_content?: string | null;
+  is_custom_template?: boolean | null;
   study_type: string | null;
   detection_confidence: number | null;
   model_used: string;
@@ -29,6 +30,7 @@ export interface Report {
   used_template: string;
   template_id?: string | null;
   template_content: string | null;
+  is_custom_template: boolean | null;
   study_type: string | null;
   detection_confidence: number | null;
   model_used: string;
@@ -47,6 +49,7 @@ export interface UpdateReportData {
   used_template?: string;
   template_id?: string | null;
   template_content?: string | null;
+  is_custom_template?: boolean | null;
   study_type?: string | null;
   detection_confidence?: number | null;
   model_used?: string;
@@ -137,6 +140,13 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
       updates: UpdateReportData
     ): Promise<Report> {
       try {
+        console.log("[updateReport] Starting update:", {
+          reportId,
+          userId,
+          updates,
+          timestamp: new Date().toISOString()
+        });
+
         const { data: existingReport, error: fetchError } = await supabaseClient
           .from(tableName("reports"))
           .select("user_id")
@@ -155,6 +165,17 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
           });
         }
 
+        console.log("[updateReport] Executing SQL update:", {
+          tableName: tableName("reports"),
+          reportId,
+          userId,
+          updates,
+          filterConditions: {
+            report_id: reportId,
+            user_id: userId
+          }
+        });
+
         const { data: report, error } = await supabaseClient
           .from(tableName("reports"))
           .update({
@@ -165,6 +186,13 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
           .eq("user_id", userId)
           .select()
           .single();
+
+        console.log("[updateReport] SQL update result:", {
+          error,
+          reportId: report?.report_id,
+          affectedFields: Object.keys(updates),
+          timestamp: new Date().toISOString()
+        });
 
         if (error) {
           throw new HttpError(`Failed to update report: ${error.message}`, {

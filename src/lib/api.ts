@@ -18,6 +18,7 @@ export interface Report {
   used_template: string;
   template_id?: string | null;
   template_content?: string | null;
+  is_custom_template?: boolean | null;
   study_type: string | null;
   detection_confidence: number | null;
   model_used: string;
@@ -63,11 +64,13 @@ export interface UpdateReportRequest {
   template_id?: string | null;
   study_type?: string | null;
   template_content?: string | null;
+  is_custom_template?: boolean | null;
 }
 
 export interface CreateReportRequest {
   report_title?: string | null;
   language: string;
+  is_custom_template?: boolean | null;
 }
 
 export async function generateReport(

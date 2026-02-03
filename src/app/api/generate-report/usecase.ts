@@ -57,7 +57,7 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
       
       const reportData = {
         ...formatted,
-        studyType: prompt.detection?.studyType,
+        studyType: input.isCustomTemplate ? input.studyType : prompt.detection?.studyType,
         detectionConfidence: prompt.detection?.confidence,
         modelUsed: deps.modelUsed,
         selectedTemplate: prompt.selectedTemplate,
@@ -76,6 +76,7 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
         used_template: usedTemplate,
         template_id: input.templateId ?? null,
         template_content: input.isCustomTemplate && input.template ? input.template : null,
+        is_custom_template: input.isCustomTemplate ?? false,
         study_type: reportData.studyType || null,
         detection_confidence: reportData.detectionConfidence || null,
         model_used: reportData.modelUsed,

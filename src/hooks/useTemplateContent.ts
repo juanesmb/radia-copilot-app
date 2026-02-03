@@ -27,8 +27,16 @@ export function useTemplateContent(
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchTemplate = useCallback(async () => {
+    console.log("[useTemplateContent] fetchTemplate called:", {
+      studyType,
+      customTemplateContent: customTemplateContent?.substring(0, 50) + "...",
+      useDefault: opts?.useDefault,
+      hasCustomTemplateContent: !!customTemplateContent
+    });
+
     // If custom template content is provided, use it directly (no API call)
     if (customTemplateContent !== undefined && customTemplateContent !== null && customTemplateContent.trim().length > 0) {
+      console.log("[useTemplateContent] Using custom template content");
       setContent(customTemplateContent);
       setTemplateId(null);
       setIsSystem(false);
@@ -39,6 +47,7 @@ export function useTemplateContent(
     }
 
     if (!studyType || studyType.trim().length === 0) {
+      console.log("[useTemplateContent] No study type, clearing content");
       setContent(null);
       setTemplateId(null);
       setIsSystem(true);
@@ -59,6 +68,12 @@ export function useTemplateContent(
     setError(null);
 
     try {
+      console.log("[useTemplateContent] Fetching template from API:", {
+        studyType: studyType.trim(),
+        language,
+        useDefault: opts?.useDefault
+      });
+
       const result = await getTemplateContent({
         studyType: studyType.trim(),
         language,
@@ -68,6 +83,13 @@ export function useTemplateContent(
       if (abortController.signal.aborted) {
         return;
       }
+
+      console.log("[useTemplateContent] Template fetched successfully:", {
+        contentLength: result.content?.length || 0,
+        templateId: result.templateId,
+        isSystem: result.isSystem,
+        hasCustomTemplate: result.hasCustomTemplate
+      });
 
       setContent(result.content);
       setTemplateId(result.templateId ?? null);

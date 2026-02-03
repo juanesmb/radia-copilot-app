@@ -16,6 +16,7 @@ export interface ReportHistoryItem {
   usedTemplate?: string;
   templateId?: string | null;
   templateContent?: string | null;
+  isCustomTemplate?: boolean | null;
   studyType?: string | null;
   metadata: ReportMetadata;
 }
@@ -69,6 +70,32 @@ export const createReportHistoryItem = ({
 };
 
 export const mapReportToHistoryItem = (report: Report): ReportHistoryItem => {
+  console.log("[mapReportToHistoryItem] Report data:", {
+    report_id: report.report_id,
+    study_type: report.study_type,
+    used_template: report.used_template,
+    is_custom_template: report.is_custom_template,
+    template_id: report.template_id,
+    has_template_content: !!report.template_content
+  });
+
+  // Fix incorrect study_type for custom templates
+  // If study_type is "custom" but used_template is also "custom", 
+  // we need to infer the original study type from template_id or other means
+  let fixedStudyType = report.study_type;
+  if (report.study_type === "custom" && report.used_template === "custom") {
+    // This is incorrect data - study_type should never be "custom"
+    // Try to infer from template_id if available
+    if (report.template_id) {
+      // For now, we'll set it to null and let the frontend handle it
+      fixedStudyType = null;
+    }
+  }
+
+  // Determine if it's custom based on multiple factors for backwards compatibility
+  const isCustom = report.is_custom_template ?? 
+    (report.used_template === "custom" && !!report.template_content);
+
   return {
     id: report.report_id,
     title: report.report_title || "",
@@ -79,9 +106,8 @@ export const mapReportToHistoryItem = (report: Report): ReportHistoryItem => {
     usedTemplate: report.used_template,
     templateId: report.template_id ?? null,
     templateContent: report.template_content ?? null,
-    studyType: report.used_template === "custom"
-      ? report.study_type ?? null
-      : report.used_template || report.study_type || null,
+    isCustomTemplate: isCustom,
+    studyType: fixedStudyType,
     metadata: {
       patientName: extractPatientName(report.updated_transcription),
     },

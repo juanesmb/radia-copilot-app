@@ -80,6 +80,11 @@ export const updateReportHandler = async (
     if ("detection_confidence" in payloadRecord && (payloadRecord.detection_confidence === null || typeof payloadRecord.detection_confidence === "number")) {
       updates.detection_confidence = payloadRecord.detection_confidence as number | null;
     }
+    
+    // Nullable boolean field
+    if ("is_custom_template" in payloadRecord && (payloadRecord.is_custom_template === null || typeof payloadRecord.is_custom_template === "boolean")) {
+      updates.is_custom_template = payloadRecord.is_custom_template as boolean | null;
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ message: "No valid fields to update." }, { status: 400 });

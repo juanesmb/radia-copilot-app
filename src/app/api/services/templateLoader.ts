@@ -20,19 +20,26 @@ export const createTemplateLoader = (deps: Dependencies): TemplateLoader => {
       templateRepository.templateExists(studyType, language),
 
     async loadTemplate(studyType: string, language: Language): Promise<string> {
+      console.log(`[TemplateLoader] Loading template: studyType="${studyType}", language="${language}"`);
+      
       const template = await templateRepository.getSystemTemplate(studyType, language);
 
       if (!template) {
+        console.error(`[TemplateLoader] Template NOT found: studyType="${studyType}", language="${language}"`);
         throw new HttpError(
           `Template "${studyType}" not found for language "${language}"`,
           { status: 404 }
         );
       }
 
+      console.log(`[TemplateLoader] Template found: studyType="${studyType}", contentLength=${template.content.length}`);
       return template.content.trim();
     },
 
-    listAvailableTemplates: (language: Language) =>
-      templateRepository.listAvailableTemplates(language),
+    listAvailableTemplates: async (language: Language) => {
+      const templates = await templateRepository.listAvailableTemplates(language);
+      console.log(`[TemplateLoader] Available templates for language "${language}":`, templates);
+      return templates;
+    },
   };
 };
