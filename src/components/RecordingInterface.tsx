@@ -206,9 +206,16 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
 
     // Sólo cuando no sabemos (nuevo reporte sin persistir) dejamos que el backend decida
     if (!isTemplateLoading && effectiveStudyType) {
-      setUseDefaultTemplate(isSystem);
+      // If there's a custom template, use custom mode, otherwise use default mode
+      const shouldBeDefault = !hasCustomTemplate;
+      console.log("[RecordingInterface] Backend deciding mode:", {
+        hasCustomTemplate,
+        shouldBeDefault,
+        isSystem
+      });
+      setUseDefaultTemplate(shouldBeDefault);
     }
-  }, [isTemplateLoading, isSystem, effectiveStudyType, isTemplateCustom, initialTemplateContent]);
+  }, [isTemplateLoading, isSystem, effectiveStudyType, isTemplateCustom, initialTemplateContent, hasCustomTemplate]);
   
   const [editedTemplateContent, setEditedTemplateContent] = useState<string | null>(null);
   const [originalTemplateContent, setOriginalTemplateContent] = useState<string | null>(null);
@@ -269,11 +276,20 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
         cachedDefaultTemplateRef.current = null;
       }
       
-      // Set the switch directly based on parent's indication
-      if (isTemplateCustom && initialTemplateContent) {
-        setUseDefaultTemplate(false); // Custom mode
+      // When study type changes, reset to default mode unless parent explicitly indicates custom
+      if (prevStudyType !== effectiveStudyType) {
+        if (isTemplateCustom && initialTemplateContent) {
+          setUseDefaultTemplate(false); // Parent explicitly indicates custom mode
+        } else {
+          setUseDefaultTemplate(undefined); // Let backend decide (will default to system template)
+        }
       } else {
-        setUseDefaultTemplate(undefined); // Let backend decide
+        // When report changes, maintain current mode based on parent's indication
+        if (isTemplateCustom && initialTemplateContent) {
+          setUseDefaultTemplate(false); // Custom mode
+        } else {
+          setUseDefaultTemplate(undefined); // Let backend decide
+        }
       }
     }
     
@@ -923,7 +939,7 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
               availableStudyTypes={availableStudyTypes}
               selectedStudyType={selectedStudyType || detectedStudyType || ''}
               onStudyTypeChange={(studyType) => {
-                onStudyTypeChange?.(studyType, useDefaultTemplate === false);
+                onStudyTypeChange?.(studyType, undefined);
               }}
               isMobileFullscreen={mobileFullscreen === 'template'}
               onMobileFullscreenToggle={() => setMobileFullscreen(mobileFullscreen === 'template' ? null : 'template')}
