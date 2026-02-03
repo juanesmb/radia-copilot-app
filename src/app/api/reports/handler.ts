@@ -64,13 +64,14 @@ export const createReportHandler = async (request: NextRequest) => {
       ? payloadRecord.is_custom_template 
       : null;
 
-    console.log("[createReportHandler] Received payload:", {
-      userId,
-      report_title,
-      language,
-      is_custom_template,
-      fullPayload: payloadRecord
-    });
+    if (process.env.NODE_ENV !== "production") {
+      // Log only minimal, non-PII metadata in non-production environments.
+      console.log("[createReportHandler] Received payload:", {
+        hasTitle: Boolean(report_title),
+        language,
+        is_custom_template,
+      });
+    }
 
     if (!language) {
       return NextResponse.json({ message: "language is required" }, { status: 400 });

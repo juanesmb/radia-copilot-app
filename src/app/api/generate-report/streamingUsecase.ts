@@ -31,10 +31,9 @@ export const createStreamingReportUseCase = (deps: Dependencies) => {
           isCustomTemplate: input.isCustomTemplate,
           studyType: input.studyType,
           templateLength: input.template?.length || 0,
-          templatePreview: input.template?.substring(0, 100) + "...",
-          reportId
+          reportId,
         });
-        
+
         // Build prompt
         const prompt = await deps.promptBuilder.build(input);
 

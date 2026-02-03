@@ -95,6 +95,31 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
     preference: { preferred_template_id: string | null; use_default: boolean }
   ): Promise<void> => {
     try {
+      // Validate that the preferred template (when provided) belongs to this user
+      // or is a system template. This prevents leaking or referencing other users'
+      // custom templates when using the service-role key.
+      if (preference.preferred_template_id) {
+        const { data: ownerCheck, error: ownerError } = await supabaseClient
+          .from(tableName("templates"))
+          .select("template_id")
+          .eq("template_id", preference.preferred_template_id)
+          .or(`user_id.eq.${userId},is_system.eq.true`)
+          .maybeSingle();
+
+        if (ownerError) {
+          throw new HttpError(`Failed to validate preferred template: ${ownerError.message}`, {
+            status: 500,
+            details: ownerError.code,
+          });
+        }
+
+        if (!ownerCheck) {
+          throw new HttpError("Preferred template does not belong to the current user.", {
+            status: 403,
+          });
+        }
+      }
+
       const { error } = await supabaseClient
         .from(tableName("template_preferences"))
         .upsert(
@@ -157,6 +182,8 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
               .from(tableName("templates"))
               .select("*")
               .eq("template_id", pref.preferred_template_id)
+              // Ensure we only ever load templates owned by this user or system templates.
+              .or(`user_id.eq.${userId},is_system.eq.true`)
               .maybeSingle();
 
             if (preferredError) {

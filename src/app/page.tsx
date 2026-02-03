@@ -329,7 +329,7 @@ export default function HomePage() {
         if (!reportId || !studyType) return;
 
         const updated = await updateReport(reportId, {
-          used_template: studyType,
+          used_template: isCustomTemplate ? "custom" : studyType,
           study_type: studyType,
           template_content: null,
           template_id: null,
@@ -400,8 +400,9 @@ export default function HomePage() {
         const updated = await updateReport(reportId, {
           template_content: trimmedValue,
           template_id: nextTemplateId,
-          used_template: effectiveStudyType,
+          used_template: isCustom ? "custom" : effectiveStudyType,
           study_type: effectiveStudyType,
+          is_custom_template: isCustom,
         });
 
         setReportHistory((prev) => {

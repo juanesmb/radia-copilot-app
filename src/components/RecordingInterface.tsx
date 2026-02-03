@@ -218,6 +218,9 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
   
   // Cache the default template content to avoid unnecessary API calls
   const cachedDefaultTemplateRef = useRef<string | null>(null);
+  
+  // Track if user just switched to custom mode with no custom template
+  const justSwitchedToCustomEmptyRef = useRef(false);
 
   useEffect(() => {
     console.log("[RecordingInterface] Template content updated:", {
@@ -231,6 +234,14 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
     if (content && isSystem && !hasCustomTemplate) {
       console.log("[RecordingInterface] Caching default template");
       cachedDefaultTemplateRef.current = content;
+    }
+    
+    // Don't overwrite edited content if user just switched to custom mode and there's no custom template
+    // This preserves the empty state we set in handleUseDefaultToggle
+    if (justSwitchedToCustomEmptyRef.current) {
+      console.log("[RecordingInterface] Preserving empty custom template content");
+      justSwitchedToCustomEmptyRef.current = false; // Reset flag
+      return;
     }
     
     setEditedTemplateContent(content);
@@ -250,6 +261,7 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
     // Reset when study type changes OR when report changes
     if (prevStudyType !== effectiveStudyType || prevReportId !== currentReportId) {
       userToggledSwitchRef.current = false;
+      justSwitchedToCustomEmptyRef.current = false; // Reset flag
       
       // Clear cached default template when study type changes
       if (prevStudyType !== effectiveStudyType) {
@@ -356,7 +368,10 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
         // If user switches into custom mode but doesn't have a custom template yet,
         // clear the template text so they start from empty.
         if (!next && !hasCustomTemplate) {
+          console.log("[RecordingInterface] Switching to custom mode with no custom template, clearing content");
+          justSwitchedToCustomEmptyRef.current = true; // Set flag to prevent overwriting
           setEditedTemplateContent("");
+          setOriginalTemplateContent("");
           setHasTemplateBeenEdited(false);
           onTemplateEditStatusChange?.(true); // Switching to custom mode
           onTemplateChange?.("");
