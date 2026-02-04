@@ -5,6 +5,9 @@ import { getTemplateContent } from '@/lib/api';
 
 interface UseTemplateContentReturn {
   content: string | null;
+  templateId: string | null;
+  isSystem: boolean;
+  hasCustomTemplate: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -12,24 +15,43 @@ interface UseTemplateContentReturn {
 export function useTemplateContent(
   studyType: string | null,
   language: "en" | "es",
-  customTemplateContent?: string | null
+  customTemplateContent?: string | null,
+  opts?: { useDefault?: boolean }
 ): UseTemplateContentReturn {
   const [content, setContent] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [isSystem, setIsSystem] = useState<boolean>(true);
+  const [hasCustomTemplate, setHasCustomTemplate] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchTemplate = useCallback(async () => {
+    console.log("[useTemplateContent] fetchTemplate called:", {
+      studyType,
+      customTemplateContent: customTemplateContent?.substring(0, 50) + "...",
+      useDefault: opts?.useDefault,
+      hasCustomTemplateContent: !!customTemplateContent
+    });
+
     // If custom template content is provided, use it directly (no API call)
     if (customTemplateContent !== undefined && customTemplateContent !== null && customTemplateContent.trim().length > 0) {
+      console.log("[useTemplateContent] Using custom template content");
       setContent(customTemplateContent);
+      setTemplateId(null);
+      setIsSystem(false);
+      setHasCustomTemplate(false);
       setError(null);
       setIsLoading(false);
       return;
     }
 
     if (!studyType || studyType.trim().length === 0) {
+      console.log("[useTemplateContent] No study type, clearing content");
       setContent(null);
+      setTemplateId(null);
+      setIsSystem(true);
+      setHasCustomTemplate(false);
       setError(null);
       setIsLoading(false);
       return;
@@ -46,32 +68,59 @@ export function useTemplateContent(
     setError(null);
 
     try {
+      console.log("[useTemplateContent] Fetching template from API:", {
+        studyType: studyType.trim(),
+        language,
+        useDefault: opts?.useDefault
+      });
+
       const result = await getTemplateContent({
         studyType: studyType.trim(),
         language,
+        useDefault: opts?.useDefault,
       });
 
       if (abortController.signal.aborted) {
         return;
       }
 
+      console.log("[useTemplateContent] Template fetched successfully:", {
+        contentLength: result.content?.length || 0,
+        templateId: result.templateId,
+        isSystem: result.isSystem,
+        hasCustomTemplate: result.hasCustomTemplate
+      });
+
       setContent(result.content);
+      setTemplateId(result.templateId ?? null);
+      setIsSystem(Boolean(result.isSystem));
+      setHasCustomTemplate(Boolean(result.hasCustomTemplate));
       setError(null);
     } catch (err) {
       if (abortController.signal.aborted) {
         return;
       }
 
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load template';
+      // Handle various error formats (ApiError, Error, or unknown)
+      let errorMessage = 'Failed to load template';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        errorMessage = String((err as { message: unknown }).message);
+      }
+      
       setError(errorMessage);
       setContent(null);
-      console.error('[useTemplateContent] Error:', err);
+      setTemplateId(null);
+      setIsSystem(true);
+      setHasCustomTemplate(false);
+      console.error('[useTemplateContent] Error:', errorMessage, err);
     } finally {
       if (!abortController.signal.aborted) {
         setIsLoading(false);
       }
     }
-  }, [studyType, language, customTemplateContent]);
+  }, [studyType, language, customTemplateContent, opts?.useDefault]);
 
   useEffect(() => {
     fetchTemplate();
@@ -85,6 +134,9 @@ export function useTemplateContent(
 
   return {
     content,
+    templateId,
+    isSystem,
+    hasCustomTemplate,
     isLoading,
     error,
   };

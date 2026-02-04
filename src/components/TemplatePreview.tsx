@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { Maximize2, Minimize2, Sparkles } from "lucide-react";
+import { Maximize2, Minimize2, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
@@ -20,9 +21,13 @@ interface TemplatePreviewProps {
   isLoading: boolean;
   error: string | null;
   studyType: string | null;
+  useDefault?: boolean;
+  onUseDefaultChange?: (next: boolean) => void;
   isDetectingStudyType?: boolean;
   onContentChange?: (value: string) => void;
   onContentBlur?: (value: string) => void;
+  showSaveButton?: boolean;
+  onSaveClick?: () => void;
   onRunAutoDetect?: () => void;
   hasTranscriptionText?: boolean;
   availableStudyTypes?: StudyTypeOption[];
@@ -42,9 +47,13 @@ export function TemplatePreview({
   isLoading,
   error,
   studyType,
+  useDefault = false,
+  onUseDefaultChange,
   isDetectingStudyType = false,
   onContentChange,
   onContentBlur,
+  showSaveButton = false,
+  onSaveClick,
   onRunAutoDetect,
   hasTranscriptionText = false,
   availableStudyTypes,
@@ -61,6 +70,12 @@ export function TemplatePreview({
   const templateScrollbarRef = useAutoHideScrollbar();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const placeholderText = !content
+    ? isCustom
+      ? t("template.customEmpty")
+      : t("template.empty")
+    : undefined;
+
   // Sync scrollbar ref with textarea ref
   useEffect(() => {
     if (textareaRef.current) {
@@ -69,39 +84,36 @@ export function TemplatePreview({
   }, [templateScrollbarRef]);
 
   const renderHeader = () => (
-    <div className="px-3 py-4 border-b border-border shrink-0 flex items-center gap-2 lg:gap-3 min-w-0">
-      {onMobileFullscreenToggle && (
-        <button
-          type="button"
-          onClick={onMobileFullscreenToggle}
-          className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors shrink-0"
-          aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          {isMobileFullscreen ? (
-            <Minimize2 className="w-4 h-4" />
-          ) : (
-            <Maximize2 className="w-4 h-4" />
-          )}
-        </button>
-      )}
-      <h3 className="text-base font-semibold text-foreground shrink-0 whitespace-nowrap">
-        {t("template.title")}
-      </h3>
+    <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-3">
+      {/* Title + Select: side by side on all screen sizes */}
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
+        {onMobileFullscreenToggle && (
+          <button
+            type="button"
+            onClick={onMobileFullscreenToggle}
+            className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors shrink-0"
+            aria-label={isMobileFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isMobileFullscreen ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </button>
+        )}
 
-      {availableStudyTypes && availableStudyTypes.length > 0 && (
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <h3 className="text-base font-semibold text-foreground shrink-0 whitespace-nowrap">
+          {t("template.title")}
+        </h3>
+
+        {availableStudyTypes && availableStudyTypes.length > 0 && (
           <select
             id="study-type"
-            value={isCustom ? 'custom' : (selectedStudyType || '')}
+            value={selectedStudyType || ''}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => {
               const value = e.target.value;
-              if (value === 'custom') {
-                // Don't allow selecting custom - it's just a display value
-                return;
-              }
               if (value) {
                 onStudyTypeChange?.(value);
-                // Reset custom state when a new template is selected
                 onCustomStateReset?.();
               } else {
                 onStudyTypeChange?.('');
@@ -109,21 +121,47 @@ export function TemplatePreview({
               }
             }}
             disabled={isActive || disabled || isDetectingStudyType}
-            className="min-w-0 flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 sm:flex-none sm:w-[200px] md:w-[240px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">{t("recording.studyTypePlaceholder")}</option>
-            <option value="custom" disabled={!isCustom}>
-              {t("recording.customTemplate")}
-            </option>
             {availableStudyTypes.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
+        )}
+      </div>
+
+      {/* Controls: second row on mobile, same row on desktop */}
+      {availableStudyTypes && availableStudyTypes.length > 0 && (
+        <div className="flex items-center gap-2 min-w-0 sm:flex-1">
+          {typeof onUseDefaultChange === "function" && studyType && (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {isCustom ? "custom" : "default"}
+              </span>
+              <Switch
+                checked={Boolean(isCustom)}
+                onCheckedChange={(checked) => onUseDefaultChange(!checked)}
+                disabled={isActive || disabled || isDetectingStudyType || isLoading}
+              />
+            </div>
+          )}
+
+          {showSaveButton && (
+            <Button
+              type="button"
+              className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap"
+              onClick={onSaveClick}
+              disabled={!onSaveClick || isActive || disabled || isDetectingStudyType}
+            >
+              <Save className="w-5 h-5" />
+            </Button>
+          )}
           <Button
             type="button"
-            className="gap-2 text-sm h-10 px-3 sm:px-3 shrink-0 whitespace-nowrap"
+            className="gap-2 text-sm h-10 w-10 p-0 sm:w-auto sm:px-3 shrink-0 whitespace-nowrap ml-auto"
             onClick={onRunAutoDetect}
             disabled={!hasTranscriptionText || isActive || disabled || isDetectingStudyType}
           >
@@ -194,7 +232,7 @@ export function TemplatePreview({
           onBlur={(e) => onContentBlur?.(e.target.value)}
           className="flex-1 text-base leading-relaxed resize-none scrollbar-transparent"
           readOnly={!onContentChange}
-          placeholder={!content ? t("template.empty") : undefined}
+          placeholder={placeholderText}
         />
       </div>
     </Card>

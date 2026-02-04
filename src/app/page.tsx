@@ -21,14 +21,17 @@ import { useUserGreeting } from "@/hooks/useUserGreeting";
 import { createSpeechToTextProvider } from "@/infrastructure/speech-to-text";
 import {
   createDraftReport,
+  createCustomTemplate,
+  updateCustomTemplate,
   createReportChatSession,
+  detectStudyType,
   generateReportStream,
+  getAvailableTemplates,
   getChatSessions,
   getReports,
   updateReport,
-  detectStudyType,
-  getAvailableTemplates,
 } from "@/lib/api";
+import type { UpdateReportRequest } from "@/lib/api";
 import type { ApiError } from "@/types/frontend/api";
 import type { ReportHistoryItem } from "@/utils/reportHistory";
 import { mapReportToHistoryItem, extractPatientName } from "@/utils/reportHistory";
@@ -72,6 +75,10 @@ export default function HomePage() {
   const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
   const [editedTemplate, setEditedTemplate] = useState<string>("");
   const [isTemplateCustom, setIsTemplateCustom] = useState(false);
+  const [currentTemplateMeta, setCurrentTemplateMeta] = useState<{ templateId: string | null; isSystem: boolean }>({
+    templateId: null,
+    isSystem: true,
+  });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   // Study type detection state
@@ -113,7 +120,7 @@ export default function HomePage() {
     setTranscription(transcript);
   }, [transcript]);
 
-  const ensureDraftReport = useCallback(async (): Promise<string | null> => {
+  const ensureDraftReport = useCallback(async (isCustomTemplate?: boolean | null): Promise<string | null> => {
     if (currentReportId) {
       return currentReportId;
     }
@@ -129,9 +136,16 @@ export default function HomePage() {
     const createPromise = (async () => {
       try {
         isCreatingDraftRef.current = true;
+        console.log("[ensureDraftReport] Creating report with:", {
+          report_title: currentReportTitle || null,
+          language,
+          is_custom_template: isCustomTemplate ?? null,
+          caller: 'ensureDraftReport'
+        });
         const created = await createDraftReport({
           report_title: currentReportTitle || null,
           language,
+          is_custom_template: isCustomTemplate ?? null,
         });
         const reportId = created.report_id;
         pendingReportIdRef.current = reportId;
@@ -194,6 +208,31 @@ export default function HomePage() {
     setCurrentReportTitle(value);
   }, []);
 
+  const buildTemplateUpdates = useCallback((): UpdateReportRequest | null => {
+    const effectiveStudyType = selectedStudyType || detectedStudyType || null;
+    const updates: UpdateReportRequest = {};
+
+    if (typeof isTemplateCustom === "boolean") {
+      updates.is_custom_template = isTemplateCustom;
+    }
+
+    if (effectiveStudyType) {
+      updates.study_type = effectiveStudyType;
+      updates.used_template = isTemplateCustom ? "custom" : effectiveStudyType;
+    }
+
+    if (currentTemplateMeta.templateId) {
+      updates.template_id = currentTemplateMeta.templateId;
+    }
+
+    const trimmedTemplate = editedTemplate.trim();
+    if (isTemplateCustom && trimmedTemplate.length > 0) {
+      updates.template_content = trimmedTemplate;
+    }
+
+    return Object.keys(updates).length > 0 ? updates : null;
+  }, [selectedStudyType, detectedStudyType, isTemplateCustom, currentTemplateMeta.templateId, editedTemplate]);
+
   const handleTitleCommit = useCallback(async (value: string) => {
     const trimmed = value.trim();
     setCurrentReportTitle(trimmed);
@@ -206,14 +245,27 @@ export default function HomePage() {
       return;
     }
 
+    const templateUpdates = buildTemplateUpdates();
+
     if (currentReportId) {
       try {
-        await updateReport(currentReportId, { report_title: trimmed || undefined });
-        setReportHistory((prev) =>
-          prev.map((report) =>
-            report.id === currentReportId ? { ...report, title: trimmed } : report,
-          ),
-        );
+        const updates: UpdateReportRequest = {
+          report_title: trimmed || undefined,
+          ...(templateUpdates ?? {}),
+        };
+
+        const updated = await updateReport(currentReportId, updates);
+
+        setReportHistory((prev) => {
+          const mapped = mapReportToHistoryItem(updated);
+          const existingIndex = prev.findIndex((r) => r.id === mapped.id);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = mapped;
+            return next;
+          }
+          return [mapped, ...prev];
+        });
       } catch (error) {
         console.error("[HomePage] Failed to update report title", error);
       }
@@ -222,10 +274,33 @@ export default function HomePage() {
 
     try {
       isCreatingDraftRef.current = true;
-      const created = await createDraftReport({ report_title: trimmed || null, language });
-      setCurrentReportId(created.report_id);
+      console.log("[handleTitleCommit] Creating report with:", {
+        report_title: trimmed || null,
+        language,
+        is_custom_template: templateUpdates?.is_custom_template ?? null,
+        caller: "handleTitleCommit",
+      });
+
+      const created = await createDraftReport({
+        report_title: trimmed || null,
+        language,
+        is_custom_template: templateUpdates?.is_custom_template ?? null,
+      });
+
+      let finalReport = created;
+
+      // Si ya tenemos tipo de estudio / template seleccionada en la UI, persistirla inmediatamente
+      if (templateUpdates && Object.keys(templateUpdates).length > 1) {
+        try {
+          finalReport = await updateReport(created.report_id, templateUpdates);
+        } catch (error) {
+          console.error("[HomePage] Failed to persist template state on title commit", error);
+        }
+      }
+
+      setCurrentReportId(finalReport.report_id);
       setReportHistory((prev) => {
-        const mapped = mapReportToHistoryItem(created);
+        const mapped = mapReportToHistoryItem(finalReport);
         return [mapped, ...prev];
       });
     } catch (error) {
@@ -233,7 +308,7 @@ export default function HomePage() {
     } finally {
       isCreatingDraftRef.current = false;
     }
-  }, [currentReportId, language, setReportHistory, t]);
+  }, [buildTemplateUpdates, currentReportId, language, setReportHistory, t]);
 
   const handleTitleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -248,15 +323,17 @@ export default function HomePage() {
   );
 
   const handleStudyTypeChange = useCallback(
-    async (studyType: string) => {
+    async (studyType: string, isCustomTemplate?: boolean) => {
       try {
-        const reportId = await ensureDraftReport();
+        const reportId = await ensureDraftReport(isCustomTemplate);
         if (!reportId || !studyType) return;
 
         const updated = await updateReport(reportId, {
-          used_template: studyType,
+          used_template: isCustomTemplate ? "custom" : studyType,
           study_type: studyType,
           template_content: null,
+          template_id: null,
+          is_custom_template: isCustomTemplate ?? null,
         });
 
         setReportHistory((prev) => {
@@ -274,6 +351,7 @@ export default function HomePage() {
         setDetectedStudyType(studyType);
         setEditedTemplate("");
         setIsTemplateCustom(false);
+        setCurrentTemplateMeta({ templateId: null, isSystem: true });
       } catch (error) {
       console.error("[HomePage] Failed to detect study type", error);
       } finally {
@@ -291,35 +369,40 @@ export default function HomePage() {
 
       try {
         if (!reportId) {
-          if (isCreatingDraftRef.current) {
-            return;
-          }
-
-          isCreatingDraftRef.current = true;
-          const created = await createDraftReport({
-            report_title: currentReportTitle || null,
-            language,
-          });
-          reportId = created.report_id;
-          setCurrentReportId(reportId);
-          setReportHistory((prev) => {
-            const mapped = mapReportToHistoryItem(created);
-            return [mapped, ...prev];
-          });
+          reportId = await ensureDraftReport(isCustom);
         }
 
         if (!reportId) {
           return;
         }
 
-        // If user has edited and wants custom, force used_template = "custom" and freeze dropdown to custom
-        const usedTemplate = isCustom ? "custom" : (effectiveStudyType || "custom");
-        const nextSelectedStudy = isCustom ? "custom" : (effectiveStudyType || "");
+        if (!effectiveStudyType) {
+          return;
+        }
+
+        // If we're editing an existing custom template, update that template record too
+        if (isCustom && !currentTemplateMeta.isSystem && currentTemplateMeta.templateId) {
+          await updateCustomTemplate(currentTemplateMeta.templateId, { content: trimmedValue });
+        }
+
+        // If user edited a system template, create a new custom template record and persist template_id
+        const nextTemplateId =
+          isCustom && currentTemplateMeta.isSystem
+            ? (
+                await createCustomTemplate({
+                  studyType: effectiveStudyType,
+                  language,
+                  content: trimmedValue,
+                })
+              ).templateId
+            : currentTemplateMeta.templateId;
 
         const updated = await updateReport(reportId, {
           template_content: trimmedValue,
-          used_template: usedTemplate,
-          study_type: isCustom ? (effectiveStudyType || null) : effectiveStudyType,
+          template_id: nextTemplateId,
+          used_template: isCustom ? "custom" : effectiveStudyType,
+          study_type: effectiveStudyType,
+          is_custom_template: isCustom,
         });
 
         setReportHistory((prev) => {
@@ -335,20 +418,24 @@ export default function HomePage() {
 
         setIsTemplateCustom(isCustom);
         setEditedTemplate(trimmedValue);
-        if (isCustom) {
-          setSelectedStudyType("custom");
-          setDetectedStudyType(null);
-        } else if (effectiveStudyType) {
-          setSelectedStudyType(effectiveStudyType);
-          setDetectedStudyType(effectiveStudyType);
+        setSelectedStudyType(effectiveStudyType);
+        setDetectedStudyType(effectiveStudyType);
+        if (isCustom && currentTemplateMeta.isSystem) {
+          setCurrentTemplateMeta({ templateId: nextTemplateId ?? null, isSystem: false });
         }
       } catch (error) {
-      console.error("[HomePage] Failed to save template", error);
+      const apiError = error as ApiError;
+      console.error("[HomePage] Failed to save template", {
+        message: apiError?.message,
+        status: apiError?.status,
+        details: apiError?.details,
+        error,
+      });
       } finally {
         isCreatingDraftRef.current = false;
       }
     },
-    [currentReportId, currentReportTitle, detectedStudyType, language, selectedStudyType, t],
+    [ensureDraftReport, currentReportId, currentReportTitle, currentTemplateMeta.isSystem, currentTemplateMeta.templateId, detectedStudyType, language, selectedStudyType, t],
   );
 
   const runStudyTypeDetection = useCallback((textToDetect: string) => {
@@ -455,13 +542,50 @@ export default function HomePage() {
           onTemplateSave={handleTemplateSave}
           initialTemplateContent={(() => {
             const report = reportHistory.find((r) => r.id === currentReportId);
-            if (report?.usedTemplate === "custom") {
-              return report.templateContent ?? null;
+            // Load saved template content if it exists (custom template was used)
+            if (report?.templateContent?.trim()) {
+              return report.templateContent;
             }
             return null;
           })()}
           onTemplateEditStatusChange={setIsTemplateCustom}
-          isTemplateCustom={isTemplateCustom}
+          onTemplateModeChange={handleTemplateModeChange}
+          isTemplateCustom={(() => {
+            const report = reportHistory.find((r) => r.id === currentReportId);
+            const isCustom = report?.isCustomTemplate ?? undefined;
+            console.log("[page.tsx] isTemplateCustom for RecordingInterface:", {
+              currentReportId,
+              isCustom,
+              reportFound: !!report,
+              reportData: report ? {
+                id: report.id,
+                isCustomTemplate: report.isCustomTemplate,
+                templateContent: report.templateContent?.substring(0, 50) + "..."
+              } : null
+            });
+            return isCustom;
+          })()}
+          onTemplateMetaChange={async ({ templateId, isSystem }) => {
+            setCurrentTemplateMeta({ templateId, isSystem });
+            if (!templateId) return;
+            const reportId = currentReportId;
+            if (!reportId) return;
+            try {
+              const updated = await updateReport(reportId, { template_id: templateId });
+              setReportHistory((prev) => {
+                const mapped = mapReportToHistoryItem(updated);
+                const existingIndex = prev.findIndex((r) => r.id === mapped.id);
+                if (existingIndex >= 0) {
+                  const next = [...prev];
+                  next[existingIndex] = mapped;
+                  return next;
+                }
+                return [mapped, ...prev];
+              });
+            } catch (error) {
+              console.error("[HomePage] Failed to persist template_id", error);
+            }
+          }}
         />
       );
     }
@@ -685,6 +809,43 @@ export default function HomePage() {
     );
   }, [currentReportId]);
 
+  const handleTemplateModeChange = useCallback(
+    async (isCustom: boolean) => {
+      setIsTemplateCustom(isCustom);
+
+      const effectiveStudyType = selectedStudyType || detectedStudyType || null;
+      const reportId = await ensureDraftReport(isCustom);
+      if (!reportId) return;
+
+      try {
+        const updates: UpdateReportRequest = {
+          is_custom_template: isCustom,
+        };
+
+        if (effectiveStudyType) {
+          updates.study_type = effectiveStudyType;
+          updates.used_template = isCustom ? "custom" : effectiveStudyType;
+        }
+
+        const updated = await updateReport(reportId, updates);
+
+        setReportHistory((prev) => {
+          const mapped = mapReportToHistoryItem(updated);
+          const existingIndex = prev.findIndex((r) => r.id === mapped.id);
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = mapped;
+            return next;
+          }
+          return [mapped, ...prev];
+        });
+      } catch (error) {
+        console.error("[HomePage] Failed to persist template mode", error);
+      }
+    },
+    [ensureDraftReport, selectedStudyType, detectedStudyType, setReportHistory]
+  );
+
   const handleCopyReport = useCallback(async () => {
     if (!currentReportId || !generatedReport) return;
     
@@ -716,10 +877,16 @@ export default function HomePage() {
     const userProvidedTitle = currentReportTitle?.trim() || null;
     pendingTitleRef.current = userProvidedTitle?.length ? userProvidedTitle : null;
 
+    // Aseguramos siempre un borrador antes de generar para evitar filas duplicadas.
+    const draftReportId = await ensureDraftReport(isTemplateCustom);
+
     setIsGenerating(true);
     setGeneratedReport(""); // Clear previous report
-    // Don't clear currentReportId when regenerating - preserve it for update
-    if (!currentReportId) {
+
+    // Mantener el ID de borrador como currentReportId mientras generamos
+    if (draftReportId) {
+      setCurrentReportId(draftReportId);
+    } else if (!currentReportId) {
       setCurrentReportId(null);
       setCurrentReportTitle(null);
     }
@@ -736,7 +903,10 @@ export default function HomePage() {
           studyType: selectedStudyType || detectedStudyType || undefined,
           template: editedTemplate || undefined,
           isCustomTemplate: isTemplateCustom,
-          reportId: currentReportId || undefined,
+          templateId: currentTemplateMeta.templateId || undefined,
+          // Pasar siempre el ID del borrador (si existe) para que el backend
+          // actualice la misma fila en vez de crear un nuevo reporte.
+          reportId: draftReportId || currentReportId || undefined,
         },
         {
           onChunk: (chunk: string) => {
@@ -825,7 +995,13 @@ export default function HomePage() {
                     })
                   );
                 } catch (error) {
-                  console.error("[ReportChat] Failed to create report chat", error);
+                  const apiError = error as ApiError;
+                  console.warn("[ReportChat] Failed to create report chat", {
+                    message: apiError?.message,
+                    status: apiError?.status,
+                    details: apiError?.details,
+                    error,
+                  });
                 }
               }
             }
@@ -970,21 +1146,36 @@ export default function HomePage() {
           setCurrentReportTitle(report.title);
           setTranscription(report.transcription);
           setGeneratedReport(report.report);
-          const effectiveStudyType = report.usedTemplate === "custom"
-            ? report.studyType || ""
-            : report.usedTemplate || report.studyType || "";
+          
+          // Determine the actual study type (not "custom")
+          const actualStudyType = report.studyType || report.usedTemplate || "";
 
-          if (report.usedTemplate === "custom") {
-            setSelectedStudyType("custom");
-            setDetectedStudyType(report.studyType || "");
-            setEditedTemplate(report.templateContent || "");
-            setIsTemplateCustom(true);
+          // Determinar si el reporte usa plantilla custom basándonos en los flags persistidos
+          const isCustomTemplate =
+            report.isCustomTemplate ?? (report.usedTemplate === "custom");
+
+          // Siempre setear en el selector el study type real (nunca "custom")
+          const selectorStudyType = actualStudyType === "custom" ? "" : actualStudyType;
+          setSelectedStudyType(selectorStudyType);
+          setDetectedStudyType(selectorStudyType);
+          
+          // Contenido de plantilla: si tenemos snapshot guardado lo usamos; si no, dejamos
+          // que RecordingInterface/useTemplateContent lo resuelva vía API/preferencias.
+          if (report.templateContent?.trim()) {
+            setEditedTemplate(report.templateContent);
           } else {
-            setSelectedStudyType(effectiveStudyType);
-            setDetectedStudyType(effectiveStudyType);
             setEditedTemplate("");
-            setIsTemplateCustom(false);
           }
+
+          // El switch de custom debe reflejar el flag de la BD, aunque templateContent sea null
+          setIsTemplateCustom(Boolean(isCustomTemplate));
+          
+          // Update template metadata
+          setCurrentTemplateMeta({
+            templateId: report.templateId ?? null,
+            isSystem: !isCustomTemplate,
+          });
+          
           setDemoState("recording");
           setSidebarView("reports");
           setIsReportsOpen(false);

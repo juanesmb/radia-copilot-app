@@ -183,13 +183,15 @@ export function useAutoSave({
       // Clear existing timeout
       clearDebounceTimeout();
 
-      // Set new debounced save
-      debounceTimeoutRef.current = setTimeout(() => {
-        performSave(newValue);
-        debounceTimeoutRef.current = null;
-      }, debounceMs);
+      // Only schedule save if not disabled
+      if (!isDisabled) {
+        debounceTimeoutRef.current = setTimeout(() => {
+          performSave(newValue);
+          debounceTimeoutRef.current = null;
+        }, debounceMs);
+      }
     },
-    [performSave, debounceMs, clearDebounceTimeout]
+    [performSave, debounceMs, clearDebounceTimeout, isDisabled]
   );
 
   /**

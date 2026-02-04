@@ -13,6 +13,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
+import { toast } from "@/components/ui/use-toast";
+import { setTemplatePreference } from "@/lib/api";
 import type { STTState } from "@/domain/speech-to-text";
 
 const INPUT_PANEL_ANIMATION_CLASSES = "transition-[max-width,width,flex-basis,opacity] duration-300 ease-in-out";
@@ -46,7 +48,7 @@ interface RecordingInterfaceProps {
   detectedStudyType?: string | null;
   availableStudyTypes?: StudyTypeOption[];
   selectedStudyType?: string;
-  onStudyTypeChange?: (studyType: string) => void;
+  onStudyTypeChange?: (studyType: string, isCustomTemplate?: boolean) => void;
   isDetectingStudyType?: boolean;
   // Language (for template fetching)
   language: "en" | "es";
@@ -70,8 +72,10 @@ interface RecordingInterfaceProps {
   onUpdateReport?: (value: string) => void;
   onTemplateChange?: (value: string) => void;
   onTemplateSave?: (value: string, isCustom: boolean) => Promise<void>;
+  onTemplateMetaChange?: (meta: { templateId: string | null; isSystem: boolean }) => void;
   initialTemplateContent?: string | null;
   onTemplateEditStatusChange?: (isCustom: boolean) => void;
+  onTemplateModeChange?: (isCustom: boolean) => void;
   isTemplateCustom?: boolean;
 }
 
@@ -107,8 +111,10 @@ export function RecordingInterface({
   onUpdateReport,
   onTemplateChange,
   onTemplateSave,
+  onTemplateMetaChange,
   initialTemplateContent,
   onTemplateEditStatusChange,
+  onTemplateModeChange,
   isTemplateCustom = false,
 }: RecordingInterfaceProps) {
   const { t } = useLanguage();
@@ -138,23 +144,171 @@ export function RecordingInterface({
   }, [reportScrollbarRef]);
 
   const effectiveStudyType = selectedStudyType || detectedStudyType || null;
-  const { content, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
+  
+  // Track if user has explicitly toggled the switch for this study type
+  const userToggledSwitchRef = useRef(false);
+  
+  // Initialize useDefaultTemplate based on isTemplateCustom prop from parent
+  const [useDefaultTemplate, setUseDefaultTemplate] = useState<boolean | undefined>(() => {
+    console.log("[RecordingInterface] Initializing useDefaultTemplate:", {
+      isTemplateCustom,
+      initialTemplateContent: initialTemplateContent?.substring(0, 50) + "...",
+      initialTemplateContentLength: initialTemplateContent?.length || 0
+    });
+    
+    if (isTemplateCustom === true) {
+      console.log("[RecordingInterface] Starting in custom mode (useDefaultTemplate = false)");
+      return false; // Start in custom mode (custom template)
+    }
+    if (isTemplateCustom === false) {
+      console.log("[RecordingInterface] Starting in default mode (useDefaultTemplate = true)");
+      return true; // Start in default mode (system template)
+    }
+    console.log("[RecordingInterface] Letting backend decide (useDefaultTemplate = undefined)");
+    return undefined; // Let backend decide only when isTemplateCustom is null/undefined
+  });
+  
+  // Only pass initialTemplateContent when in custom mode (useDefaultTemplate === false)
+  // When user explicitly switches to default mode (useDefaultTemplate === true), fetch from API instead
+  const effectiveInitialContent = useDefaultTemplate === true ? null : initialTemplateContent;
+  
+  console.log("[RecordingInterface] useTemplateContent params:", {
+  effectiveStudyType,
+  language,
+  effectiveInitialContent: effectiveInitialContent?.substring(0, 50) + "...",
+  useDefault: useDefaultTemplate
+});
+
+const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateLoading, error: templateError } = useTemplateContent(
     effectiveStudyType,
     language,
-    initialTemplateContent
+    effectiveInitialContent,
+    { useDefault: useDefaultTemplate }
   );
+  
+  // Sync switch state when:
+  // 1. Backend finishes loading and user hasn't toggled manually
+  // 2. Parent indicates si el reporte guardado es custom o default
+  useEffect(() => {
+    if (userToggledSwitchRef.current) {
+      return; // User manually toggled, don't override
+    }
+    
+    // Si el padre indica que el reporte es custom/default, respetamos SIEMPRE eso
+    if (isTemplateCustom === true) {
+      setUseDefaultTemplate(false); // custom
+      return;
+    }
+    if (isTemplateCustom === false) {
+      setUseDefaultTemplate(true); // default
+      return;
+    }
+
+    // Sólo cuando no sabemos (nuevo reporte sin persistir) dejamos que el backend decida
+    if (!isTemplateLoading && effectiveStudyType) {
+      // If there's a custom template, use custom mode, otherwise use default mode
+      const shouldBeDefault = !hasCustomTemplate;
+      console.log("[RecordingInterface] Backend deciding mode:", {
+        hasCustomTemplate,
+        shouldBeDefault,
+        isSystem
+      });
+      setUseDefaultTemplate(shouldBeDefault);
+    }
+  }, [isTemplateLoading, isSystem, effectiveStudyType, isTemplateCustom, initialTemplateContent, hasCustomTemplate]);
   
   const [editedTemplateContent, setEditedTemplateContent] = useState<string | null>(null);
   const [originalTemplateContent, setOriginalTemplateContent] = useState<string | null>(null);
   const [hasTemplateBeenEdited, setHasTemplateBeenEdited] = useState(false);
-  const templateSaveDisabled = !currentReportId || !onTemplateSave;
+  const [isManualTemplateSaving, setIsManualTemplateSaving] = useState(false);
+  const lastTemplateMetaRef = useRef<{ templateId: string | null; isSystem: boolean } | null>(null);
+  
+  // Cache the default template content to avoid unnecessary API calls
+  const cachedDefaultTemplateRef = useRef<string | null>(null);
+  
+  // Track if user just switched to custom mode with no custom template
+  const justSwitchedToCustomEmptyRef = useRef(false);
 
   useEffect(() => {
+    console.log("[RecordingInterface] Template content updated:", {
+      contentLength: content?.length || 0,
+      contentPreview: content?.substring(0, 50) + "...",
+      useDefaultTemplate,
+      isSystem,
+      hasCustomTemplate
+    });
+    
+    if (content && isSystem && !hasCustomTemplate) {
+      console.log("[RecordingInterface] Caching default template");
+      cachedDefaultTemplateRef.current = content;
+    }
+    
+    // Don't overwrite edited content if user just switched to custom mode and there's no custom template
+    // This preserves the empty state we set in handleUseDefaultToggle
+    if (justSwitchedToCustomEmptyRef.current) {
+      console.log("[RecordingInterface] Preserving empty custom template content");
+      justSwitchedToCustomEmptyRef.current = false; // Reset flag
+      return;
+    }
+    
     setEditedTemplateContent(content);
     setOriginalTemplateContent(content);
-    setHasTemplateBeenEdited(false); // Reset when new template loads
-    onTemplateEditStatusChange?.(false); // Notify parent that template is no longer custom
-  }, [content, onTemplateEditStatusChange]);
+    setHasTemplateBeenEdited(false); 
+  }, [content, isSystem, hasCustomTemplate, useDefaultTemplate]);
+
+  // Track previous values to detect changes
+  const prevEffectiveStudyTypeRef = useRef<string | null>(null);
+  const prevReportIdRef = useRef<string | null>(null);
+
+  // Reset and set correct switch state when study type or report changes
+  useEffect(() => {
+    const prevStudyType = prevEffectiveStudyTypeRef.current;
+    const prevReportId = prevReportIdRef.current;
+    
+    // Reset when study type changes OR when report changes
+    if (prevStudyType !== effectiveStudyType || prevReportId !== currentReportId) {
+      userToggledSwitchRef.current = false;
+      justSwitchedToCustomEmptyRef.current = false; // Reset flag
+      
+      // Clear cached default template when study type changes
+      if (prevStudyType !== effectiveStudyType) {
+        console.log("[RecordingInterface] Clearing cached default template due to study type change");
+        cachedDefaultTemplateRef.current = null;
+      }
+      
+      // When study type changes, reset to default mode unless parent explicitly indicates custom
+      if (prevStudyType !== effectiveStudyType) {
+        if (isTemplateCustom && initialTemplateContent) {
+          setUseDefaultTemplate(false); // Parent explicitly indicates custom mode
+        } else {
+          setUseDefaultTemplate(undefined); // Let backend decide (will default to system template)
+        }
+      } else {
+        // When report changes, maintain current mode based on parent's indication
+        if (isTemplateCustom && initialTemplateContent) {
+          setUseDefaultTemplate(false); // Custom mode
+        } else {
+          setUseDefaultTemplate(undefined); // Let backend decide
+        }
+      }
+    }
+    
+    prevEffectiveStudyTypeRef.current = effectiveStudyType;
+    prevReportIdRef.current = currentReportId ?? null;
+  }, [effectiveStudyType, currentReportId, isTemplateCustom, initialTemplateContent]);
+
+  useEffect(() => {
+    if (!onTemplateMetaChange) return;
+
+    const next = { templateId, isSystem };
+    const prev = lastTemplateMetaRef.current;
+    if (prev && prev.templateId === next.templateId && prev.isSystem === next.isSystem) {
+      return;
+    }
+
+    lastTemplateMetaRef.current = next;
+    onTemplateMetaChange(next);
+  }, [isSystem, onTemplateMetaChange, templateId]);
 
   useEffect(() => {
     const wasHasReport = prevHasGeneratedReportRef.current;
@@ -173,21 +327,7 @@ export function RecordingInterface({
     prevHasGeneratedReportRef.current = hasGeneratedReport;
   }, [hasGeneratedReport]);
 
-  const {
-    value: templateValue,
-    onChange: onTemplateAutoSaveChange,
-    onBlur: onTemplateAutoSaveBlur,
-  } = useAutoSave({
-    initialValue: editedTemplateContent ?? "",
-    onSave: onTemplateSave
-      ? async (value: string) => {
-          await onTemplateSave(value, hasTemplateBeenEdited);
-        }
-      : async () => {},
-    debounceMs: 1500,
-    isDisabled: templateSaveDisabled,
-    reportId: currentReportId,
-  });
+  // Template autosave has been removed - only manual save via button is supported
 
   const handleTemplateChange = useCallback((value: string) => {
     setEditedTemplateContent(value);
@@ -197,36 +337,149 @@ export function RecordingInterface({
       : value.trim() !== originalTemplateContent.trim();
     
     setHasTemplateBeenEdited(isDifferent);
-    onTemplateEditStatusChange?.(isDifferent);
+    
+    // Informamos al padre únicamente del modo (custom vs default),
+    // no de si el contenido es distinto.
+    onTemplateEditStatusChange?.(useDefaultTemplate === false);
     
     onTemplateChange?.(value);
+  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange, useDefaultTemplate]);
 
-    if (!templateSaveDisabled) {
-      onTemplateAutoSaveChange({
-        target: { value },
-      } as React.ChangeEvent<HTMLTextAreaElement>);
-    }
-  }, [onTemplateChange, originalTemplateContent, onTemplateEditStatusChange, onTemplateAutoSaveChange, templateSaveDisabled, effectiveStudyType]);
-
-  const handleTemplateBlur = useCallback(
-    (value: string) => {
-      if (templateSaveDisabled) {
-        return;
-      }
-
-      onTemplateAutoSaveBlur({
-        target: { value },
-      } as React.FocusEvent<HTMLTextAreaElement>);
-    },
-    [onTemplateAutoSaveBlur, templateSaveDisabled],
-  );
+  // Template blur handler removed - no autosave on blur
 
   const handleCustomStateReset = useCallback(() => {
     // Reset custom state when a new template is selected
     setHasTemplateBeenEdited(false);
-    onTemplateEditStatusChange?.(false);
+    onTemplateEditStatusChange?.(useDefaultTemplate === false);
+    userToggledSwitchRef.current = false;
+    setUseDefaultTemplate(undefined); // Let backend decide
     // The original template content will be updated when the new template loads
   }, [onTemplateEditStatusChange]);
+
+  const handleUseDefaultToggle = useCallback(
+    async (next: boolean) => {
+      console.log("[RecordingInterface] handleUseDefaultToggle called:", {
+        next,
+        effectiveStudyType,
+        currentUseDefaultTemplate: useDefaultTemplate,
+        hasCustomTemplate
+      });
+      
+      if (!effectiveStudyType) return;
+      
+      // Mark that user explicitly toggled the switch
+      userToggledSwitchRef.current = true;
+      
+      try {
+        await setTemplatePreference({
+          studyType: effectiveStudyType,
+          language,
+          useDefault: next,
+        });
+        console.log("[RecordingInterface] Setting useDefaultTemplate to:", next);
+        setUseDefaultTemplate(next);
+        // Notificar al padre que el modo cambió (custom = !next)
+        onTemplateModeChange?.(!next);
+
+        // If user switches into custom mode but doesn't have a custom template yet,
+        // clear the template text so they start from empty.
+        if (!next && !hasCustomTemplate) {
+          console.log("[RecordingInterface] Switching to custom mode with no custom template, clearing content");
+          justSwitchedToCustomEmptyRef.current = true; // Set flag to prevent overwriting
+          setEditedTemplateContent("");
+          setOriginalTemplateContent("");
+          setHasTemplateBeenEdited(false);
+          onTemplateEditStatusChange?.(true); // Switching to custom mode
+          onTemplateChange?.("");
+        } else if (next) {
+          // When switching TO default mode
+          setHasTemplateBeenEdited(false);
+          onTemplateEditStatusChange?.(false); // Switching to default mode
+          
+          // If we have a cached default template and no custom template exists, use it
+          if (!hasCustomTemplate && cachedDefaultTemplateRef.current) {
+            console.log("[RecordingInterface] Using cached default template");
+            setEditedTemplateContent(cachedDefaultTemplateRef.current);
+            setOriginalTemplateContent(cachedDefaultTemplateRef.current);
+          } else {
+            // Force template reload by clearing content temporarily
+            setEditedTemplateContent(null);
+          }
+        } else {
+          // When switching modes in other cases, reset edit state
+          // The useTemplateContent hook will fetch the appropriate template
+          setHasTemplateBeenEdited(false);
+          // Update parent with the current mode: custom if next is false, default if next is true
+          onTemplateEditStatusChange?.(!next);
+        }
+      } catch (error) {
+        console.error("[TemplatePreference] Failed to set preference", error);
+      }
+    },
+    [effectiveStudyType, hasCustomTemplate, language, onTemplateChange, onTemplateEditStatusChange]
+  );
+
+  // Mantener sincronizado el padre con el modo actual del switch (custom vs default)
+  useEffect(() => {
+    onTemplateEditStatusChange?.(useDefaultTemplate === false);
+  }, [useDefaultTemplate, onTemplateEditStatusChange]);
+
+  const handleManualTemplateSave = useCallback(async () => {
+    if (!onTemplateSave) return;
+
+    try {
+      setIsManualTemplateSaving(true);
+      
+      // If saving from default mode, first switch to custom mode
+      const wasInDefaultMode = useDefaultTemplate !== false;
+      if (wasInDefaultMode && effectiveStudyType) {
+        try {
+          await setTemplatePreference({
+            studyType: effectiveStudyType,
+            language,
+            useDefault: false,
+          });
+          setUseDefaultTemplate(false);
+          userToggledSwitchRef.current = true;
+        } catch (prefError) {
+          console.error("[TemplatePreference] Failed to set preference before save", prefError);
+        }
+      }
+      
+      // Now save as custom (isCustom = true since we're now in custom mode)
+      const contentToSave = editedTemplateContent?.trim() ?? "";
+      if (!contentToSave) {
+        toast({
+          variant: "destructive",
+          title: "No se puede guardar",
+          description: "La plantilla no puede estar vacía.",
+        });
+        return;
+      }
+      console.log("[RecordingInterface] Calling onTemplateSave:", {
+        contentLength: contentToSave?.length || 0,
+        isCustom: true,
+        useDefaultTemplate,
+        hasTemplateBeenEdited,
+        effectiveStudyType
+      });
+      
+      await onTemplateSave(contentToSave, true);
+      
+      toast({
+        title: "Cambios guardados",
+        description: "Se guardaron tus cambios en la plantilla.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "No se pudo guardar",
+        description: error instanceof Error ? error.message : "Ocurrió un error al guardar la plantilla.",
+      });
+    } finally {
+      setIsManualTemplateSaving(false);
+    }
+  }, [effectiveStudyType, language, onTemplateSave, editedTemplateContent, useDefaultTemplate]);
 
   const handleCopyReport = useCallback(async () => {
     if (!reportTextareaRef.current || !generatedReport) return;
@@ -666,24 +919,32 @@ export function RecordingInterface({
             mobileFullscreen === 'template' && "lg:flex flex-1 h-full"
           )}>
             <TemplatePreview
-              content={onTemplateSave ? templateValue : editedTemplateContent}
+              content={editedTemplateContent}
               isLoading={isTemplateLoading}
               error={templateError}
               studyType={effectiveStudyType}
+              useDefault={useDefaultTemplate ?? true}
+              isCustom={useDefaultTemplate === false}
+              onUseDefaultChange={(next) => {
+                handleUseDefaultToggle(next);
+              }}
               isDetectingStudyType={isDetectingStudyType}
               onContentChange={handleTemplateChange}
-              onContentBlur={handleTemplateBlur}
-              availableStudyTypes={availableStudyTypes}
-              selectedStudyType={selectedStudyType || detectedStudyType || ''}
-              onStudyTypeChange={onStudyTypeChange}
+              onContentBlur={undefined}
+              showSaveButton={Boolean(onTemplateSave && hasTemplateBeenEdited && effectiveStudyType)}
+              onSaveClick={onTemplateSave ? handleManualTemplateSave : undefined}
+              onCustomStateReset={handleCustomStateReset}
               onRunAutoDetect={onRunAutoDetect}
               hasTranscriptionText={hasTranscriptionText}
-              isActive={isActive}
-              disabled={disabled}
-              isCustom={hasTemplateBeenEdited}
-              onCustomStateReset={handleCustomStateReset}
+              availableStudyTypes={availableStudyTypes}
+              selectedStudyType={selectedStudyType || detectedStudyType || ''}
+              onStudyTypeChange={(studyType) => {
+                onStudyTypeChange?.(studyType, undefined);
+              }}
               isMobileFullscreen={mobileFullscreen === 'template'}
               onMobileFullscreenToggle={() => setMobileFullscreen(mobileFullscreen === 'template' ? null : 'template')}
+              isActive={isActive}
+              disabled={disabled || isManualTemplateSaving}
             />
           </div>
         </div>
