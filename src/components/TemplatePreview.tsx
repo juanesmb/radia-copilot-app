@@ -85,8 +85,8 @@ export function TemplatePreview({
 
   const renderHeader = () => (
     <div className="px-3 py-4 border-b border-border shrink-0 flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-3">
-      {/* Title + Select: side by side on all screen sizes */}
-      <div className="flex items-center gap-2 min-w-0 shrink-0">
+      {/* Title + Select: side by side on all screen sizes; select grows with available space */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {onMobileFullscreenToggle && (
           <button
             type="button"
@@ -121,7 +121,7 @@ export function TemplatePreview({
               }
             }}
             disabled={isActive || disabled || isDetectingStudyType}
-            className="min-w-0 flex-1 sm:flex-none sm:w-[200px] md:w-[240px] h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">{t("recording.studyTypePlaceholder")}</option>
             {availableStudyTypes.map((option) => (
@@ -135,9 +135,9 @@ export function TemplatePreview({
 
       {/* Controls: second row on mobile, same row on desktop */}
       {availableStudyTypes && availableStudyTypes.length > 0 && (
-        <div className="flex items-center gap-2 min-w-0 sm:flex-1">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
           {typeof onUseDefaultChange === "function" && studyType && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-col items-center gap-1 shrink-0">
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {isCustom ? "custom" : "default"}
               </span>
