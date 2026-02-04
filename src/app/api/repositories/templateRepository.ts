@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { HttpError } from "../lib/errorHandler";
 import type { Language } from "../types/language";
 import type { Template } from "../types/template";
+import { getTableName } from "../lib/tableUtils";
 
 export interface TemplateRepository {
   getSystemTemplate(studyType: string, language: Language): Promise<Template | null>;
@@ -34,10 +35,6 @@ type Dependencies = {
   supabaseClient: SupabaseClient;
 };
 
-const tableSuffix = process.env.NEXT_PUBLIC_DB_TABLE_SUFFIX ?? "";
-
-const tableName = (base: string) => `${base}${tableSuffix}`;
-
 const NO_ROWS_ERROR_CODE = "PGRST116";
 
 const handleSupabaseError = (
@@ -65,7 +62,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
   ): Promise<Template | null> => {
     try {
       const { data: template, error } = await supabaseClient
-        .from(tableName("templates"))
+        .from(getTableName("templates"))
         .select("*")
         .eq("study_type", studyType)
         .eq("language", language)
@@ -100,7 +97,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
       // custom templates when using the service-role key.
       if (preference.preferred_template_id) {
         const { data: ownerCheck, error: ownerError } = await supabaseClient
-          .from(tableName("templates"))
+          .from(getTableName("templates"))
           .select("template_id")
           .eq("template_id", preference.preferred_template_id)
           .or(`user_id.eq.${userId},is_system.eq.true`)
@@ -121,7 +118,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
       }
 
       const { error } = await supabaseClient
-        .from(tableName("template_preferences"))
+        .from(getTableName("template_preferences"))
         .upsert(
           {
             user_id: userId,
@@ -161,7 +158,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
 
         if (!useDefault) {
           const { data: pref, error: prefError } = await supabaseClient
-            .from(tableName("template_preferences"))
+            .from(getTableName("template_preferences"))
             .select("preferred_template_id, use_default")
             .eq("user_id", userId)
             .eq("study_type", studyType)
@@ -179,7 +176,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
             // Fall through to system template
           } else if (pref?.preferred_template_id) {
             const { data: preferred, error: preferredError } = await supabaseClient
-              .from(tableName("templates"))
+              .from(getTableName("templates"))
               .select("*")
               .eq("template_id", pref.preferred_template_id)
               // Ensure we only ever load templates owned by this user or system templates.
@@ -199,7 +196,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
           } else {
             // If no explicit preference, try the latest custom for this user
             const { data: latestCustom, error: latestError } = await supabaseClient
-              .from(tableName("templates"))
+              .from(getTableName("templates"))
               .select("*")
               .eq("user_id", userId)
               .eq("study_type", studyType)
@@ -231,7 +228,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
     async hasCustomTemplate(userId: string, studyType: string, language: Language): Promise<boolean> {
       try {
         const { data, error } = await supabaseClient
-          .from(tableName("templates"))
+          .from(getTableName("templates"))
           .select("template_id")
           .eq("user_id", userId)
           .eq("study_type", studyType)
@@ -278,7 +275,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
         };
 
         const { data: created, error: insertError } = await supabaseClient
-          .from(tableName("templates"))
+          .from(getTableName("templates"))
           .insert(insertPayload)
           .select("*")
           .single();
@@ -307,7 +304,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
         const trimmed = content.trim();
 
         const { data, error } = await supabaseClient
-          .from(tableName("templates"))
+          .from(getTableName("templates"))
           .update({ content: trimmed, updated_at: new Date().toISOString() })
           .eq("template_id", templateId)
           .eq("user_id", userId)
@@ -335,7 +332,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
     async templateExists(studyType: string, language: Language): Promise<boolean> {
       try {
         const { data, error } = await supabaseClient
-          .from(tableName("templates"))
+          .from(getTableName("templates"))
           .select("template_id")
           .eq("study_type", studyType)
           .eq("language", language)
@@ -362,7 +359,7 @@ export const createTemplateRepository = (deps: Dependencies): TemplateRepository
     async listAvailableTemplates(language: Language): Promise<string[]> {
       try {
         const { data: templates, error } = await supabaseClient
-          .from(tableName("templates"))
+          .from(getTableName("templates"))
           .select("study_type")
           .eq("language", language)
           .eq("is_system", true)
