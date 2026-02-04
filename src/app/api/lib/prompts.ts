@@ -6,6 +6,7 @@ import type { Report } from "../repositories/reportRepository";
 let promptCache: Record<Language, string> | null = null;
 let enhancementPromptCache: Record<Language, string> | null = null;
 let chatPromptCache: Record<Language, string> | null = null;
+let followUpChatPromptCache: Record<Language, string> | null = null;
 
 const loadPrompt = (language: Language): string => {
   if (promptCache?.[language]) {
@@ -38,7 +39,7 @@ const loadChatPrompt = (language: Language): string => {
 
   try {
     const promptsDir = join(process.cwd(), "src/app/api/prompts");
-    const filePath = join(promptsDir, `${language}-chat.md`);
+    const filePath = join(promptsDir, `analyze-report-${language}.md`);
     const content = readFileSync(filePath, "utf-8");
     const trimmed = content.trim();
 
@@ -79,11 +80,37 @@ const loadEnhancementPrompt = (language: Language): string => {
   }
 };
 
+const loadFollowUpChatPrompt = (language: Language): string => {
+  if (followUpChatPromptCache?.[language]) {
+    return followUpChatPromptCache[language];
+  }
+
+  try {
+    const promptsDir = join(process.cwd(), "src/app/api/prompts");
+    const filePath = join(promptsDir, `chat-prompt-${language}.md`);
+    const content = readFileSync(filePath, "utf-8");
+    const trimmed = content.trim();
+
+    if (!followUpChatPromptCache) {
+      followUpChatPromptCache = {} as Record<Language, string>;
+    }
+    followUpChatPromptCache[language] = trimmed;
+
+    return trimmed;
+  } catch (error) {
+    throw new Error(
+      `Failed to load follow-up chat prompt file for language "${language}": ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
 export const getSystemPrompt = (language: Language): string => loadPrompt(language);
 
 export const getEnhancementPrompt = (language: Language): string => loadEnhancementPrompt(language);
 
 export const getChatSystemPrompt = (language: Language): string => loadChatPrompt(language);
+
+export const getFollowUpChatSystemPrompt = (language: Language): string => loadFollowUpChatPrompt(language);
 
 export const getChatReportContextPrompt = (report: Report, language: Language): string => {
   const transcription = report.updated_transcription || report.generated_transcription;

@@ -12,6 +12,7 @@ import type { Language } from "../types/language";
 import {
   getChatReportContextPrompt,
   getChatSystemPrompt,
+  getFollowUpChatSystemPrompt,
 } from "../lib/prompts";
 
 const requestSchema = z.object({
@@ -58,6 +59,42 @@ export async function POST(request: NextRequest) {
     const hasPreviousMessages = parsed.data.messages.some(msg => 
       msg.role === "user" || msg.role === "assistant"
     );
+    
+    // Check if this is the second message and the first one had report context
+    const isSecondMessageWithReportContext = hasPreviousMessages && 
+      parsed.data.messages.length >= 2 &&
+      parsed.data.messages[0].role === "user" &&
+      parsed.data.messages[1].role === "assistant" &&
+      parsed.data.reportId;
+
+    // Only add system prompt if this is the start of a new conversation
+    if (!hasPreviousMessages) {
+      systemMessages.unshift({
+        role: "system",
+        content: getChatSystemPrompt(chatLanguage),
+      });
+    }
+    
+    // Add follow-up system prompt if this is the second message after report context
+    if (isSecondMessageWithReportContext) {
+      systemMessages.unshift({
+        role: "system",
+        content: getFollowUpChatSystemPrompt(chatLanguage),
+      });
+    }
+
+    const normalizedMessages: Array<{
+      role: "user" | "assistant" | "system";
+      content: string;
+    }> = parsed.data.messages.map((message) => {
+      if (message.role === "system") {
+        return { role: "system" as const, content: message.content };
+      }
+      if (message.role === "assistant") {
+        return { role: "assistant" as const, content: message.content };
+      }
+      return { role: "user" as const, content: message.content };
+    });
 
     if (parsed.data.reportId) {
       const supabaseClient = createSupabaseClient({
@@ -76,33 +113,12 @@ export async function POST(request: NextRequest) {
       
       // Only add report context if this is a new conversation or first message about this report
       if (!hasPreviousMessages) {
-        systemMessages.push({
-          role: "system" as const,
+        normalizedMessages.unshift({
+          role: "user" as const,
           content: getChatReportContextPrompt(report, chatLanguage),
         });
       }
     }
-
-    // Only add system prompt if this is the start of a new conversation
-    if (!hasPreviousMessages) {
-      systemMessages.unshift({
-        role: "system",
-        content: getChatSystemPrompt(chatLanguage),
-      });
-    }
-
-    const normalizedMessages: Array<{
-      role: "user" | "assistant" | "system";
-      content: string;
-    }> = parsed.data.messages.map((message) => {
-      if (message.role === "system") {
-        return { role: "system" as const, content: message.content };
-      }
-      if (message.role === "assistant") {
-        return { role: "assistant" as const, content: message.content };
-      }
-      return { role: "user" as const, content: message.content };
-    });
 
     if (stream) {
       const gateway = createGateway({
