@@ -1,24 +1,27 @@
 /**
- * Utility for handling database table suffixes based on environment
+ * Utility for handling database table suffixes based on environment scope
  */
 
-const tableSuffix = process.env.NEXT_PUBLIC_DB_TABLE_SUFFIX ?? "";
+const scope = process.env.NEXT_PUBLIC_SCOPE ?? "prod";
 
 /**
- * Returns the table name with the appropriate suffix based on environment
+ * Returns the table name with the appropriate suffix based on scope
  * @param baseName - The base table name (e.g., "users", "chat_sessions")
  * @returns The table name with suffix applied (e.g., "users_test", "chat_sessions_test")
  */
 export const getTableName = (baseName: string): string => {
-  return `${baseName}${tableSuffix}`;
+  if (scope === "test") {
+    return `${baseName}_test`;
+  }
+  return baseName;
 };
 
 /**
  * Check if we're running in test environment
- * @returns true if NEXT_PUBLIC_DB_TABLE_SUFFIX is set and not empty
+ * @returns true if NEXT_PUBLIC_SCOPE is "test"
  */
 export const isTestEnvironment = (): boolean => {
-  return tableSuffix.length > 0;
+  return scope === "test";
 };
 
 /**
@@ -26,5 +29,13 @@ export const isTestEnvironment = (): boolean => {
  * @returns The current table suffix (e.g., "_test") or empty string
  */
 export const getTableSuffix = (): string => {
-  return tableSuffix;
+  return scope === "test" ? "_test" : "";
+};
+
+/**
+ * Get the current scope
+ * @returns The current scope ("test" or "prod")
+ */
+export const getScope = (): string => {
+  return scope;
 };
