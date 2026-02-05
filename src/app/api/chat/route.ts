@@ -53,22 +53,40 @@ export async function POST(request: NextRequest) {
 
     const systemMessages: Array<{ role: "system"; content: string }> = [];
     let chatLanguage: Language = parsed.data.language ?? "en";
+    let report: any = null;
+
+    // Fetch report and determine language if reportId is provided
+    if (parsed.data.reportId) {
+      const supabaseClient = createSupabaseClient({
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+      });
+      const reportRepository = createReportRepository({
+        supabaseClient: supabaseClient.getClient(),
+      });
+      const { userId } = await auth();
+      if (!userId) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      }
+      report = await reportRepository.getReportById(parsed.data.reportId, userId);
+      chatLanguage = report.language === "es" ? "es" : "en";
+    }
 
     // Only add system messages if this is the start of a new conversation
-    // or if there are no previous messages in the conversation
-    const hasPreviousMessages = parsed.data.messages.some(msg => 
-      msg.role === "user" || msg.role === "assistant"
+    // Check if there are any previous assistant messages (indicating this is not the first turn)
+    const hasPreviousAssistantMessages = parsed.data.messages.some(msg => 
+      msg.role === "assistant"
     );
     
     // Check if this is the second message and the first one had report context
-    const isSecondMessageWithReportContext = hasPreviousMessages && 
+    const isSecondMessageWithReportContext = hasPreviousAssistantMessages && 
       parsed.data.messages.length >= 2 &&
       parsed.data.messages[0].role === "user" &&
       parsed.data.messages[1].role === "assistant" &&
       parsed.data.reportId;
 
     // Only add system prompt if this is the start of a new conversation
-    if (!hasPreviousMessages) {
+    if (!hasPreviousAssistantMessages) {
       systemMessages.unshift({
         role: "system",
         content: getChatSystemPrompt(chatLanguage),
@@ -96,28 +114,12 @@ export async function POST(request: NextRequest) {
       return { role: "user" as const, content: message.content };
     });
 
-    if (parsed.data.reportId) {
-      const supabaseClient = createSupabaseClient({
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    // Add report context if this is a new conversation or first message about this report
+    if (report && !hasPreviousAssistantMessages) {
+      normalizedMessages.unshift({
+        role: "user" as const,
+        content: getChatReportContextPrompt(report, chatLanguage),
       });
-      const reportRepository = createReportRepository({
-        supabaseClient: supabaseClient.getClient(),
-      });
-      const { userId } = await auth();
-      if (!userId) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
-      const report = await reportRepository.getReportById(parsed.data.reportId, userId);
-      chatLanguage = report.language === "es" ? "es" : "en";
-      
-      // Only add report context if this is a new conversation or first message about this report
-      if (!hasPreviousMessages) {
-        normalizedMessages.unshift({
-          role: "user" as const,
-          content: getChatReportContextPrompt(report, chatLanguage),
-        });
-      }
     }
 
     if (stream) {
