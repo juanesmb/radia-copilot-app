@@ -1,19 +1,19 @@
 /**
- * Utility for handling database table names based on environment scope
+ * Utility for handling database table suffixes based on environment scope
  */
 
 const scope = process.env.NEXT_PUBLIC_SCOPE ?? "prod";
 
 /**
- * Returns the table name with the appropriate schema based on scope
+ * Returns the table name with the appropriate suffix based on scope
  * @param baseName - The base table name (e.g., "users", "chat_sessions")
- * @returns The table name with schema applied (e.g., "dev.users", "public.users")
+ * @returns The table name with suffix applied (e.g., "users_test", "chat_sessions_test")
  */
 export const getTableName = (baseName: string): string => {
   if (scope === "test") {
-    return `dev.${baseName}`;
+    return `${baseName}_test`;
   }
-  return `public.${baseName}`;
+  return baseName;
 };
 
 /**
