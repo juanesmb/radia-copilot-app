@@ -8,6 +8,7 @@ import { getAIConfig } from "../lib/config";
 import { HttpError } from "../lib/errorHandler";
 import { createSupabaseClient } from "../clients/supabaseClient";
 import { createReportRepository } from "../repositories/reportRepository";
+import type { Report } from "../repositories/reportRepository";
 import type { Language } from "../types/language";
 import {
   getChatReportContextPrompt,
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     });
 
     let chatLanguage: Language = parsed.data.language ?? "en";
-    let report: any = null;
+    let report: Report | null = null;
 
     // Add a mandatory plain text system message as the first message
     const plainTextSystemMessage = {
