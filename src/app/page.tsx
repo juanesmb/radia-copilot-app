@@ -107,6 +107,19 @@ export default function HomePage() {
   const pendingTitleRef = useRef<string | null>(null);
   const lastSavedTranscriptionRef = useRef<string>("");
   const pendingReportIdRef = useRef<string | null>(null);
+  
+  // Refs to avoid stale closures in useCallback
+  const currentReportIdRef = useRef<string | null>(null);
+  const currentReportTitleRef = useRef<string | null>(null);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    currentReportIdRef.current = currentReportId;
+  }, [currentReportId]);
+  
+  useEffect(() => {
+    currentReportTitleRef.current = currentReportTitle;
+  }, [currentReportTitle]);
 
   const getTemplateLabel = useCallback(
     (templateId: string) => {
@@ -123,8 +136,8 @@ export default function HomePage() {
   const ensureDraftReport = useCallback(
     async (isCustomTemplate?: boolean) => {
       console.log("[ensureDraftReport] Called with:", {
-        currentReportId,
-        currentReportTitle,
+        currentReportId: currentReportIdRef.current,
+        currentReportTitle: currentReportTitleRef.current,
         isCustomTemplate,
         inFlight: !!inFlightCreateRef.current
       });
@@ -138,13 +151,13 @@ export default function HomePage() {
         try {
           isCreatingDraftRef.current = true;
           console.log("[ensureDraftReport] Creating report with:", {
-            report_title: currentReportTitle || null,
+            report_title: currentReportTitleRef.current || null,
             language,
             is_custom_template: isCustomTemplate ?? null,
             caller: 'ensureDraftReport'
           });
           const created = await createDraftReport({
-            report_title: currentReportTitle || null,
+            report_title: currentReportTitleRef.current || null,
             language,
             is_custom_template: isCustomTemplate ?? null,
           });
@@ -166,7 +179,7 @@ export default function HomePage() {
       inFlightCreateRef.current = createPromise;
       return createPromise;
     },
-    [language] // Eliminé currentReportId y currentReportTitle de las dependencias
+    [language, setReportHistory] // Incluimos setReportHistory para mantener consistencia
   );
 
   const { firstName, isLoading: isGreetingLoading } = useUserGreeting();

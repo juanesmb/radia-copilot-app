@@ -54,16 +54,7 @@ export async function POST(request: NextRequest) {
 
     let chatLanguage: Language = parsed.data.language ?? "en";
     let report: Report | null = null;
-
-    // Add a mandatory plain text system message as the first message
-    const plainTextSystemMessage = {
-      role: "system" as const,
-      content: chatLanguage === "es" 
-        ? "REQUERIMIENTO OBLIGATORIO: Responde ÚNICAMENTE en texto plano. ABSOLUTAMENTE NINGÚN MARKDOWN. No uses encabezados (#), viñetas (-), listas numeradas (1.), asteriscos (*), guiones bajos (_), comillas invertidas (`), tablas, enlaces ni ningún formato. Escribe como párrafos continuos u oraciones simples separadas por saltos de línea. Este es un requisito crítico e inexcusable."
-        : "MANDATORY REQUIREMENT: Respond ONLY in plain text. ABSOLUTELY NO MARKDOWN. Do not use headings (#), bullet points (-), numbered lists (1.), asterisks (*), underscores (_), backticks (`), tables, links, or any formatting. Write as continuous paragraphs or simple sentences separated by line breaks. This is a critical and non-negotiable requirement."
-    };
-
-    const systemMessages: Array<{ role: "system"; content: string }> = [plainTextSystemMessage];
+    let systemMessages: Array<{ role: "system"; content: string }> = [];
 
     // Fetch report and determine language if reportId is provided
     if (parsed.data.reportId) {
@@ -81,6 +72,17 @@ export async function POST(request: NextRequest) {
       report = await reportRepository.getReportById(parsed.data.reportId, userId);
       chatLanguage = report.language === "es" ? "es" : "en";
     }
+
+    // Add a mandatory plain text system message as the first message
+    // (constructed after report fetch to use the final chatLanguage)
+    const plainTextSystemMessage = {
+      role: "system" as const,
+      content: chatLanguage === "es" 
+        ? "REQUERIMIENTO OBLIGATORIO: Responde ÚNICAMENTE en texto plano. ABSOLUTAMENTE NINGÚN MARKDOWN. No uses encabezados (#), viñetas (-), listas numeradas (1.), asteriscos (*), guiones bajos (_), comillas invertidas (`), tablas, enlaces ni ningún formato. Escribe como párrafos continuos u oraciones simples separadas por saltos de línea. Este es un requisito crítico e inexcusable."
+        : "MANDATORY REQUIREMENT: Respond ONLY in plain text. ABSOLUTELY NO MARKDOWN. Do not use headings (#), bullet points (-), numbered lists (1.), asterisks (*), underscores (_), backticks (`), tables, links, or any formatting. Write as continuous paragraphs or simple sentences separated by line breaks. This is a critical and non-negotiable requirement."
+    };
+
+    systemMessages = [plainTextSystemMessage];
 
     // Only add system messages if this is the start of a new conversation
     // Check if there are any previous assistant messages (indicating this is not the first turn)
