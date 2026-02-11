@@ -120,50 +120,54 @@ export default function HomePage() {
     setTranscription(transcript);
   }, [transcript]);
 
-  const ensureDraftReport = useCallback(async (isCustomTemplate?: boolean | null): Promise<string | null> => {
-    if (currentReportId) {
-      return currentReportId;
-    }
+  const ensureDraftReport = useCallback(
+    async (isCustomTemplate?: boolean) => {
+      console.log("[ensureDraftReport] Called with:", {
+        currentReportId,
+        currentReportTitle,
+        isCustomTemplate,
+        inFlight: !!inFlightCreateRef.current
+      });
 
-    if (pendingReportIdRef.current) {
-      return pendingReportIdRef.current;
-    }
-
-    if (inFlightCreateRef.current) {
-      return inFlightCreateRef.current;
-    }
-
-    const createPromise = (async () => {
-      try {
-        isCreatingDraftRef.current = true;
-        console.log("[ensureDraftReport] Creating report with:", {
-          report_title: currentReportTitle || null,
-          language,
-          is_custom_template: isCustomTemplate ?? null,
-          caller: 'ensureDraftReport'
-        });
-        const created = await createDraftReport({
-          report_title: currentReportTitle || null,
-          language,
-          is_custom_template: isCustomTemplate ?? null,
-        });
-        const reportId = created.report_id;
-        pendingReportIdRef.current = reportId;
-        setCurrentReportId(reportId);
-        setReportHistory((prev) => {
-          const mapped = mapReportToHistoryItem(created);
-          return [mapped, ...prev];
-        });
-        return reportId;
-      } finally {
-        isCreatingDraftRef.current = false;
-        inFlightCreateRef.current = null;
+      if (inFlightCreateRef.current) {
+        console.log("[ensureDraftReport] Returning in-flight promise");
+        return inFlightCreateRef.current;
       }
-    })();
 
-    inFlightCreateRef.current = createPromise;
-    return createPromise;
-  }, [currentReportId, currentReportTitle, language, setReportHistory]);
+      const createPromise = (async () => {
+        try {
+          isCreatingDraftRef.current = true;
+          console.log("[ensureDraftReport] Creating report with:", {
+            report_title: currentReportTitle || null,
+            language,
+            is_custom_template: isCustomTemplate ?? null,
+            caller: 'ensureDraftReport'
+          });
+          const created = await createDraftReport({
+            report_title: currentReportTitle || null,
+            language,
+            is_custom_template: isCustomTemplate ?? null,
+          });
+          const reportId = created.report_id;
+          console.log("[ensureDraftReport] Created new report with ID:", reportId);
+          pendingReportIdRef.current = reportId;
+          setCurrentReportId(reportId);
+          setReportHistory((prev) => {
+            const mapped = mapReportToHistoryItem(created);
+            return [mapped, ...prev];
+          });
+          return reportId;
+        } finally {
+          isCreatingDraftRef.current = false;
+          inFlightCreateRef.current = null;
+        }
+      })();
+
+      inFlightCreateRef.current = createPromise;
+      return createPromise;
+    },
+    [language] // Eliminé currentReportId y currentReportTitle de las dependencias
+  );
 
   const { firstName, isLoading: isGreetingLoading } = useUserGreeting();
 
@@ -877,7 +881,11 @@ export default function HomePage() {
     const userProvidedTitle = currentReportTitle?.trim() || null;
     pendingTitleRef.current = userProvidedTitle?.length ? userProvidedTitle : null;
 
-    // Aseguramos siempre un borrador antes de generar para evitar filas duplicadas.
+    // Siempre crear un nuevo informe para nuevas generaciones
+    // Limpiar el currentReportId para forzar creación de nuevo borrador
+    setCurrentReportId(null);
+    setCurrentReportTitle(null);
+    
     const draftReportId = await ensureDraftReport(isTemplateCustom);
 
     setIsGenerating(true);
@@ -886,7 +894,7 @@ export default function HomePage() {
     // Mantener el ID de borrador como currentReportId mientras generamos
     if (draftReportId) {
       setCurrentReportId(draftReportId);
-    } else if (!currentReportId) {
+    } else {
       setCurrentReportId(null);
       setCurrentReportTitle(null);
     }
@@ -971,9 +979,12 @@ export default function HomePage() {
             savedReportId = reportId;
             setIsGenerating(false);
 
+            console.log("[onComplete] ReportId:", reportId, "ReportTitle:", reportTitle);
+
             if (reportTitle) {
               const existingSessionId = reportChatSessions[reportId];
               if (existingSessionId) {
+                console.log("[onComplete] Opening existing chat:", existingSessionId);
                 window.dispatchEvent(
                   new CustomEvent("report-chat-open", {
                     detail: { sessionId: existingSessionId, reportId },
@@ -981,6 +992,7 @@ export default function HomePage() {
                 );
               } else {
                 try {
+                  console.log("[onComplete] Creating new chat for report:", reportId);
                   const normalizedChatTitle = reportTitle.trim().slice(0, 48);
                   const { sessionId } = await createReportChatSession({
                     reportId,
@@ -989,6 +1001,7 @@ export default function HomePage() {
                     initialPrompt: t("chat.report.initialPrompt"),
                   });
                   setReportChatSessions((prev) => ({ ...prev, [reportId]: sessionId }));
+                  console.log("[onComplete] Created chat session:", sessionId, "dispatching event");
                   window.dispatchEvent(
                     new CustomEvent("report-chat-created", {
                       detail: { sessionId, reportId },
@@ -1004,6 +1017,8 @@ export default function HomePage() {
                   });
                 }
               }
+            } else {
+              console.log("[onComplete] No report title available, skipping chat creation");
             }
           },
           onError: (error: Error) => {

@@ -232,12 +232,15 @@ export function ChatWidget({
 
   useEffect(() => {
     const handleReportChatCreated = async (event: Event) => {
+      console.log("[ChatWidget] handleReportChatCreated event received");
       const detail = (event as CustomEvent).detail as
         | { sessionId: string; reportId: string }
         | undefined;
       if (!detail) {
+        console.log("[ChatWidget] No detail in event");
         return;
       }
+      console.log("[ChatWidget] Processing report chat created:", detail);
       const isMobileNow = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
       setReportChatBadge(true);
       setSelectedReportId(detail.reportId);
@@ -255,6 +258,7 @@ export function ChatWidget({
       if (!isMobileNow) {
         setIsOpen(true);
       }
+      console.log("[ChatWidget] Report chat created and opened successfully");
     };
 
     window.addEventListener("report-chat-created", handleReportChatCreated);
@@ -265,14 +269,19 @@ export function ChatWidget({
 
   useEffect(() => {
     const handleReportChatOpen = async (event: Event) => {
+      console.log("[ChatWidget] handleReportChatOpen event received");
       const detail = (event as CustomEvent).detail as
         | { sessionId: string; reportId: string }
         | undefined;
       if (!detail) {
+        console.log("[ChatWidget] No detail in event");
         return;
       }
+      console.log("[ChatWidget] Processing report chat open:", detail);
       const isMobileNow = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
+      setReportChatBadge(true);
       setSelectedReportId(detail.reportId);
+      setHasTemporaryChat(false);
       try {
         const sessionData = await getChatSessions();
         setSessions(sessionData);
@@ -285,6 +294,7 @@ export function ChatWidget({
       if (!isMobileNow) {
         setIsOpen(true);
       }
+      console.log("[ChatWidget] Report chat opened successfully");
     };
 
     window.addEventListener("report-chat-open", handleReportChatOpen);
@@ -407,13 +417,13 @@ export function ChatWidget({
         setReports(reportData);
         if (sessionData.length > 0) {
           setHasTemporaryChat(false);
-          const preferredSessionId =
-            activeSessionId && sessionData.some((session) => session.id === activeSessionId)
-              ? activeSessionId
-              : sessionData[0].id;
-          setActiveSessionId(preferredSessionId);
-          const history = await getChatMessages(preferredSessionId);
-          setMessages(history.map(mapStoredMessage));
+          // Only set active session if none is already set
+          if (!activeSessionId) {
+            const preferredSessionId = sessionData[0].id;
+            setActiveSessionId(preferredSessionId);
+            const history = await getChatMessages(preferredSessionId);
+            setMessages(history.map(mapStoredMessage));
+          }
         } else {
           setActiveSessionId(null);
           setMessages([]);

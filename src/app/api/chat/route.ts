@@ -51,9 +51,18 @@ export async function POST(request: NextRequest) {
       baseUrl: aiConfig.baseUrl,
     });
 
-    const systemMessages: Array<{ role: "system"; content: string }> = [];
     let chatLanguage: Language = parsed.data.language ?? "en";
     let report: any = null;
+
+    // Add a mandatory plain text system message as the first message
+    const plainTextSystemMessage = {
+      role: "system" as const,
+      content: chatLanguage === "es" 
+        ? "REQUERIMIENTO OBLIGATORIO: Responde ÚNICAMENTE en texto plano. ABSOLUTAMENTE NINGÚN MARKDOWN. No uses encabezados (#), viñetas (-), listas numeradas (1.), asteriscos (*), guiones bajos (_), comillas invertidas (`), tablas, enlaces ni ningún formato. Escribe como párrafos continuos u oraciones simples separadas por saltos de línea. Este es un requisito crítico e inexcusable."
+        : "MANDATORY REQUIREMENT: Respond ONLY in plain text. ABSOLUTELY NO MARKDOWN. Do not use headings (#), bullet points (-), numbered lists (1.), asterisks (*), underscores (_), backticks (`), tables, links, or any formatting. Write as continuous paragraphs or simple sentences separated by line breaks. This is a critical and non-negotiable requirement."
+    };
+
+    const systemMessages: Array<{ role: "system"; content: string }> = [plainTextSystemMessage];
 
     // Fetch report and determine language if reportId is provided
     if (parsed.data.reportId) {
@@ -87,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // Only add system prompt if this is the start of a new conversation
     if (!hasPreviousAssistantMessages) {
-      systemMessages.unshift({
+      systemMessages.push({
         role: "system",
         content: getChatSystemPrompt(chatLanguage),
       });
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
     
     // Add follow-up system prompt if this is the second message after report context
     if (isSecondMessageWithReportContext) {
-      systemMessages.unshift({
+      systemMessages.push({
         role: "system",
         content: getFollowUpChatSystemPrompt(chatLanguage),
       });
@@ -114,8 +123,8 @@ export async function POST(request: NextRequest) {
       return { role: "user" as const, content: message.content };
     });
 
-    // Add report context if this is a new conversation or first message about this report
-    if (report && !hasPreviousAssistantMessages) {
+    // Always add report context if a report is associated with this chat
+    if (report) {
       normalizedMessages.unshift({
         role: "user" as const,
         content: getChatReportContextPrompt(report, chatLanguage),
