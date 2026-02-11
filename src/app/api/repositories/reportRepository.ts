@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { HttpError } from "../lib/errorHandler";
+import { getTableName } from "../lib/tableUtils";
 
 export interface ReportData {
   user_id: string;
@@ -66,10 +67,6 @@ type Dependencies = {
   supabaseClient: SupabaseClient;
 };
 
-const tableSuffix = process.env.NEXT_PUBLIC_DB_TABLE_SUFFIX ?? "";
-
-const tableName = (base: string) => `${base}${tableSuffix}`;
-
 export const createReportRepository = (deps: Dependencies): ReportRepository => {
   const { supabaseClient } = deps;
 
@@ -77,7 +74,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     async createReport(data: ReportData): Promise<Report> {
       try {
         const { data: report, error } = await supabaseClient
-          .from(tableName("reports"))
+          .from(getTableName("reports"))
           .insert(data)
           .select()
           .single();
@@ -110,7 +107,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     async getReportById(reportId: string, userId: string): Promise<Report> {
       try {
         const { data: report, error } = await supabaseClient
-          .from(tableName("reports"))
+          .from(getTableName("reports"))
           .select("*")
           .eq("report_id", reportId)
           .eq("user_id", userId)
@@ -148,7 +145,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
         });
 
         const { data: existingReport, error: fetchError } = await supabaseClient
-          .from(tableName("reports"))
+          .from(getTableName("reports"))
           .select("user_id")
           .eq("report_id", reportId)
           .single();
@@ -166,7 +163,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
         }
 
         console.log("[updateReport] Executing SQL update:", {
-          tableName: tableName("reports"),
+          tableName: getTableName("reports"),
           reportId,
           userId,
           updates,
@@ -177,7 +174,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
         });
 
         const { data: report, error } = await supabaseClient
-          .from(tableName("reports"))
+          .from(getTableName("reports"))
           .update({
             ...updates,
             updated_at: new Date().toISOString(),
@@ -222,7 +219,7 @@ export const createReportRepository = (deps: Dependencies): ReportRepository => 
     async getUserReports(userId: string): Promise<Report[]> {
       try {
         const { data: reports, error } = await supabaseClient
-          .from(tableName("reports"))
+          .from(getTableName("reports"))
           .select("*")
           .eq("user_id", userId)
           .order("created_at", { ascending: false });

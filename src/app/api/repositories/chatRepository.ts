@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { HttpError } from "../lib/errorHandler";
+import { getTableName } from "../lib/tableUtils";
 
 export interface ChatSessionData {
   user_id: string;
@@ -56,10 +57,6 @@ type Dependencies = {
   supabaseClient: SupabaseClient;
 };
 
-const tableSuffix = process.env.NEXT_PUBLIC_DB_TABLE_SUFFIX ?? "";
-
-const tableName = (base: string) => `${base}${tableSuffix}`;
-
 export const createChatRepository = (deps: Dependencies): ChatRepository => {
   const { supabaseClient } = deps;
 
@@ -67,7 +64,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async createSession(data: ChatSessionData): Promise<ChatSession> {
       try {
         const { data: session, error } = await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .insert({
             ...data,
             message_count: data.message_count ?? 0,
@@ -105,7 +102,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async listSessions(userId: string): Promise<ChatSession[]> {
       try {
         const { data: sessions, error } = await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .select("*")
           .eq("user_id", userId)
           .order("updated_at", { ascending: false });
@@ -132,7 +129,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async getSession(userId: string, sessionId: string): Promise<ChatSession> {
       try {
         const { data: session, error } = await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .select("*")
           .eq("id", sessionId)
           .eq("user_id", userId)
@@ -157,7 +154,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async listMessages(sessionId: string): Promise<ChatMessage[]> {
       try {
         const { data: messages, error } = await supabaseClient
-          .from(tableName("chat_messages"))
+          .from(getTableName("chat_messages"))
           .select("*")
           .eq("session_id", sessionId)
           .order("created_at", { ascending: true });
@@ -184,7 +181,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     async createMessage(userId: string, data: ChatMessageData): Promise<ChatMessage> {
       try {
         const { data: session, error: sessionError } = await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .select("id, user_id, message_count, token_count")
           .eq("id", data.session_id)
           .single();
@@ -200,7 +197,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         }
 
         const { data: message, error } = await supabaseClient
-          .from(tableName("chat_messages"))
+          .from(getTableName("chat_messages"))
           .insert({
             ...data,
             token_count: data.token_count ?? 0,
@@ -224,7 +221,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         const nextCount = (session.message_count ?? 0) + 1;
         const nextTokens = (session.token_count ?? 0) + (data.token_count ?? 0);
         await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .update({
             message_count: nextCount,
             token_count: nextTokens,
@@ -252,7 +249,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
     ): Promise<ChatSession> {
       try {
         const { data: existingSession, error: fetchError } = await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .select("user_id")
           .eq("id", sessionId)
           .single();
@@ -266,7 +263,7 @@ export const createChatRepository = (deps: Dependencies): ChatRepository => {
         }
 
         const { data: updated, error } = await supabaseClient
-          .from(tableName("chat_sessions"))
+          .from(getTableName("chat_sessions"))
           .update({
             ...updates,
             updated_at: new Date().toISOString(),
