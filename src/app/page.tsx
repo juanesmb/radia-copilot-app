@@ -134,17 +134,18 @@ export default function HomePage() {
   }, [transcript]);
 
   const ensureDraftReport = useCallback(
-    async (isCustomTemplate?: boolean) => {
+    async (isCustomTemplate?: boolean, forceCreate: boolean = false) => {
       console.log("[ensureDraftReport] Called with:", {
         currentReportId: currentReportIdRef.current,
         currentReportTitle: currentReportTitleRef.current,
         isCustomTemplate,
+        forceCreate,
         inFlight: !!inFlightCreateRef.current
       });
 
-      // Early return guard: if we already have a reportId, don't create a new one
+      // Early return guard: if we already have a reportId and not forcing creation, don't create a new one
       // This prevents duplicate drafts when called from other handlers
-      if (currentReportIdRef.current) {
+      if (!forceCreate && currentReportIdRef.current) {
         console.log("[ensureDraftReport] Using existing reportId:", currentReportIdRef.current);
         return currentReportIdRef.current;
       }
@@ -908,7 +909,7 @@ export default function HomePage() {
     currentReportIdRef.current = null;  // sync ref immediately
     currentReportTitleRef.current = null;  // sync ref immediately
     
-    const draftReportId = await ensureDraftReport(isTemplateCustom);
+    const draftReportId = await ensureDraftReport(isTemplateCustom, true); // forceCreate=true for new uploads
 
     setIsGenerating(true);
     setGeneratedReport(""); // Clear previous report

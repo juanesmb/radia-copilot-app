@@ -117,6 +117,59 @@
     opacity: 0;
   }
 
+  /* Improved icon visibility and contrast */
+  .icon-adaptive {
+    color: hsl(var(--foreground));
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+  }
+
+  .icon-adaptive:hover {
+    opacity: 1;
+  }
+
+  .sidebar-icon {
+    color: hsl(var(--sidebar-foreground));
+    opacity: 0.85;
+    transition: all 0.2s ease;
+  }
+
+  .sidebar-icon:hover {
+    opacity: 1;
+    color: hsl(var(--sidebar-primary));
+  }
+
+  .primary-icon {
+    color: hsl(var(--primary));
+    opacity: 0.9;
+  }
+
+  .primary-icon:hover {
+    opacity: 1;
+  }
+
+  /* Dark mode icon adjustments */
+  .dark .icon-adaptive {
+    opacity: 0.9;
+  }
+
+  .dark .sidebar-icon {
+    opacity: 0.9;
+  }
+
+  .dark .primary-icon {
+    opacity: 1;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .icon-adaptive,
+    .sidebar-icon,
+    .primary-icon {
+      opacity: 1 !important;
+    }
+  }
+
   /* Transparent auto-hiding scrollbars */
   .scrollbar-transparent {
     scrollbar-width: thin;

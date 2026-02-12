@@ -70,12 +70,15 @@ export function SidebarMenu({
               aria-label={t("sidebar.home")}
             >
               <Image
-                src={isExpanded ? "/long_logo.svg" : "/logo.svg"}
+                src={isExpanded ? "/long_logo-adaptive.svg" : "/logo-adaptive.svg"}
                 alt="RadiaCopilot"
                 width={isExpanded ? 240 : 56}
                 height={56}
-                className="w-full h-full object-contain"
+                className={`w-full h-full object-contain transition-opacity ${
+                  isExpanded ? "text-sidebar-foreground" : "text-sidebar-primary"
+                }`}
                 priority
+                style={{ color: 'hsl(var(--sidebar-foreground))' }}
               />
             </button>
 
@@ -102,7 +105,7 @@ export function SidebarMenu({
               title={t("sidebar.expand")}
               aria-label={t("sidebar.expand")}
             >
-              <ChevronRight className="w-5 h-5" aria-hidden="true" />
+              <ChevronRight className="w-5 h-5 sidebar-icon" aria-hidden="true" />
             </Button>
           )}
 
@@ -115,7 +118,7 @@ export function SidebarMenu({
             }`}
             title={t("reports.generate")}
           >
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+            <Sparkles className="w-4 h-4 primary-icon" aria-hidden="true" />
             {isExpanded && <span className="ml-2 text-left">{t("reports.generate")}</span>}
           </Button>
 
@@ -128,7 +131,7 @@ export function SidebarMenu({
             title={t("sidebar.home")}
             aria-pressed={activeView === "home"}
           >
-            <Home className="w-5 h-5 shrink-0" aria-hidden="true" />
+            <Home className="w-5 h-5 shrink-0 sidebar-icon" aria-hidden="true" />
             {isExpanded && (
               <span className="ml-3 text-left">
                 <span className="block text-sm font-medium">{t("sidebar.home")}</span>
@@ -145,7 +148,7 @@ export function SidebarMenu({
             title={t("sidebar.reports")}
             aria-pressed={reportsActive}
           >
-            <BookOpen className="w-5 h-5 shrink-0" aria-hidden="true" />
+            <BookOpen className="w-5 h-5 shrink-0 sidebar-icon" aria-hidden="true" />
             {isExpanded && (
               <span className="ml-3 text-left">
                 <span className="block text-sm font-medium">{t("sidebar.reports")}</span>
