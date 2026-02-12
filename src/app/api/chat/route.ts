@@ -126,8 +126,9 @@ export async function POST(request: NextRequest) {
       return { role: "user" as const, content: message.content };
     });
 
-    // Always add report context if a report is associated with this chat
-    if (report) {
+    // Only add report context if a report is associated with this chat AND this is the first turn
+    // This prevents duplicating report context on every message and saves tokens
+    if (report && !hasPreviousAssistantMessages) {
       normalizedMessages.unshift({
         role: "user" as const,
         content: getChatReportContextPrompt(report, chatLanguage),

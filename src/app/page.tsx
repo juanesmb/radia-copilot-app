@@ -142,6 +142,13 @@ export default function HomePage() {
         inFlight: !!inFlightCreateRef.current
       });
 
+      // Early return guard: if we already have a reportId, don't create a new one
+      // This prevents duplicate drafts when called from other handlers
+      if (currentReportIdRef.current) {
+        console.log("[ensureDraftReport] Using existing reportId:", currentReportIdRef.current);
+        return currentReportIdRef.current;
+      }
+
       if (inFlightCreateRef.current) {
         console.log("[ensureDraftReport] Returning in-flight promise");
         return inFlightCreateRef.current;
@@ -898,6 +905,8 @@ export default function HomePage() {
     // Limpiar el currentReportId para forzar creación de nuevo borrador
     setCurrentReportId(null);
     setCurrentReportTitle(null);
+    currentReportIdRef.current = null;  // sync ref immediately
+    currentReportTitleRef.current = null;  // sync ref immediately
     
     const draftReportId = await ensureDraftReport(isTemplateCustom);
 
