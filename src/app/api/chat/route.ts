@@ -8,10 +8,12 @@ import { getAIConfig } from "../lib/config";
 import { HttpError } from "../lib/errorHandler";
 import { createSupabaseClient } from "../clients/supabaseClient";
 import { createReportRepository } from "../repositories/reportRepository";
+import type { Report } from "../repositories/reportRepository";
 import type { Language } from "../types/language";
 import {
   getChatReportContextPrompt,
   getChatSystemPrompt,
+  getFollowUpChatSystemPrompt,
 } from "../lib/prompts";
 
 const requestSchema = z.object({
@@ -50,9 +52,11 @@ export async function POST(request: NextRequest) {
       baseUrl: aiConfig.baseUrl,
     });
 
-    const systemMessages: Array<{ role: "system"; content: string }> = [];
     let chatLanguage: Language = parsed.data.language ?? "en";
+    let report: Report | null = null;
+    let systemMessages: Array<{ role: "system"; content: string }> = [];
 
+    // Fetch report and determine language if reportId is provided
     if (parsed.data.reportId) {
       const supabaseClient = createSupabaseClient({
         url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -65,18 +69,49 @@ export async function POST(request: NextRequest) {
       if (!userId) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       }
-      const report = await reportRepository.getReportById(parsed.data.reportId, userId);
+      report = await reportRepository.getReportById(parsed.data.reportId, userId);
       chatLanguage = report.language === "es" ? "es" : "en";
-      systemMessages.push({
-        role: "system" as const,
-        content: getChatReportContextPrompt(report, chatLanguage),
-      });
     }
 
-    systemMessages.unshift({
-      role: "system",
-      content: getChatSystemPrompt(chatLanguage),
-    });
+    // Add a mandatory plain text system message as the first message
+    // (constructed after report fetch to use the final chatLanguage)
+    const plainTextSystemMessage = {
+      role: "system" as const,
+      content: chatLanguage === "es" 
+        ? "REQUERIMIENTO OBLIGATORIO: Responde ÚNICAMENTE en texto plano. ABSOLUTAMENTE NINGÚN MARKDOWN. No uses encabezados (#), viñetas (-), listas numeradas (1.), asteriscos (*), guiones bajos (_), comillas invertidas (`), tablas, enlaces ni ningún formato. Escribe como párrafos continuos u oraciones simples separadas por saltos de línea. Este es un requisito crítico e inexcusable."
+        : "MANDATORY REQUIREMENT: Respond ONLY in plain text. ABSOLUTELY NO MARKDOWN. Do not use headings (#), bullet points (-), numbered lists (1.), asterisks (*), underscores (_), backticks (`), tables, links, or any formatting. Write as continuous paragraphs or simple sentences separated by line breaks. This is a critical and non-negotiable requirement."
+    };
+
+    systemMessages = [plainTextSystemMessage];
+
+    // Only add system messages if this is the start of a new conversation
+    // Check if there are any previous assistant messages (indicating this is not the first turn)
+    const hasPreviousAssistantMessages = parsed.data.messages.some(msg => 
+      msg.role === "assistant"
+    );
+    
+    // Check if this is the second message and the first one had report context
+    const isSecondMessageWithReportContext = hasPreviousAssistantMessages && 
+      parsed.data.messages.length >= 2 &&
+      parsed.data.messages[0].role === "user" &&
+      parsed.data.messages[1].role === "assistant" &&
+      parsed.data.reportId;
+
+    // Only add system prompt if this is the start of a new conversation
+    if (!hasPreviousAssistantMessages) {
+      systemMessages.push({
+        role: "system",
+        content: getChatSystemPrompt(chatLanguage),
+      });
+    }
+    
+    // Add follow-up system prompt if this is the second message after report context
+    if (isSecondMessageWithReportContext) {
+      systemMessages.push({
+        role: "system",
+        content: getFollowUpChatSystemPrompt(chatLanguage),
+      });
+    }
 
     const normalizedMessages: Array<{
       role: "user" | "assistant" | "system";
@@ -90,6 +125,15 @@ export async function POST(request: NextRequest) {
       }
       return { role: "user" as const, content: message.content };
     });
+
+    // Only add report context if a report is associated with this chat AND this is the first turn
+    // This prevents duplicating report context on every message and saves tokens
+    if (report && !hasPreviousAssistantMessages) {
+      normalizedMessages.unshift({
+        role: "user" as const,
+        content: getChatReportContextPrompt(report, chatLanguage),
+      });
+    }
 
     if (stream) {
       const gateway = createGateway({
