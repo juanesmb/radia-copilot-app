@@ -902,7 +902,7 @@ export function ChatWidget({
                       }}
                       type="button"
                     >
-                      <XIcon className="size-3 icon-adaptive" />
+                      <XIcon className="size-3" />
                       <span className="sr-only">Close tab</span>
                     </button>
                   )}
@@ -939,7 +939,7 @@ export function ChatWidget({
               onClick={handleNewChat}
               type="button"
             >
-              <PlusIcon className="size-4 icon-adaptive" />
+              <PlusIcon className="size-4" />
               <span className="sr-only">{t("chat.new")}</span>
             </button>
             <button
@@ -951,7 +951,7 @@ export function ChatWidget({
               }}
               type="button"
             >
-              <XIcon className="size-4 icon-adaptive" />
+              <XIcon className="size-4" />
               <span className="sr-only">{t("chat.close")}</span>
             </button>
           </div>
@@ -1063,11 +1063,11 @@ export function ChatWidget({
                     </PromptInputActionMenuContent>
                   </PromptInputActionMenu>
                   <PromptInputButton disabled variant="ghost">
-                    <MicIcon size={16} className="icon-adaptive" />
+                    <MicIcon size={16} />
                     <span className="sr-only">Microphone</span>
                   </PromptInputButton>
                   <PromptInputButton disabled variant="ghost">
-                    <GlobeIcon size={16} className="icon-adaptive" />
+                    <GlobeIcon size={16} />
                     <span>Search</span>
                   </PromptInputButton>
                 </div>
