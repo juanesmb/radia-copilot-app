@@ -7,6 +7,7 @@ let promptCache: Record<Language, string> | null = null;
 let enhancementPromptCache: Record<Language, string> | null = null;
 let chatPromptCache: Record<Language, string> | null = null;
 let followUpChatPromptCache: Record<Language, string> | null = null;
+let customTemplatePromptCache: Record<Language, string> | null = null;
 
 const loadPrompt = (language: Language): string => {
   if (promptCache?.[language]) {
@@ -111,6 +112,32 @@ export const getEnhancementPrompt = (language: Language): string => loadEnhancem
 export const getChatSystemPrompt = (language: Language): string => loadChatPrompt(language);
 
 export const getFollowUpChatSystemPrompt = (language: Language): string => loadFollowUpChatPrompt(language);
+
+const loadCustomTemplatePrompt = (language: Language): string => {
+  if (customTemplatePromptCache?.[language]) {
+    return customTemplatePromptCache[language];
+  }
+
+  try {
+    const promptsDir = join(process.cwd(), "src/app/api/prompts");
+    const filePath = join(promptsDir, `custom-template-${language}.md`);
+    const content = readFileSync(filePath, "utf-8");
+    const trimmed = content.trim();
+
+    if (!customTemplatePromptCache) {
+      customTemplatePromptCache = {} as Record<Language, string>;
+    }
+    customTemplatePromptCache[language] = trimmed;
+
+    return trimmed;
+  } catch (error) {
+    throw new Error(
+      `Failed to load custom template prompt file for language "${language}": ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
+export const getCustomTemplatePrompt = (language: Language): string => loadCustomTemplatePrompt(language);
 
 export const getChatReportContextPrompt = (report: Report, language: Language): string => {
   const transcription = report.updated_transcription || report.generated_transcription;
