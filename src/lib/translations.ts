@@ -76,8 +76,8 @@ export const translations: TranslationMap = {
 
     "welcome.tagline": "Your Radiology Copilot with AI",
     "welcome.greeting": "Welcome",
-    "welcome.title": "Record, generate, and share structured reports",
-    "welcome.subtitle": "Mention your findings, edit the result and generate structured reports in seconds.",
+    "welcome.title": "Dictate, generate, and share structured reports",
+    "welcome.subtitle": "Speak your findings, edit the result and generate structured reports in seconds.",
     "welcome.generate": "New report",
     "welcome.viewReports": "View history",
     "welcome.chat.title": "Your AI Radiology Assistant",
@@ -235,8 +235,8 @@ export const translations: TranslationMap = {
 
     "welcome.tagline": "Tu copiloto de Radiología con IA",
     "welcome.greeting": "Bienvenido/a",
-    "welcome.title": "Graba, genera y comparte informes estructurados",
-    "welcome.subtitle": "Menciona tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
+    "welcome.title": "Dicta, genera y comparte informes estructurados",
+    "welcome.subtitle": "Dicta tus hallazgos, edita el resultado y genera informes estructurados en segundos.",
     "welcome.generate": "Nuevo informe",
     "welcome.viewReports": "Ver historial",
     "welcome.chat.title": "Tu Asistente de Radiología con IA",
@@ -320,4 +320,3 @@ export const translations: TranslationMap = {
     "sidebar.chatDescription": "Abrir el chat del copiloto",
   },
 };
-

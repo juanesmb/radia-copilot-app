@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Radia Copilot",
+  title: "Radi Copilot",
   description: "Generate structured radiology reports with a bilingual UI.",
 };
 

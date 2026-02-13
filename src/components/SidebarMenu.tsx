@@ -71,7 +71,7 @@ export function SidebarMenu({
             >
               <Image
                 src={isExpanded ? "/long_logo.svg" : "/logo.svg"}
-                alt="RadiaCopilot"
+                alt="RadiCopilot"
                 width={isExpanded ? 240 : 56}
                 height={56}
                 className="w-full h-full object-contain"

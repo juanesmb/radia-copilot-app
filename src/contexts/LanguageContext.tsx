@@ -9,7 +9,7 @@ interface LanguageContextValue {
   t: (key: string) => string;
 }
 
-const STORAGE_KEY = "radia-language";
+const STORAGE_KEY = "radi-language";
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
