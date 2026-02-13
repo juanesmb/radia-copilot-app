@@ -1,6 +1,6 @@
 ## Overview
 
-Radia Copilot is a bilingual (EN/ES) Next.js App Router application that helps radiologists generate structured medical reports from transcriptions. The system uses AI to automatically detect the study type, load the appropriate template, and generate professional reports following medical standards.
+Radi Copilot is a bilingual (EN/ES) Next.js App Router application that helps radiologists generate structured medical reports from transcriptions. The system uses AI to automatically detect the study type, load the appropriate template, and generate professional reports following medical standards.
 
 ### Key Features
 
