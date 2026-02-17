@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { UserRegistrationProvider } from "@/components/UserRegistrationProvider";
 
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default async function RootLayout({
         <ClerkProvider>
           <ThemeProvider forcedTheme="dark" attribute="class" enableSystem={false}>
             <LanguageProvider>
+              <UserRegistrationProvider />
               {children}
               <Toaster />
             </LanguageProvider>
