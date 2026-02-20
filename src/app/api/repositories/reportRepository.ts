@@ -41,7 +41,7 @@ export interface Report {
 }
 
 export interface UpdateReportData {
-  report_title?: string;
+  report_title?: string | null;
   updated_report?: string;
   updated_transcription?: string;
   // Regeneration fields

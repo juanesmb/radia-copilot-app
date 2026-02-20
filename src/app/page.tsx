@@ -902,13 +902,33 @@ export default function HomePage() {
     pendingTitleRef.current = userProvidedTitle?.length ? userProvidedTitle : null;
 
     // Siempre crear un nuevo informe para nuevas generaciones
-    // Limpiar el currentReportId para forzar creación de nuevo borrador
-    setCurrentReportId(null);
-    setCurrentReportTitle(null);
-    currentReportIdRef.current = null;  // sync ref immediately
-    currentReportTitleRef.current = null;  // sync ref immediately
+    // Solo limpiar el currentReportId si no existe un borrador válido
+    let draftReportId: string | null = null;
     
-    const draftReportId = await ensureDraftReport(isTemplateCustom);
+    if (currentReportId) {
+      console.log("[handleStartUpload] Using existing reportId:", currentReportId);
+      // Usar el reportId existente en lugar de crear uno nuevo
+      draftReportId = currentReportId;
+      
+      // Actualizar el título si el usuario proporcionó uno
+      if (userProvidedTitle?.length) {
+        try {
+          await updateReport(draftReportId, { report_title: userProvidedTitle });
+          setCurrentReportTitle(userProvidedTitle);
+          currentReportTitleRef.current = userProvidedTitle;
+        } catch (error) {
+          console.error("[handleStartUpload] Failed to update title", error);
+        }
+      }
+    } else {
+      // Solo crear nuevo borrador si no existe uno
+      setCurrentReportId(null);
+      setCurrentReportTitle(null);
+      currentReportIdRef.current = null;  // sync ref immediately
+      currentReportTitleRef.current = null;  // sync ref immediately
+      
+      draftReportId = await ensureDraftReport(isTemplateCustom);
+    }
 
     setIsGenerating(true);
     setGeneratedReport(""); // Clear previous report
