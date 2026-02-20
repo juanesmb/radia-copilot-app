@@ -474,6 +474,9 @@ export function ChatWidget({
   };
 
   const handleNewChat = async () => {
+    streamAbortControllerRef.current?.abort();
+    clearStreamingState();
+    setStatus("ready");
     applyNewChatState();
   };
 
@@ -583,6 +586,13 @@ export function ChatWidget({
         console.error("[ChatWidget] Failed to save user message", error);
       }
 
+      const controller = streamAbortControllerRef.current;
+      if (!controller || controller.signal.aborted) {
+        streamAbortControllerRef.current = null;
+        setStatus("ready");
+        return;
+      }
+
       const assistantMessageId = `assistant-${Date.now()}`;
       const assistantMessage: MessageType = {
         key: assistantMessageId,
@@ -620,9 +630,6 @@ export function ChatWidget({
           );
         }, 18);
       };
-
-      const controller = new AbortController();
-      streamAbortControllerRef.current = controller;
 
       try {
         const response = await fetch("/api/chat?stream=true", {
@@ -772,6 +779,7 @@ export function ChatWidget({
 
   const handleStopStreaming = useCallback(() => {
     streamAbortControllerRef.current?.abort();
+    streamAbortControllerRef.current = null;
     clearStreamingState();
     setStatus("ready");
   }, [clearStreamingState]);
@@ -783,6 +791,8 @@ export function ChatWidget({
     if (!(hasText || hasAttachments)) {
       return;
     }
+
+    streamAbortControllerRef.current = new AbortController();
 
     setStatus("submitted");
 
