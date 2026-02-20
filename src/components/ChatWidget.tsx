@@ -401,6 +401,13 @@ export function ChatWidget({
     };
   }, []);
 
+  const applyNewChatState = useCallback(() => {
+    setHasTemporaryChat(true);
+    setActiveSessionId(null);
+    setMessages([]);
+    setSelectedReportId(null);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -416,18 +423,13 @@ export function ChatWidget({
         setSessions(sessionData);
         setReports(reportData);
         if (sessionData.length > 0) {
-          setHasTemporaryChat(false);
-          // Only set active session if none is already set
           if (!activeSessionId) {
-            const preferredSessionId = sessionData[0].id;
-            setActiveSessionId(preferredSessionId);
-            const history = await getChatMessages(preferredSessionId);
-            setMessages(history.map(mapStoredMessage));
+            applyNewChatState();
+          } else {
+            setHasTemporaryChat(false);
           }
         } else {
-          setActiveSessionId(null);
-          setMessages([]);
-          setHasTemporaryChat(true);
+          applyNewChatState();
         }
       } catch (error) {
         console.error("[ChatWidget] Failed to load sessions", error);
@@ -437,7 +439,7 @@ export function ChatWidget({
     };
 
     void loadSessions();
-  }, [isOpen]);
+  }, [isOpen, applyNewChatState]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -472,10 +474,7 @@ export function ChatWidget({
   };
 
   const handleNewChat = async () => {
-    setHasTemporaryChat(true);
-    setActiveSessionId(null);
-    setMessages([]);
-    setSelectedReportId(null);
+    applyNewChatState();
   };
 
   const startEditingSession = (session: ChatSession) => {
