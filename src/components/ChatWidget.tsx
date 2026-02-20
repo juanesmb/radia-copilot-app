@@ -41,7 +41,6 @@ import {
   PromptInputBody,
   PromptInputButton,
   PromptInputFooter,
-  PromptInputHeader,
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
@@ -200,6 +199,7 @@ export function ChatWidget({
   const streamingQueueRef = useRef<string[]>([]);
   const streamingIntervalRef = useRef<number | null>(null);
   const streamingTextRef = useRef("");
+  const streamAbortControllerRef = useRef<AbortController | null>(null);
   const [text, setText] = useState<string>("");
   const [status, setStatus] = useState<
     "submitted" | "streaming" | "ready" | "error"
@@ -528,6 +528,14 @@ export function ChatWidget({
     });
   };
 
+  const clearStreamingState = useCallback(() => {
+    if (streamingIntervalRef.current) {
+      window.clearInterval(streamingIntervalRef.current);
+      streamingIntervalRef.current = null;
+    }
+    streamingQueueRef.current = [];
+  }, []);
+
   const addUserMessage = useCallback(
     async (content: string) => {
       let sessionId = activeSessionId;
@@ -614,6 +622,9 @@ export function ChatWidget({
         }, 18);
       };
 
+      const controller = new AbortController();
+      streamAbortControllerRef.current = controller;
+
       try {
         const response = await fetch("/api/chat?stream=true", {
           method: "POST",
@@ -621,6 +632,7 @@ export function ChatWidget({
             "Content-Type": "application/json",
             Accept: "text/event-stream",
           },
+          signal: controller.signal,
           body: JSON.stringify({
             messages: messagesRef.current.map((msg) => ({
               role: msg.from,
@@ -649,6 +661,9 @@ export function ChatWidget({
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
+              break;
+            }
+            if (controller.signal?.aborted) {
               break;
             }
 
@@ -704,11 +719,13 @@ export function ChatWidget({
           });
         }
 
-        if (finalAssistantText) {
+        const textToSave =
+          controller.signal?.aborted ? streamingTextRef.current : finalAssistantText;
+        if (textToSave) {
           try {
             await createChatMessage(sessionId, {
               role: "assistant",
-              content: finalAssistantText,
+              content: textToSave,
               token_count: finalAssistantTokens ?? undefined,
             });
           } catch (error) {
@@ -716,24 +733,49 @@ export function ChatWidget({
           }
         }
       } catch (error) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.key === assistantMessageId
-              ? {
-                  ...msg,
-                  content: t("chat.error.response"),
-                }
-              : msg
-          )
-        );
-        setStatus("error");
+        const isAbortError =
+          error instanceof Error && error.name === "AbortError";
+        if (isAbortError) {
+          clearStreamingState();
+          const partialText = streamingTextRef.current;
+          if (partialText) {
+            try {
+              await createChatMessage(sessionId, {
+                role: "assistant",
+                content: partialText,
+              });
+            } catch (saveError) {
+              console.error("[ChatWidget] Failed to save partial message", saveError);
+            }
+          }
+        } else {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.key === assistantMessageId
+                ? {
+                    ...msg,
+                    content: t("chat.error.response"),
+                  }
+                : msg
+            )
+          );
+          setStatus("error");
+        }
+        streamAbortControllerRef.current = null;
         return;
       }
 
+      streamAbortControllerRef.current = null;
       setStatus("ready");
     },
-    [activeSessionId]
+    [activeSessionId, clearStreamingState]
   );
+
+  const handleStopStreaming = useCallback(() => {
+    streamAbortControllerRef.current?.abort();
+    clearStreamingState();
+    setStatus("ready");
+  }, [clearStreamingState]);
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
@@ -1120,8 +1162,9 @@ export function ChatWidget({
                 </div>
               </PromptInputTools>
               <PromptInputSubmit
-                disabled={!(text.trim() || status) || status === "streaming"}
+                disabled={status === "ready" && !text.trim()}
                 status={status}
+                onStop={handleStopStreaming}
               />
             </PromptInputFooter>
           </PromptInput>
