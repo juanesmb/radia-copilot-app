@@ -70,6 +70,7 @@ interface RecordingInterfaceProps {
   onOpenReportChat?: (reportId: string, sessionId: string) => void;
   onUpdateTranscription?: (value: string) => void;
   onUpdateReport?: (value: string) => void;
+  onContentChange?: (isChanging: boolean) => void;
   onTemplateChange?: (value: string) => void;
   onTemplateSave?: (value: string, isCustom: boolean) => Promise<void>;
   onTemplateMetaChange?: (meta: { templateId: string | null; isSystem: boolean }) => void;
@@ -109,6 +110,7 @@ export function RecordingInterface({
   onOpenReportChat,
   onUpdateTranscription,
   onUpdateReport,
+  onContentChange,
   onTemplateChange,
   onTemplateSave,
   onTemplateMetaChange,
@@ -855,12 +857,6 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
                   </button>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
-                    {onUpdateTranscription && currentReportId && (
-                      <SaveStatusIndicator
-                        status={transcriptionAutoSave.status}
-                        error={transcriptionAutoSave.error}
-                      />
-                    )}
                   </div>
                   <div className="flex items-center gap-2 ml-auto">
                     <button
@@ -899,7 +895,11 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
                   onChange={onUpdateTranscription ? (e) => {
                     transcriptionAutoSave.onChange(e);
                     onChange(e.target.value); // Also update immediately for UI
-                  } : (event) => onChange(event.target.value)}
+                    onContentChange?.(true); // Notificar que el usuario está escribiendo
+                  } : (event) => {
+                    onChange(event.target.value);
+                    onContentChange?.(true); // Notificar que el usuario está escribiendo
+                  }}
                   onBlur={onUpdateTranscription ? transcriptionAutoSave.onBlur : undefined}
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
@@ -979,12 +979,6 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
                 </button>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
-                  {onUpdateReport && currentReportId && (
-                    <SaveStatusIndicator
-                      status={reportAutoSave.status}
-                      error={reportAutoSave.error}
-                    />
-                  )}
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
                   {currentReportId && reportChatSessionId && onOpenReportChat && (
@@ -1039,7 +1033,11 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
                 onChange={onUpdateReport ? (e) => {
                   reportAutoSave.onChange(e);
                   onReportChange?.(e.target.value); // Also update immediately for UI
-                } : (event) => onReportChange?.(event.target.value)}
+                  onContentChange?.(true); // Notificar que el usuario está escribiendo
+                } : (event) => {
+                  onReportChange?.(event.target.value);
+                  onContentChange?.(true); // Notificar que el usuario está escribiendo
+                }}
                 onBlur={onUpdateReport ? reportAutoSave.onBlur : undefined}
                 placeholder={isGenerating ? t("app.generateBusy") : t("report.empty")}
                 className={`flex-1 text-base leading-relaxed resize-none transition-all duration-300 scrollbar-transparent ${

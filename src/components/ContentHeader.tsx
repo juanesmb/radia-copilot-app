@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from "react";
-import { Check, Copy, FileText, MessageCircle } from "lucide-react";
+import { Check, Copy, FileText, MessageCircle, ArrowUpDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ interface ContentHeaderProps {
   onTitleChange?: (value: string) => void;
   onTitleCommit?: (value: string) => void;
   onTitleKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  isSaving?: boolean;
   onToggleChat?: () => void;
   isChatOpen?: boolean;
   showChatBadge?: boolean;
@@ -38,6 +39,7 @@ export function ContentHeader({
   onTitleChange,
   onTitleCommit,
   onTitleKeyDown,
+  isSaving = false,
   onToggleChat,
   isChatOpen = false,
   showChatBadge = false,
@@ -117,6 +119,15 @@ export function ContentHeader({
               "bg-background border-transparent hover:border-border focus:border-border transition-colors",
             )}
           />
+          <div className="flex items-center justify-center">
+            {isSaving ? (
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground animate-pulse" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                <Check className="h-3 w-3 text-white" />
+              </div>
+            )}
+          </div>
           <div className="flex flex-1 justify-end items-center gap-2">
             <Button
               type="button"
