@@ -6,6 +6,7 @@ import type { TemplateLoader } from "./templateLoader";
 import type { PromptModeDetector } from "./promptModeDetector";
 import type { PromptStrategy } from "./promptStrategy";
 import { HttpError } from "../lib/errorHandler";
+import { createCustomTemplatePromptStrategy } from "./customTemplatePromptStrategy";
 
 interface PromptResult {
   systemPrompt: string;
@@ -90,9 +91,12 @@ export const createPromptBuilder = (
   build: async (input) => {
     try {
       const mode = deps.modeDetector.detectMode(input.transcription);
-      const strategy =
-        mode === "transcription"
-        ? deps.transcriptionStrategy
+      
+      // Use custom template strategy if isCustomTemplate is true, otherwise use the default strategy
+      const strategy = input.isCustomTemplate
+        ? createCustomTemplatePromptStrategy()
+        : mode === "transcription"
+          ? deps.transcriptionStrategy
           : deps.enhancementStrategy;
 
       // Determine study type detection

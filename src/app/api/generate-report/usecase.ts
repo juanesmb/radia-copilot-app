@@ -1,7 +1,7 @@
 import type { AIClient } from "../clients/aiClient";
 import type { ResponseFormatter } from "../services/responseFormatter";
 import type { PromptBuilder } from "../services/promptBuilder";
-import type { ReportRepository } from "../repositories/reportRepository";
+import type { ReportRepository, Report } from "../repositories/reportRepository";
 import type { GenerateReportRequest, GenerateReportResult } from "../types/generate-report";
 
 type Dependencies = {
@@ -66,22 +66,49 @@ export const createGenerateReportUseCase = (deps: Dependencies) => {
       // Ensure used_template is "custom" if isCustomTemplate is true
       const usedTemplate = input.isCustomTemplate ? "custom" : reportData.selectedTemplate;
 
-      const savedReport = await deps.reportRepository.createReport({
-        user_id: userId,
-        generated_transcription: input.transcription,
-        updated_transcription: input.transcription,
-        report_title: reportData.title || null,
-        generated_report: reportData.report,
-        updated_report: reportData.report,
-        used_template: usedTemplate,
-        template_id: input.templateId ?? null,
-        template_content: input.isCustomTemplate && input.template ? input.template : null,
-        is_custom_template: input.isCustomTemplate ?? false,
-        study_type: reportData.studyType || null,
-        detection_confidence: reportData.detectionConfidence || null,
-        model_used: reportData.modelUsed,
-        language: input.language,
-      });
+      let savedReport: Report | null = null;
+      
+      if (input.reportId) {
+        // Update existing report
+        console.log("[GenerateReportUseCase] Updating existing report:", input.reportId);
+        savedReport = await deps.reportRepository.updateReport(input.reportId, userId, {
+          generated_transcription: input.transcription,
+          updated_transcription: input.transcription,
+          report_title: reportData.title || null,
+          generated_report: reportData.report,
+          updated_report: reportData.report,
+          used_template: usedTemplate,
+          template_id: input.templateId ?? null,
+          template_content: input.isCustomTemplate && input.template ? input.template : null,
+          is_custom_template: input.isCustomTemplate ?? false,
+          study_type: reportData.studyType || null,
+          detection_confidence: reportData.detectionConfidence || null,
+          model_used: reportData.modelUsed,
+        });
+      } else {
+        // Create new report
+        console.log("[GenerateReportUseCase] Creating new report");
+        savedReport = await deps.reportRepository.createReport({
+          user_id: userId,
+          generated_transcription: input.transcription,
+          updated_transcription: input.transcription,
+          report_title: reportData.title || null,
+          generated_report: reportData.report,
+          updated_report: reportData.report,
+          used_template: usedTemplate,
+          template_id: input.templateId ?? null,
+          template_content: input.isCustomTemplate && input.template ? input.template : null,
+          is_custom_template: input.isCustomTemplate ?? false,
+          study_type: reportData.studyType || null,
+          detection_confidence: reportData.detectionConfidence || null,
+          model_used: reportData.modelUsed,
+          language: input.language,
+        });
+      }
+
+      if (!savedReport) {
+        throw new Error("Failed to save report: No data returned from database");
+      }
 
       return {
         report_id: savedReport.report_id,
