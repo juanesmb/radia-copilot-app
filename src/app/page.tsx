@@ -73,6 +73,8 @@ export default function HomePage() {
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
   const [currentReportTitle, setCurrentReportTitle] = useState<string | null>(null);
+  const [isSavingContent, setIsSavingContent] = useState(false);
+  const savingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [editedTemplate, setEditedTemplate] = useState<string>("");
   const [isTemplateCustom, setIsTemplateCustom] = useState(false);
   const [currentTemplateMeta, setCurrentTemplateMeta] = useState<{ templateId: string | null; isSystem: boolean }>({
@@ -230,6 +232,12 @@ export default function HomePage() {
 
   const handleTitleChange = useCallback((value: string) => {
     setCurrentReportTitle(value);
+    // Mostrar indicador de guardado cuando el usuario escribe, ocultar cuando está vacío
+    if (value.trim()) {
+      setIsSavingContent(true);
+    } else {
+      setIsSavingContent(false);
+    }
   }, []);
 
   const buildTemplateUpdates = useCallback((): UpdateReportRequest | null => {
@@ -262,6 +270,7 @@ export default function HomePage() {
     setCurrentReportTitle(trimmed);
 
     if (!trimmed) {
+      setIsSavingContent(false);
       return;
     }
 
@@ -292,6 +301,9 @@ export default function HomePage() {
         });
       } catch (error) {
         console.error("[HomePage] Failed to update report title", error);
+      } finally {
+        // Ocultar indicador de guardado cuando termina
+        setIsSavingContent(false);
       }
       return;
     }
@@ -331,8 +343,39 @@ export default function HomePage() {
       console.error("[HomePage] Failed to create draft report", error);
     } finally {
       isCreatingDraftRef.current = false;
+      // Ocultar indicador de guardado cuando termina
+      setIsSavingContent(false);
     }
   }, [buildTemplateUpdates, currentReportId, language, setReportHistory, t]);
+
+  const handleContentChange = useCallback((isChanging: boolean) => {
+    // Limpiar timeout existente
+    if (savingTimeoutRef.current) {
+      clearTimeout(savingTimeoutRef.current);
+      savingTimeoutRef.current = null;
+    }
+    
+    if (isChanging) {
+      // Mostrar indicador inmediatamente cuando el usuario escribe
+      setIsSavingContent(true);
+    } else {
+      // Ocultar indicador después de un breve retraso para evitar parpadeo
+      savingTimeoutRef.current = setTimeout(() => {
+        setIsSavingContent(false);
+        savingTimeoutRef.current = null;
+      }, 1000); // 1 segundo de retraso
+    }
+  }, []);
+
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (savingTimeoutRef.current) {
+        clearTimeout(savingTimeoutRef.current);
+        savingTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleTitleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -562,6 +605,7 @@ export default function HomePage() {
           onOpenReportChat={handleOpenReportChat}
           onUpdateTranscription={handleTranscriptionUpdate}
           onUpdateReport={handleReportUpdate}
+          onContentChange={handleContentChange}
           onTemplateChange={setEditedTemplate}
           onTemplateSave={handleTemplateSave}
           initialTemplateContent={(() => {
@@ -711,6 +755,7 @@ export default function HomePage() {
     setGeneratedReport(null);
     setCurrentReportId(null);
     setCurrentReportTitle(null);
+    setIsSavingContent(false);
     setTranscription("");
     setIsGenerating(false);
     setEditedTemplate("");
@@ -768,20 +813,30 @@ export default function HomePage() {
    * @throws {ApiError} Re-throws errors for the hook to handle
    */
   const handleTranscriptionUpdate = useCallback(async (value: string) => {
-    const reportId = await ensureDraftReport();
-    if (!reportId) return;
-
-    await updateReport(reportId, { updated_transcription: value });
-    lastSavedTranscriptionRef.current = value;
+    // Mostrar indicador de guardado
+    setIsSavingContent(true);
     
-    // Update local state only after successful save
-    setReportHistory((prev) =>
-      prev.map((report) =>
-        report.id === reportId
-          ? { ...report, transcription: value }
-          : report
-      )
-    );
+    try {
+      const reportId = await ensureDraftReport();
+      if (!reportId) return;
+
+      await updateReport(reportId, { updated_transcription: value });
+      lastSavedTranscriptionRef.current = value;
+      
+      // Update local state only after successful save
+      setReportHistory((prev) =>
+        prev.map((report) =>
+          report.id === reportId
+            ? { ...report, transcription: value }
+            : report
+        )
+      );
+    } catch (error) {
+      console.error("[handleTranscriptionUpdate] Failed to update transcription", error);
+    } finally {
+      // Ocultar indicador de guardado
+      setIsSavingContent(false);
+    }
   }, [ensureDraftReport, setReportHistory]);
 
   // Auto-detect study type (and persist findings) when recording stops
@@ -821,16 +876,26 @@ export default function HomePage() {
       return;
     }
     
-    await updateReport(currentReportId, { updated_report: value });
+    // Mostrar indicador de guardado
+    setIsSavingContent(true);
     
-    // Update local state only after successful save
-    setReportHistory((prev) =>
-      prev.map((report) =>
-        report.id === currentReportId
-          ? { ...report, report: value }
-          : report
-      )
-    );
+    try {
+      await updateReport(currentReportId, { updated_report: value });
+      
+      // Update local state only after successful save
+      setReportHistory((prev) =>
+        prev.map((report) =>
+          report.id === currentReportId
+            ? { ...report, report: value }
+            : report
+        )
+      );
+    } catch (error) {
+      console.error("[handleReportUpdate] Failed to update report", error);
+    } finally {
+      // Ocultar indicador de guardado
+      setIsSavingContent(false);
+    }
   }, [currentReportId]);
 
   const handleTemplateModeChange = useCallback(
@@ -915,6 +980,7 @@ export default function HomePage() {
         try {
           await updateReport(draftReportId, { report_title: userProvidedTitle });
           setCurrentReportTitle(userProvidedTitle);
+          setIsSavingContent(false); // Mostrar check verde después de guardar
           currentReportTitleRef.current = userProvidedTitle;
         } catch (error) {
           console.error("[handleStartUpload] Failed to update title", error);
@@ -969,6 +1035,7 @@ export default function HomePage() {
               if (lines.length > 0) {
                 reportTitle = lines[0];
                 setCurrentReportTitle(reportTitle);
+                setIsSavingContent(false); // Mostrar check verde cuando se extrae título del contenido
               }
             }
           },
@@ -978,6 +1045,7 @@ export default function HomePage() {
             reportTitle = pendingTitle || metadata.title;
             setCurrentReportId(metadata.reportId);
             setCurrentReportTitle(reportTitle);
+            setIsSavingContent(false); // Mostrar check verde cuando se carga el metadata del reporte
 
             // Update report history - update existing report or add new one
             setReportHistory((prev) => {
@@ -1201,6 +1269,7 @@ export default function HomePage() {
         if (report) {
           setCurrentReportId(report.id);
           setCurrentReportTitle(report.title);
+          setIsSavingContent(false); // Mostrar check verde al cargar reporte existente
           setTranscription(report.transcription);
           setGeneratedReport(report.report);
           
@@ -1267,6 +1336,7 @@ export default function HomePage() {
         onTitleChange={handleTitleChange}
         onTitleCommit={handleTitleCommit}
         onTitleKeyDown={handleTitleKeyDown}
+        isSaving={isSavingContent}
         onToggleChat={handleToggleChat}
         isChatOpen={isChatOpen}
         showChatBadge={hasChatBadge}
