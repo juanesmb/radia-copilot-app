@@ -8,6 +8,7 @@ import {
   HistoryIcon,
   MicIcon,
   PlusIcon,
+  Square,
   XIcon,
 } from "lucide-react";
 
@@ -66,6 +67,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useChatSpeechToText } from "@/hooks/useChatSpeechToText";
 import {
   createChatMessage,
   createChatSession,
@@ -174,6 +176,15 @@ export function ChatWidget({
   onReportBadgeChange,
 }: ChatWidgetProps = {}) {
   const { t, language } = useLanguage();
+  const {
+    chatTranscript,
+    isChatRecording,
+    sttState,
+    sttError,
+    handleStartChatRecording,
+    handleStopChatRecording,
+    handleResetChatTranscript,
+  } = useChatSpeechToText();
   const [isOpen, setIsOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_WIDTH);
   const [copiedMessageKey, setCopiedMessageKey] = useState<string | null>(null);
@@ -207,6 +218,28 @@ export function ChatWidget({
   const [messages, setMessages] = useState<MessageType[]>([]);
   const messagesRef = useRef<MessageType[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Handle microphone recording
+  const handleMicClick = useCallback(async () => {
+    if (isChatRecording) {
+      await handleStopChatRecording();
+      // Add the transcript to the input
+      if (chatTranscript.trim()) {
+        setText(prev => prev + (prev ? ' ' : '') + chatTranscript.trim());
+      }
+      handleResetChatTranscript();
+    } else {
+      await handleStartChatRecording();
+    }
+  }, [isChatRecording, handleStopChatRecording, handleStartChatRecording, chatTranscript, handleResetChatTranscript]);
+
+  // Update text input when transcript changes during recording
+  useEffect(() => {
+    if (isChatRecording && chatTranscript.trim()) {
+      // Show live transcript during recording
+      // You could also update a separate display for the live transcript
+    }
+  }, [chatTranscript, isChatRecording]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -1055,22 +1088,37 @@ export function ChatWidget({
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools className="flex flex-wrap items-center gap-2">
-                <div className="hidden">
-                  <PromptInputActionMenu>
-                    <PromptInputActionMenuTrigger disabled />
-                    <PromptInputActionMenuContent>
-                      <PromptInputActionAddAttachments />
-                    </PromptInputActionMenuContent>
-                  </PromptInputActionMenu>
-                  <PromptInputButton disabled variant="ghost">
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger disabled />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+                <PromptInputButton 
+                  variant="ghost" 
+                  onClick={handleMicClick}
+                  className={cn(
+                    "transition-colors",
+                    isChatRecording && "text-red-500 hover:text-red-600",
+                    sttState === 'connecting' && "text-yellow-500"
+                  )}
+                >
+                  {isChatRecording ? (
+                    <Square size={16} />
+                  ) : (
                     <MicIcon size={16} />
-                    <span className="sr-only">Microphone</span>
-                  </PromptInputButton>
-                  <PromptInputButton disabled variant="ghost">
-                    <GlobeIcon size={16} />
-                    <span>Search</span>
-                  </PromptInputButton>
-                </div>
+                  )}
+                  <span className="sr-only">
+                    {isChatRecording 
+                      ? (language === "es" ? "Detener grabación" : "Stop recording")
+                      : (language === "es" ? "Iniciar grabación" : "Start recording")
+                    }
+                  </span>
+                </PromptInputButton>
+                <PromptInputButton disabled variant="ghost">
+                  <GlobeIcon size={16} />
+                  <span>Search</span>
+                </PromptInputButton>
                 <div className="flex w-full flex-nowrap items-center gap-2 sm:flex-wrap">
                   <div className="flex-1 min-w-0 sm:flex-none">
                     <Select onValueChange={setModel} value={model}>
