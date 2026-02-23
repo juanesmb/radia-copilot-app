@@ -41,7 +41,6 @@ import {
   PromptInputBody,
   PromptInputButton,
   PromptInputFooter,
-  PromptInputHeader,
   type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
@@ -200,6 +199,7 @@ export function ChatWidget({
   const streamingQueueRef = useRef<string[]>([]);
   const streamingIntervalRef = useRef<number | null>(null);
   const streamingTextRef = useRef("");
+  const streamAbortControllerRef = useRef<AbortController | null>(null);
   const [text, setText] = useState<string>("");
   const [status, setStatus] = useState<
     "submitted" | "streaming" | "ready" | "error"
@@ -401,6 +401,13 @@ export function ChatWidget({
     };
   }, []);
 
+  const applyNewChatState = useCallback(() => {
+    setHasTemporaryChat(true);
+    setActiveSessionId(null);
+    setMessages([]);
+    setSelectedReportId(null);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -416,18 +423,13 @@ export function ChatWidget({
         setSessions(sessionData);
         setReports(reportData);
         if (sessionData.length > 0) {
-          setHasTemporaryChat(false);
-          // Only set active session if none is already set
           if (!activeSessionId) {
-            const preferredSessionId = sessionData[0].id;
-            setActiveSessionId(preferredSessionId);
-            const history = await getChatMessages(preferredSessionId);
-            setMessages(history.map(mapStoredMessage));
+            applyNewChatState();
+          } else {
+            setHasTemporaryChat(false);
           }
         } else {
-          setActiveSessionId(null);
-          setMessages([]);
-          setHasTemporaryChat(true);
+          applyNewChatState();
         }
       } catch (error) {
         console.error("[ChatWidget] Failed to load sessions", error);
@@ -437,7 +439,7 @@ export function ChatWidget({
     };
 
     void loadSessions();
-  }, [isOpen]);
+  }, [isOpen, applyNewChatState]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -472,10 +474,10 @@ export function ChatWidget({
   };
 
   const handleNewChat = async () => {
-    setHasTemporaryChat(true);
-    setActiveSessionId(null);
-    setMessages([]);
-    setSelectedReportId(null);
+    streamAbortControllerRef.current?.abort();
+    clearStreamingState();
+    setStatus("ready");
+    applyNewChatState();
   };
 
   const startEditingSession = (session: ChatSession) => {
@@ -528,6 +530,14 @@ export function ChatWidget({
     });
   };
 
+  const clearStreamingState = useCallback(() => {
+    if (streamingIntervalRef.current) {
+      window.clearInterval(streamingIntervalRef.current);
+      streamingIntervalRef.current = null;
+    }
+    streamingQueueRef.current = [];
+  }, []);
+
   const addUserMessage = useCallback(
     async (content: string) => {
       let sessionId = activeSessionId;
@@ -576,6 +586,13 @@ export function ChatWidget({
         console.error("[ChatWidget] Failed to save user message", error);
       }
 
+      const controller = streamAbortControllerRef.current;
+      if (!controller || controller.signal.aborted) {
+        streamAbortControllerRef.current = null;
+        setStatus("ready");
+        return;
+      }
+
       const assistantMessageId = `assistant-${Date.now()}`;
       const assistantMessage: MessageType = {
         key: assistantMessageId,
@@ -621,6 +638,7 @@ export function ChatWidget({
             "Content-Type": "application/json",
             Accept: "text/event-stream",
           },
+          signal: controller.signal,
           body: JSON.stringify({
             messages: messagesRef.current.map((msg) => ({
               role: msg.from,
@@ -649,6 +667,9 @@ export function ChatWidget({
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
+              break;
+            }
+            if (controller.signal?.aborted) {
               break;
             }
 
@@ -704,11 +725,13 @@ export function ChatWidget({
           });
         }
 
-        if (finalAssistantText) {
+        const textToSave =
+          controller.signal?.aborted ? streamingTextRef.current : finalAssistantText;
+        if (textToSave) {
           try {
             await createChatMessage(sessionId, {
               role: "assistant",
-              content: finalAssistantText,
+              content: textToSave,
               token_count: finalAssistantTokens ?? undefined,
             });
           } catch (error) {
@@ -716,24 +739,50 @@ export function ChatWidget({
           }
         }
       } catch (error) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.key === assistantMessageId
-              ? {
-                  ...msg,
-                  content: t("chat.error.response"),
-                }
-              : msg
-          )
-        );
-        setStatus("error");
+        const isAbortError =
+          error instanceof Error && error.name === "AbortError";
+        if (isAbortError) {
+          clearStreamingState();
+          const partialText = streamingTextRef.current;
+          if (partialText) {
+            try {
+              await createChatMessage(sessionId, {
+                role: "assistant",
+                content: partialText,
+              });
+            } catch (saveError) {
+              console.error("[ChatWidget] Failed to save partial message", saveError);
+            }
+          }
+        } else {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.key === assistantMessageId
+                ? {
+                    ...msg,
+                    content: t("chat.error.response"),
+                  }
+                : msg
+            )
+          );
+          setStatus("error");
+        }
+        streamAbortControllerRef.current = null;
         return;
       }
 
+      streamAbortControllerRef.current = null;
       setStatus("ready");
     },
-    [activeSessionId]
+    [activeSessionId, clearStreamingState]
   );
+
+  const handleStopStreaming = useCallback(() => {
+    streamAbortControllerRef.current?.abort();
+    streamAbortControllerRef.current = null;
+    clearStreamingState();
+    setStatus("ready");
+  }, [clearStreamingState]);
 
   const handleSubmit = (message: PromptInputMessage) => {
     const hasText = Boolean(message.text);
@@ -742,6 +791,8 @@ export function ChatWidget({
     if (!(hasText || hasAttachments)) {
       return;
     }
+
+    streamAbortControllerRef.current = new AbortController();
 
     setStatus("submitted");
 
@@ -1120,8 +1171,9 @@ export function ChatWidget({
                 </div>
               </PromptInputTools>
               <PromptInputSubmit
-                disabled={!(text.trim() || status) || status === "streaming"}
+                disabled={status === "ready" && !text.trim()}
                 status={status}
+                onStop={handleStopStreaming}
               />
             </PromptInputFooter>
           </PromptInput>
