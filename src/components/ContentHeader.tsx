@@ -119,13 +119,19 @@ export function ContentHeader({
               "bg-background border-transparent hover:border-border focus:border-border transition-colors",
             )}
           />
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center gap-2">
             {isSaving ? (
-              <ArrowUpDown className="h-4 w-4 text-muted-foreground animate-pulse" />
+              <>
+                <ArrowUpDown className="h-4 w-4 text-muted-foreground animate-pulse" />
+                <span className="text-sm text-muted-foreground">Guardando...</span>
+              </>
             ) : (
-              <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-                <Check className="h-3 w-3 text-white" />
-              </div>
+              <>
+                <div className="w-6 h-6 rounded-full border border-border flex items-center justify-center">
+                  <Check className="h-3 w-3 text-foreground" />
+                </div>
+                <span className="text-sm text-muted-foreground">Guardado</span>
+              </>
             )}
           </div>
           <div className="flex flex-1 justify-end items-center gap-2">
