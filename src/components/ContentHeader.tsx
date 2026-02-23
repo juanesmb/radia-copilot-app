@@ -123,14 +123,18 @@ export function ContentHeader({
             {isSaving ? (
               <>
                 <ArrowUpDown className="h-4 w-4 text-muted-foreground animate-pulse" />
-                <span className="text-sm text-muted-foreground">Guardando...</span>
+                <span className="text-sm text-muted-foreground">
+                  {language === "es" ? "Guardando..." : "Saving..."}
+                </span>
               </>
             ) : (
               <>
                 <div className="w-6 h-6 rounded-full border border-border flex items-center justify-center">
                   <Check className="h-3 w-3 text-foreground" />
                 </div>
-                <span className="text-sm text-muted-foreground">Guardado</span>
+                <span className="text-sm text-muted-foreground">
+                  {language === "es" ? "Guardado" : "Saved"}
+                </span>
               </>
             )}
           </div>
