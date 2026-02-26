@@ -9,6 +9,7 @@ export interface STTConfig {
   language: 'en' | 'es';
   sampleRate?: number;
   enablePartials?: boolean;
+  domain?: 'general' | 'medical';
 }
 
 export type STTState = 'idle' | 'connecting' | 'recording' | 'stopping' | 'error';

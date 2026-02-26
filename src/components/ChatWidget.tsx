@@ -8,6 +8,7 @@ import {
   HistoryIcon,
   MicIcon,
   PlusIcon,
+  Square,
   XIcon,
 } from "lucide-react";
 
@@ -65,6 +66,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useChatSpeechToText } from "@/hooks/useChatSpeechToText";
 import {
   createChatMessage,
   createChatSession,
@@ -140,7 +142,7 @@ const models = [
 
 interface ChatWidgetProps {
   className?: string;
-  onOpenChange?: (isOpen: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
   onReportBadgeChange?: (hasBadge: boolean) => void;
 }
 
@@ -173,6 +175,14 @@ export function ChatWidget({
   onReportBadgeChange,
 }: ChatWidgetProps = {}) {
   const { t, language } = useLanguage();
+  const {
+    chatTranscript,
+    isChatRecording,
+    sttError,
+    handleStartChatRecording,
+    handleStopChatRecording,
+    handleResetChatTranscript,
+  } = useChatSpeechToText();
   const [isOpen, setIsOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT_WIDTH);
   const [copiedMessageKey, setCopiedMessageKey] = useState<string | null>(null);
@@ -207,6 +217,33 @@ export function ChatWidget({
   const [messages, setMessages] = useState<MessageType[]>([]);
   const messagesRef = useRef<MessageType[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Handle microphone recording
+  const handleMicClick = useCallback(async () => {
+    if (isChatRecording) {
+      handleStopChatRecording();
+    } else {
+      try {
+        await handleStartChatRecording(text);
+      } catch (error) {
+        console.error('[ChatWidget] Recording error:', error);
+      }
+    }
+  }, [isChatRecording, handleStopChatRecording, handleStartChatRecording, text]);
+
+  const lastSyncedTranscriptRef = useRef(chatTranscript);
+
+  // Sync transcript with text while recording or just stopped
+  // We only sync when the transcript actually changes to avoid fighting with manual typing
+  useEffect(() => {
+    if (chatTranscript !== lastSyncedTranscriptRef.current) {
+      if (chatTranscript.trim()) {
+        console.log('[ChatWidget] Syncing text with new transcript:', chatTranscript);
+        setText(chatTranscript);
+      }
+      lastSyncedTranscriptRef.current = chatTranscript;
+    }
+  }, [chatTranscript]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -869,14 +906,14 @@ export function ChatWidget({
             {(
               hasTemporaryChat
                 ? ([
-                    { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
-                    ...recentSessionIds
-                      .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                      .filter((session): session is ChatSession => Boolean(session)),
-                  ] as Array<ChatSession & { isTemp?: boolean }>)
-                : recentSessionIds
+                  { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
+                  ...recentSessionIds
                     .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                    .filter((session): session is ChatSession => Boolean(session))
+                    .filter((session): session is ChatSession => Boolean(session)),
+                ] as Array<ChatSession & { isTemp?: boolean }>)
+                : recentSessionIds
+                  .map((sessionId) => sessions.find((session) => session.id === sessionId))
+                  .filter((session): session is ChatSession => Boolean(session))
             ).map((session) => (
               <div
                 role="button"
@@ -1106,22 +1143,37 @@ export function ChatWidget({
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools className="flex flex-wrap items-center gap-2">
-                <div className="hidden">
-                  <PromptInputActionMenu>
-                    <PromptInputActionMenuTrigger disabled />
-                    <PromptInputActionMenuContent>
-                      <PromptInputActionAddAttachments />
-                    </PromptInputActionMenuContent>
-                  </PromptInputActionMenu>
-                  <PromptInputButton disabled variant="ghost">
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger disabled />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+                <PromptInputButton
+                  variant="ghost"
+                  onClick={handleMicClick}
+                  className={cn(
+                    "transition-colors",
+                    isChatRecording && "text-red-500 hover:text-red-600",
+                    sttError && "text-yellow-500"
+                  )}
+                >
+                  {isChatRecording ? (
+                    <Square size={16} />
+                  ) : (
                     <MicIcon size={16} />
-                    <span className="sr-only">Microphone</span>
-                  </PromptInputButton>
-                  <PromptInputButton disabled variant="ghost">
-                    <GlobeIcon size={16} />
-                    <span>Search</span>
-                  </PromptInputButton>
-                </div>
+                  )}
+                  <span className="sr-only">
+                    {isChatRecording
+                      ? (language === "es" ? "Detener grabación" : "Stop recording")
+                      : (language === "es" ? "Iniciar grabación" : "Start recording")
+                    }
+                  </span>
+                </PromptInputButton>
+                <PromptInputButton disabled variant="ghost">
+                  <GlobeIcon size={16} />
+                  <span>Search</span>
+                </PromptInputButton>
                 <div className="flex w-full flex-nowrap items-center gap-2 sm:flex-wrap">
                   <div className="flex-1 min-w-0 sm:flex-none">
                     <Select onValueChange={setModel} value={model}>

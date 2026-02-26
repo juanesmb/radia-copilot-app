@@ -37,19 +37,29 @@ export function useSpeechToText(
 
     provider.onTranscript((result) => {
       const sessionText = result.text.trim();
-      
+
       // Skip placeholder text
       if (sessionText === '...') {
         return;
       }
-      
+
       // Build combined transcript: base + current session transcript
       // Provider's sessionText is the full accumulated transcript for THIS session only
-      // (accumulatedTranscript is cleared on each connect)
-      const combined = baseTranscriptRef.current
-        ? `${baseTranscriptRef.current} ${sessionText}`.trim()
-        : sessionText;
-      
+      const session = sessionText.trim();
+      const base = baseTranscriptRef.current.trim();
+
+      const combined = base
+        ? (session ? `${base} ${session}` : base)
+        : session;
+
+      if (session) {
+        console.log('[useSpeechToText] Session text updated:', {
+          base,
+          session,
+          combined
+        });
+      }
+
       // Only update if changed to avoid unnecessary re-renders
       if (combined !== transcriptRef.current) {
         transcriptRef.current = combined;
