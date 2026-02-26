@@ -19,6 +19,7 @@ export function useSimpleChatSpeech() {
 
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef<string>('');
+  const isStartingRef = useRef(false);
 
   // Sync transcriptRef with state
   useEffect(() => {
@@ -36,6 +37,12 @@ export function useSimpleChatSpeech() {
   }, []);
 
   const handleStartRecording = useCallback(() => {
+    // Guard against re-entrant calls
+    if (isStartingRef.current || recognitionRef.current || state.isRecording) {
+      return;
+    }
+    isStartingRef.current = true;
+
     try {
       // Check if browser supports Speech Recognition
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -45,6 +52,7 @@ export function useSimpleChatSpeech() {
           ...prev,
           error: 'Speech recognition not supported in this browser'
         }));
+        isStartingRef.current = false;
         return;
       }
 
@@ -65,22 +73,26 @@ export function useSimpleChatSpeech() {
 
           // Set up event handlers
           recognition.onresult = (event: any) => {
-            console.log('[SimpleChatSpeech] Recognition result:', {
-              resultIndex: event.resultIndex,
-              results: event.results,
-              resultsLength: event.results?.length
-            });
+            // Avoid logging raw transcript content in production
+            if (process.env.NODE_ENV !== 'production') {
+              console.debug('[SimpleChatSpeech] Recognition result received', {
+                resultIndex: event.resultIndex,
+                resultsLength: event.results?.length
+              });
+            }
             
             let finalTranscript = '';
             let interimTranscript = '';
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
               const result = event.results[i];
-              console.log(`[SimpleChatSpeech] Processing result ${i}:`, {
-                isFinal: result.isFinal,
-                transcript: result[0]?.transcript,
-                confidence: result[0]?.confidence
-              });
+              // Avoid logging raw transcript content
+              if (process.env.NODE_ENV !== 'production') {
+                console.debug(`[SimpleChatSpeech] Processing result ${i}`, {
+                  isFinal: result.isFinal,
+                  confidence: result[0]?.confidence
+                });
+              }
               
               if (result.isFinal) {
                 finalTranscript += result[0].transcript;
@@ -89,20 +101,26 @@ export function useSimpleChatSpeech() {
               }
             }
 
-            console.log('[SimpleChatSpeech] Before state update:', {
-              finalTranscript,
-              interimTranscript,
-              currentTranscript: transcriptRef.current // Use ref instead of state
-            });
+            // Keep logs redacted in production
+            if (process.env.NODE_ENV !== 'production') {
+              console.debug('[SimpleChatSpeech] Before state update:', {
+                finalTranscriptLength: finalTranscript.length,
+                interimTranscriptLength: interimTranscript.length,
+                currentTranscriptLength: transcriptRef.current.length
+              });
+            }
 
             // Update state with new transcript
             setState(prev => {
               const newTranscript = prev.transcript + finalTranscript;
-              console.log('[SimpleChatSpeech] Transcript updated:', {
-                prev: prev.transcript,
-                finalTranscript,
-                newTranscript
-              });
+              // Intentionally avoid logging transcript text
+              if (process.env.NODE_ENV !== 'production') {
+                console.debug('[SimpleChatSpeech] Transcript updated', {
+                  prevLength: prev.transcript.length,
+                  finalTranscriptLength: finalTranscript.length,
+                  newLength: newTranscript.length
+                });
+              }
               return {
                 ...prev,
                 transcript: newTranscript
@@ -152,6 +170,9 @@ export function useSimpleChatSpeech() {
             error: `Microphone access denied: ${error}`,
             isRecording: false // Update recording state on permission error
           }));
+        })
+        .finally(() => {
+          isStartingRef.current = false;
         });
     } catch (error) {
       console.error('[SimpleChatSpeech] Failed to start recording:', error);
@@ -160,8 +181,9 @@ export function useSimpleChatSpeech() {
         error: error instanceof Error ? error.message : 'Failed to start recording',
         isRecording: false // Update recording state on start error
       }));
+      isStartingRef.current = false;
     }
-  }, [language]);
+  }, [language, state.isRecording]);
 
   const handleStopRecording = useCallback(() => {
     try {
