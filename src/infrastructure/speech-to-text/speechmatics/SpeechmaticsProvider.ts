@@ -81,6 +81,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
   private audioChunkCount = 0;
   private isIntentionallyDisconnecting = false;
   private isConnecting = false;
+  private audioWorkletNode: AudioWorkletNode | null = null;
 
   getState(): STTState {
     return this.state;
@@ -105,9 +106,9 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
   }
 
   private emitTranscript(result: TranscriptResult): void {
-    log('TRANSCRIPT', `Emitting transcript (final: ${result.isFinal})`, { 
+    log('TRANSCRIPT', `Emitting transcript (final: ${result.isFinal})`, {
       textLength: result.text.length,
-      preview: result.text.slice(0, 100) 
+      preview: result.text.slice(0, 100)
     });
     this.transcriptCallbacks.forEach((cb) => cb(result));
   }
@@ -119,9 +120,14 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
 
   async connect(config: STTConfig): Promise<void> {
     log('CONNECT', 'Starting connection', config);
-    
+
     if (this.state !== 'idle') {
-      log('CONNECT', `Provider in state "${this.state}", disconnecting first...`);
+      log('CONNECT', `Provider in state "${this.state}", forcing reset...`);
+      // Use a more aggressive cleanup if we are stuck in an error state
+      if (this.state === 'error') {
+        this.accumulatedTranscript = '';
+        this.audioChunkCount = 0;
+      }
       this.isIntentionallyDisconnecting = true;
       await this.disconnect();
       this.isIntentionallyDisconnecting = false;
@@ -139,24 +145,38 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
       log('TOKEN', 'Fetching temporary JWT from backend...');
       const tokenResponse = await fetch(TOKEN_ENDPOINT);
       log('TOKEN', `Token response status: ${tokenResponse.status}`);
-      
+
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
         logError('TOKEN', `Failed to fetch token: ${tokenResponse.status}`, errorText);
         throw new Error(`Failed to fetch Speechmatics token: ${tokenResponse.status}`);
       }
-      
+
       const tokenData = await tokenResponse.json();
       log('TOKEN', 'Token received', { hasToken: !!tokenData.token, tokenLength: tokenData.token?.length });
-      
+
       if (!tokenData.token) {
         logError('TOKEN', 'Token response missing token field', tokenData);
         throw new Error('Token response missing token');
       }
 
+      // Cleanup existing socket if any
+      if (this.socket) {
+        log('WEBSOCKET', 'Closing existing socket before new connection');
+        this.socket.onmessage = null;
+        this.socket.onclose = null;
+        this.socket.onerror = null;
+        this.socket.onopen = null;
+        this.socket.close();
+        this.socket = null;
+      }
+
+      this.accumulatedTranscript = '';
+      this.audioChunkCount = 0;
+
       const wsUrl = `${SPEECHMATICS_WS_URL}?jwt=${tokenData.token}`;
       log('WEBSOCKET', `Connecting to WebSocket: ${SPEECHMATICS_WS_URL}?jwt=[REDACTED]`);
-      
+
       this.socket = new WebSocket(wsUrl);
       this.isConnecting = true;
 
@@ -179,7 +199,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
           const dictatedPunctuationReplacements = getDictatedPunctuationReplacements(
             config.language
           );
-          
+
           const startMessage = {
             message: 'StartRecognition',
             transcription_config: {
@@ -187,7 +207,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
               operating_point: 'enhanced',
               enable_partials: config.enablePartials ?? true,
               max_delay: 2.0,
-              ...(config.language === 'es' && { domain: 'medical' }),
+              ...(config.domain === 'medical' || (config.language === 'es' && !config.domain) ? { domain: 'medical' } : {}),
               transcript_filtering_config: {
                 replacements: dictatedPunctuationReplacements,
               },
@@ -202,7 +222,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
               sample_rate: config.sampleRate ?? 16000,
             },
           };
-          
+
           log('WEBSOCKET', 'StartRecognition message', startMessage);
           this.socket?.send(JSON.stringify(startMessage));
         };
@@ -210,7 +230,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
         this.socket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            
+
             if (data.message === 'AddTranscript' || data.message === 'AddPartialTranscript') {
               log('WEBSOCKET', `Received: ${data.message}`, { resultsCount: data.results?.length });
             } else {
@@ -272,12 +292,12 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
             }
             return;
           }
-          
+
           if (this.isIntentionallyDisconnecting || this.state === 'connecting' || this.state === 'idle' || this.state === 'stopping') {
             log('WEBSOCKET', 'Ignoring close event - intentional disconnect or already reconnecting');
             return;
           }
-          
+
           if (event.code === 1000) {
             log('WEBSOCKET', 'Normal closure');
             this.setState('idle');
@@ -288,10 +308,19 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
           }
         };
       });
-      
+
       log('CONNECT', 'Connection established successfully');
     } catch (error) {
       logError('CONNECT', 'Connection failed', error);
+      // Ensure we clean up if connection fails
+      if (this.socket) {
+        this.socket.onmessage = null;
+        this.socket.onopen = null;
+        this.socket.onclose = null;
+        this.socket.onerror = null;
+        this.socket.close();
+        this.socket = null;
+      }
       this.setState('error');
       this.emitError({
         code: 'CONNECTION_ERROR',
@@ -315,7 +344,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
       log('TRANSCRIPT', `Ignoring transcript message in state "${this.state}"`);
       return;
     }
-    
+
     const isFinal = data.message === 'AddTranscript';
     let text = '';
 
@@ -333,7 +362,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     }
 
     text = text.trim();
-    
+
     log('TRANSCRIPT', `Processing transcript: isFinal=${isFinal}, newText="${text.slice(0, 50)}..."`);
 
     if (isFinal && text) {
@@ -354,7 +383,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
 
   async startRecording(): Promise<void> {
     log('RECORDING', `Starting recording, current state: ${this.state}`);
-    
+
     if (this.state !== 'connecting') {
       logError('RECORDING', `Cannot start recording in state "${this.state}"`);
       throw new Error('Cannot start recording in current state');
@@ -371,7 +400,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
           noiseSuppression: true,
         },
       });
-      
+
       const audioTracks = this.mediaStream.getAudioTracks();
       log('MICROPHONE', `Microphone access granted, tracks: ${audioTracks.length}`, {
         trackSettings: audioTracks[0]?.getSettings(),
@@ -382,75 +411,49 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
       this.audioContext = new AudioContext({
         sampleRate: this.config?.sampleRate ?? 16000,
       });
-      
+
       log('AUDIO', `AudioContext created: sampleRate=${this.audioContext.sampleRate}, state=${this.audioContext.state}`);
 
       const source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
-      // Use ScriptProcessor for audio processing
-      const bufferSize = 4096;
-      this.scriptProcessor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
-      
-      log('AUDIO', `ScriptProcessor created: bufferSize=${bufferSize}`);
+      // Use AudioWorklet if supported, fallback to ScriptProcessor
+      const useWorklet = !!this.audioContext.audioWorklet;
 
-      this.silenceStartMs = null;
-      this.hasAutoStoppedForSilence = false;
-
-      this.scriptProcessor.onaudioprocess = (event) => {
-        if (this.state !== 'recording') {
-          return;
-        }
-        
-        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-          if (this.audioChunkCount % 100 === 0) {
-            log('AUDIO', `Socket not ready: state=${this.socket?.readyState}`);
-          }
-          return;
-        }
-
-        const inputData = event.inputBuffer.getChannelData(0);
-        const buffer = new Float32Array(inputData);
-
-        const nowMs = performance.now();
-        let sumSquares = 0;
-        for (let i = 0; i < buffer.length; i++) {
-          const v = buffer[i];
-          sumSquares += v * v;
-        }
-        const rms = Math.sqrt(sumSquares / Math.max(1, buffer.length));
-
-        const SILENCE_RMS_THRESHOLD = 0.008;
-        const SILENCE_STOP_AFTER_MS = 12500;
-
-        if (rms < SILENCE_RMS_THRESHOLD) {
-          if (this.silenceStartMs === null) {
-            this.silenceStartMs = nowMs;
-          } else if (
-            !this.hasAutoStoppedForSilence &&
-            nowMs - this.silenceStartMs >= SILENCE_STOP_AFTER_MS
-          ) {
-            this.hasAutoStoppedForSilence = true;
-            log('RECORDING', `Auto-stopping due to silence: ${Math.round(nowMs - this.silenceStartMs)}ms`);
-            setTimeout(() => {
-              if (this.state === 'recording') {
-                void this.stopRecording();
+      if (useWorklet) {
+        log('AUDIO', 'Setting up AudioWorklet...');
+        try {
+          const workletCode = `
+            class AudioProcessor extends AudioWorkletProcessor {
+              process(inputs) {
+                const input = inputs[0];
+                if (input && input[0]) {
+                  this.port.postMessage(input[0]);
+                }
+                return true;
               }
-            }, 0);
-          }
-        } else {
-          this.silenceStartMs = null;
-        }
-        
-        this.audioChunkCount++;
-        if (this.audioChunkCount % 50 === 0) {
-          log('AUDIO', `Sent ${this.audioChunkCount} audio chunks, buffer size: ${buffer.length}`);
-        }
-        
-        this.socket.send(buffer.buffer);
-      };
+            }
+            registerProcessor('audio-processor', AudioProcessor);
+          `;
+          const blob = new Blob([workletCode], { type: 'application/javascript' });
+          const url = URL.createObjectURL(blob);
+          await this.audioContext.audioWorklet.addModule(url);
+          URL.revokeObjectURL(url);
 
-      source.connect(this.scriptProcessor);
-      this.scriptProcessor.connect(this.audioContext.destination);
+          this.audioWorkletNode = new AudioWorkletNode(this.audioContext, 'audio-processor');
+          this.audioWorkletNode.port.onmessage = (event: MessageEvent) => {
+            this.handleAudioData(event.data);
+          };
+          source.connect(this.audioWorkletNode);
+          this.audioWorkletNode.connect(this.audioContext.destination);
+          log('AUDIO', 'AudioWorklet connected');
+        } catch (workletError) {
+          logError('AUDIO', 'Failed to initialize AudioWorklet, falling back to ScriptProcessor', workletError);
+          this.setupScriptProcessor(source);
+        }
+      } else {
+        log('AUDIO', 'AudioWorklet not supported, using ScriptProcessor');
+        this.setupScriptProcessor(source);
+      }
 
       this.setState('recording');
       log('RECORDING', 'Recording started successfully');
@@ -465,9 +468,55 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     }
   }
 
+  private setupScriptProcessor(source: MediaStreamAudioSourceNode): void {
+    const bufferSize = 4096;
+    this.scriptProcessor = this.audioContext!.createScriptProcessor(bufferSize, 1, 1);
+    this.scriptProcessor.onaudioprocess = (event) => {
+      this.handleAudioData(event.inputBuffer.getChannelData(0));
+    };
+    source.connect(this.scriptProcessor);
+    this.scriptProcessor.connect(this.audioContext!.destination);
+    log('AUDIO', `ScriptProcessor created: bufferSize=${bufferSize}`);
+  }
+
+  private handleAudioData(buffer: Float32Array): void {
+    if (this.state !== 'recording') return;
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+
+    const nowMs = performance.now();
+    let sumSquares = 0;
+    for (let i = 0; i < buffer.length; i++) {
+      const v = buffer[i];
+      sumSquares += v * v;
+    }
+    const rms = Math.sqrt(sumSquares / Math.max(1, buffer.length));
+
+    const SILENCE_RMS_THRESHOLD = 0.008;
+    const SILENCE_STOP_AFTER_MS = 12500;
+
+    if (rms < SILENCE_RMS_THRESHOLD) {
+      if (this.silenceStartMs === null) {
+        this.silenceStartMs = nowMs;
+      } else if (!this.hasAutoStoppedForSilence && nowMs - this.silenceStartMs >= SILENCE_STOP_AFTER_MS) {
+        this.hasAutoStoppedForSilence = true;
+        log('RECORDING', `Auto-stopping due to silence: ${Math.round(nowMs - this.silenceStartMs)}ms`);
+        setTimeout(() => { if (this.state === 'recording') void this.stopRecording(); }, 0);
+      }
+    } else {
+      this.silenceStartMs = null;
+    }
+
+    this.audioChunkCount++;
+    if (this.audioChunkCount % 100 === 0) {
+      log('AUDIO', `Sent ${this.audioChunkCount} audio chunks, buffer size: ${buffer.length}, rms: ${rms.toFixed(5)}`);
+    }
+
+    this.socket.send(buffer.buffer);
+  }
+
   async stopRecording(): Promise<void> {
     log('RECORDING', `Stopping recording, current state: ${this.state}, chunks sent: ${this.audioChunkCount}`);
-    
+
     if (this.state !== 'recording') {
       log('RECORDING', 'Not in recording state, nothing to stop');
       return;
@@ -492,6 +541,12 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
       this.scriptProcessor = null;
     }
 
+    if (this.audioWorkletNode) {
+      log('AUDIO', 'Disconnecting AudioWorklet');
+      this.audioWorkletNode.disconnect();
+      this.audioWorkletNode = null;
+    }
+
     if (this.audioContext) {
       log('AUDIO', `Closing AudioContext, state: ${this.audioContext.state}`);
       await this.audioContext.close();
@@ -501,11 +556,14 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     // Send EndOfStream to Speechmatics
     // Wait a brief moment to ensure all pending audio chunks are processed
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
-        log('WEBSOCKET', 'Sending EndOfStream message');
-        const endOfStreamMessage = { message: 'EndOfStream' };
+        log('WEBSOCKET', 'Sending EndOfStream message', { last_seq_no: this.audioChunkCount });
+        const endOfStreamMessage = {
+          message: 'EndOfStream',
+          last_seq_no: this.audioChunkCount
+        };
         this.socket.send(JSON.stringify(endOfStreamMessage));
         log('WEBSOCKET', 'EndOfStream message sent successfully');
       } catch (error) {
@@ -514,19 +572,25 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     } else {
       log('WEBSOCKET', `Cannot send EndOfStream: socket state=${this.socket?.readyState}`);
     }
-    
+
     this.setState('idle');
     log('RECORDING', 'Recording stopped, state set to idle');
+    // Ensure we are truly in idle state even if some async event weirdness happened
+    this.state = 'idle';
   }
 
   async disconnect(): Promise<void> {
     log('DISCONNECT', `Disconnecting, current state: ${this.state}`);
-    
+
     this.isIntentionallyDisconnecting = true;
     await this.stopRecording();
 
     if (this.socket) {
       log('WEBSOCKET', `Closing WebSocket, state: ${this.socket.readyState}`);
+      this.socket.onmessage = null;
+      this.socket.onclose = null;
+      this.socket.onerror = null;
+      this.socket.onopen = null;
       this.socket.close();
       this.socket = null;
     }
@@ -535,7 +599,7 @@ export class SpeechmaticsProvider implements SpeechToTextProvider {
     this.audioChunkCount = 0;
     this.setState('idle');
     this.isIntentionallyDisconnecting = false;
-    
+
     log('DISCONNECT', 'Disconnected successfully');
   }
 }

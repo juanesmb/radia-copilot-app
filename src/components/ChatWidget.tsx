@@ -143,7 +143,7 @@ const models = [
 
 interface ChatWidgetProps {
   className?: string;
-  onOpenChange?: (isOpen: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
   onReportBadgeChange?: (hasBadge: boolean) => void;
 }
 
@@ -179,7 +179,6 @@ export function ChatWidget({
   const {
     chatTranscript,
     isChatRecording,
-    sttState,
     sttError,
     handleStartChatRecording,
     handleStopChatRecording,
@@ -222,24 +221,29 @@ export function ChatWidget({
   // Handle microphone recording
   const handleMicClick = useCallback(async () => {
     if (isChatRecording) {
-      await handleStopChatRecording();
-      // Add the transcript to the input
-      if (chatTranscript.trim()) {
-        setText(prev => prev + (prev ? ' ' : '') + chatTranscript.trim());
-      }
-      handleResetChatTranscript();
+      handleStopChatRecording();
     } else {
-      await handleStartChatRecording();
+      try {
+        await handleStartChatRecording(text);
+      } catch (error) {
+        console.error('[ChatWidget] Recording error:', error);
+      }
     }
-  }, [isChatRecording, handleStopChatRecording, handleStartChatRecording, chatTranscript, handleResetChatTranscript]);
+  }, [isChatRecording, handleStopChatRecording, handleStartChatRecording, text]);
 
-  // Update text input when transcript changes during recording
+  const lastSyncedTranscriptRef = useRef(chatTranscript);
+
+  // Sync transcript with text while recording or just stopped
+  // We only sync when the transcript actually changes to avoid fighting with manual typing
   useEffect(() => {
-    if (isChatRecording && chatTranscript.trim()) {
-      // Show live transcript during recording
-      // You could also update a separate display for the live transcript
+    if (chatTranscript !== lastSyncedTranscriptRef.current) {
+      if (chatTranscript.trim()) {
+        console.log('[ChatWidget] Syncing text with new transcript:', chatTranscript);
+        setText(chatTranscript);
+      }
+      lastSyncedTranscriptRef.current = chatTranscript;
     }
-  }, [chatTranscript, isChatRecording]);
+  }, [chatTranscript]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -753,9 +757,9 @@ export function ChatWidget({
           prev.map((msg) =>
             msg.key === assistantMessageId
               ? {
-                  ...msg,
-                  content: t("chat.error.response"),
-                }
+                ...msg,
+                content: t("chat.error.response"),
+              }
               : msg
           )
         );
@@ -851,14 +855,14 @@ export function ChatWidget({
             {(
               hasTemporaryChat
                 ? ([
-                    { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
-                    ...recentSessionIds
-                      .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                      .filter((session): session is ChatSession => Boolean(session)),
-                  ] as Array<ChatSession & { isTemp?: boolean }>)
-                : recentSessionIds
+                  { id: TEMP_SESSION_ID, title: t("chat.newTitle"), isTemp: true },
+                  ...recentSessionIds
                     .map((sessionId) => sessions.find((session) => session.id === sessionId))
-                    .filter((session): session is ChatSession => Boolean(session))
+                    .filter((session): session is ChatSession => Boolean(session)),
+                ] as Array<ChatSession & { isTemp?: boolean }>)
+                : recentSessionIds
+                  .map((sessionId) => sessions.find((session) => session.id === sessionId))
+                  .filter((session): session is ChatSession => Boolean(session))
             ).map((session) => (
               <div
                 role="button"
@@ -1094,13 +1098,13 @@ export function ChatWidget({
                     <PromptInputActionAddAttachments />
                   </PromptInputActionMenuContent>
                 </PromptInputActionMenu>
-                <PromptInputButton 
-                  variant="ghost" 
+                <PromptInputButton
+                  variant="ghost"
                   onClick={handleMicClick}
                   className={cn(
                     "transition-colors",
                     isChatRecording && "text-red-500 hover:text-red-600",
-                    sttState === 'connecting' && "text-yellow-500"
+                    sttError && "text-yellow-500"
                   )}
                 >
                   {isChatRecording ? (
@@ -1109,7 +1113,7 @@ export function ChatWidget({
                     <MicIcon size={16} />
                   )}
                   <span className="sr-only">
-                    {isChatRecording 
+                    {isChatRecording
                       ? (language === "es" ? "Detener grabación" : "Stop recording")
                       : (language === "es" ? "Iniciar grabación" : "Start recording")
                     }

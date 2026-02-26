@@ -1,16 +1,18 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useMemo } from 'react';
 import { useSpeechToText } from './useSpeechToText';
 import { createSpeechToTextProvider } from '@/infrastructure/speech-to-text';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export function useChatSpeechToText() {
   const { language } = useLanguage();
-  const [chatTranscript, setChatTranscript] = useState('');
   const [isChatRecording, setIsChatRecording] = useState(false);
-  
-  const sttProvider = createSpeechToTextProvider('speechmatics');
+
+  // Always create a separate provider instance specifically for chat
+  // This ensures the chat has its own independent recording functionality
+  // Create the provider instance only once
+  const sttProvider = useMemo(() => createSpeechToTextProvider('speechmatics'), []);
 
   const {
     transcript,
@@ -21,19 +23,27 @@ export function useChatSpeechToText() {
     reset: resetSTT,
   } = useSpeechToText(sttProvider);
 
-  // Update chat transcript when STT transcript changes
-  const prevTranscriptRef = useRef(transcript);
-  
-  const handleStartChatRecording = useCallback(async () => {
+  const handleStartChatRecording = useCallback(async (baseText?: string) => {
     try {
-      setChatTranscript(''); // Clear previous transcript
+
+      // Start recording for chat - this will create its own connection
       await startSTT({
         language,
-      });
+      }, baseText);
+
       setIsChatRecording(true);
     } catch (error) {
       console.error('[ChatSpeechToText] Failed to start recording:', error);
       setIsChatRecording(false);
+
+      // Handle specific error cases
+      if (error instanceof Error) {
+        if (error.message.includes('Permission denied')) {
+          console.warn('[ChatSpeechToText] Microphone permission denied for chat');
+        } else if (error.message.includes('Cannot start recording')) {
+          console.warn('[ChatSpeechToText] Unable to start chat recording - microphone might be in use');
+        }
+      }
     }
   }, [startSTT, language]);
 
@@ -41,8 +51,6 @@ export function useChatSpeechToText() {
     try {
       await stopSTT();
       setIsChatRecording(false);
-      // Keep the final transcript for the chat input
-      setChatTranscript(transcript); // Use the final transcript
     } catch (error) {
       console.error('[ChatSpeechToText] Failed to stop recording:', error);
       setIsChatRecording(false);
@@ -50,13 +58,12 @@ export function useChatSpeechToText() {
   }, [stopSTT, transcript]);
 
   const handleResetChatTranscript = useCallback(() => {
-    setChatTranscript('');
     resetSTT();
     setIsChatRecording(false);
   }, [resetSTT]);
-  
+
   return {
-    chatTranscript,
+    chatTranscript: transcript,
     isChatRecording,
     sttState,
     sttError,
