@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SimpleSpeechState {
@@ -18,6 +18,22 @@ export function useSimpleChatSpeech() {
   });
 
   const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<string>('');
+
+  // Sync transcriptRef with state
+  useEffect(() => {
+    transcriptRef.current = state.transcript;
+  }, [state.transcript]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
 
   const handleStartRecording = useCallback(() => {
     try {
@@ -76,7 +92,7 @@ export function useSimpleChatSpeech() {
             console.log('[SimpleChatSpeech] Before state update:', {
               finalTranscript,
               interimTranscript,
-              currentTranscript: state.transcript
+              currentTranscript: transcriptRef.current // Use ref instead of state
             });
 
             // Update state with new transcript
@@ -98,12 +114,17 @@ export function useSimpleChatSpeech() {
             console.error('[SimpleChatSpeech] Speech recognition error:', event.error);
             setState(prev => ({
               ...prev,
-              error: `Speech recognition error: ${event.error}`
+              error: `Speech recognition error: ${event.error}`,
+              isRecording: false // Update recording state on error
             }));
           };
 
           recognition.onend = () => {
             console.log('[SimpleChatSpeech] Recognition ended');
+            setState(prev => ({
+              ...prev,
+              isRecording: false // Update recording state when recognition ends
+            }));
           };
 
           recognition.onspeechstart = () => {
@@ -128,14 +149,16 @@ export function useSimpleChatSpeech() {
           console.error('[SimpleChatSpeech] Microphone access denied:', error);
           setState(prev => ({
             ...prev,
-            error: `Microphone access denied: ${error}`
+            error: `Microphone access denied: ${error}`,
+            isRecording: false // Update recording state on permission error
           }));
         });
     } catch (error) {
       console.error('[SimpleChatSpeech] Failed to start recording:', error);
       setState(prev => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'Failed to start recording'
+        error: error instanceof Error ? error.message : 'Failed to start recording',
+        isRecording: false // Update recording state on start error
       }));
     }
   }, [language]);
@@ -167,7 +190,7 @@ export function useSimpleChatSpeech() {
     }
   }, []);
 
-  // Cleanup on unmount
+  // Cleanup function for manual use
   const cleanup = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
