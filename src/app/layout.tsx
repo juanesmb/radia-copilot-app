@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
 
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
 import "./globals.css";
+
+const isProdScope = process.env.NEXT_PUBLIC_SCOPE === "prod";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,6 +52,7 @@ export default async function RootLayout({
             </LanguageProvider>
           </ThemeProvider>
         </ClerkProvider>
+        {isProdScope && <Analytics />}
       </body>
     </html>
   );
