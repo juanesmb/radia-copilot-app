@@ -30,6 +30,7 @@ Visit [http://localhost:3000](http://localhost:3000) to use the app.
 | `AI_REPORT_MODEL` | Model name in format `{provider}/{model}` (e.g., `openai/gpt-4o-mini`). Used for report generation. If no provider prefix is provided, `openai/` will be added automatically. |
 | `AI_DETECTION_MODEL` | Optional. Model name for study type detection. Falls back to `AI_REPORT_MODEL` if not set. Use a cheaper/faster model here (e.g., `openai/gpt-4o-mini`) since detection is a simpler classification task. |
 | `AI_GATEWAY_BASE_URL` | Optional. AI Gateway base URL (defaults to `https://ai-gateway.vercel.sh/v1`). |
+| `NEXT_PUBLIC_SCOPE` | Environment scope identifier. Set to `prod` in production to enable Vercel Web Analytics. Any other value (`dev`, `test`, `preview`) disables analytics. |
 
 All variables are read via the centralized config module (`src/app/api/lib/config.ts`). Only keep them in `.env.local` (never commit real credentials).
 
