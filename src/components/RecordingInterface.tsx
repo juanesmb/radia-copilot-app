@@ -5,6 +5,7 @@ import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2, MessageCircle
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { cn } from "@/lib/utils";
 import { InputPanelCollapseToggle } from "@/components/InputPanelCollapseToggle";
@@ -13,6 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { SaveStatusIndicator } from "@/components/SaveStatusIndicator";
 import { useAutoHideScrollbar } from "@/hooks/useAutoHideScrollbar";
+import { useCarousel } from "@/hooks/use-carousel";
 import { toast } from "@/components/ui/use-toast";
 import { setTemplatePreference } from "@/lib/api";
 import type { STTState } from "@/domain/speech-to-text";
@@ -122,7 +124,14 @@ export function RecordingInterface({
   const { t } = useLanguage();
   const [isCopied, setIsCopied] = useState(false);
   const [isInputPanelCollapsed, setIsInputPanelCollapsed] = useState(false);
-  const [mobileFullscreen, setMobileFullscreen] = useState<'transcription' | 'template' | 'report' | null>(null);
+  
+  // Mobile carousel for the three sections
+  const mobileCarousel = useCarousel({ 
+    loop: false,
+    align: 'start',
+    skipSnaps: false
+  });
+  
   const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
   const transcriptionScrollbarRef = useAutoHideScrollbar();
   const reportScrollbarRef = useAutoHideScrollbar();
@@ -807,12 +816,203 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
 
 
       {/* Three-column layout: Left (stacked Transcription + Template), Right (Report) */}
-      {/* Mobile: Stack vertically and allow scrolling. Desktop: Side-by-side with overflow hidden */}
-      {/* Mobile fullscreen: When a component is fullscreen, it takes full height */}
-      <div className={cn(
-        "flex flex-col lg:flex-row gap-2 lg:gap-1.5 flex-1 h-full min-h-0 lg:min-h-0 lg:overflow-hidden",
-        mobileFullscreen && "flex-1 h-full"
-      )}>
+      {/* Mobile: Use carousel for full-screen sections. Desktop: Side-by-side with overflow hidden */}
+      {/* Mobile carousel: Each section takes full screen. Desktop: Normal layout */}
+      <div className="flex flex-col lg:flex-row gap-2 lg:gap-1.5 flex-1 h-full min-h-0 lg:min-h-0 lg:overflow-hidden">
+        {/* Mobile carousel - only visible on mobile */}
+        <div className="lg:hidden flex flex-col flex-1 h-full min-h-0">
+          <Carousel className="flex-1 h-full" ref={mobileCarousel.carouselRef}>
+            <CarouselContent className="h-full">
+              {/* Slide 1: Transcription */}
+              <CarouselItem className="h-full">
+                <div className="flex flex-col h-full min-h-0">
+                  <div className="rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1 h-full">
+                    <div className="px-3 py-4 border-b border-border shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <button
+                            type="button"
+                            onClick={handleMicClick}
+                            disabled={disabled || isConnecting || isStopping}
+                            className={`relative rounded-full flex items-center justify-center gap-2 px-4 py-3 sm:px-4 sm:py-2 transition-all shrink-0 ${
+                              isRecording
+                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                : isConnecting
+                                ? 'bg-yellow-500 hover:bg-yellow-600 text-white animate-pulse'
+                                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            aria-label={isRecording ? labels.stop : label}
+                          >
+                            {isRecording ? (
+                              <Square className="w-6 h-6 sm:w-5 sm:h-5" />
+                            ) : (
+                              <Mic className="w-6 h-6 sm:w-5 sm:h-5" />
+                            )}
+                            <span className="hidden sm:inline">{label}</span>
+                            {isRecording && (
+                              <span className="absolute inset-0 rounded-full animate-ping bg-red-500/30" />
+                            )}
+                            {isConnecting && (
+                              <span className="absolute inset-0 rounded-full animate-ping bg-yellow-500/30" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                      <Textarea
+                        ref={textareaRef}
+                        value={onUpdateTranscription ? transcriptionAutoSave.value : transcription}
+                        onChange={onUpdateTranscription ? (e) => {
+                          transcriptionAutoSave.onChange(e);
+                          onChange(e.target.value); // Also update immediately for UI
+                          onContentChange?.(true); // Notificar que el usuario está escribiendo
+                        } : (event) => {
+                          onChange(event.target.value);
+                          onContentChange?.(true); // Notificar que el usuario está escribiendo
+                        }}
+                        onBlur={onUpdateTranscription ? transcriptionAutoSave.onBlur : undefined}
+                        onKeyDown={handleKeyDown}
+                        placeholder={placeholder}
+                        className="flex-1 text-base leading-relaxed resize-none scrollbar-transparent"
+                        readOnly={isRecording || isConnecting}
+                        disabled={disabled && !isActive}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+
+              {/* Slide 2: Template */}
+              <CarouselItem className="h-full">
+                <div className="flex flex-col h-full min-h-0">
+                  <TemplatePreview
+                    content={editedTemplateContent}
+                    isLoading={isTemplateLoading}
+                    error={templateError}
+                    studyType={effectiveStudyType}
+                    useDefault={useDefaultTemplate ?? true}
+                    isCustom={useDefaultTemplate === false}
+                    onUseDefaultChange={(next) => {
+                      handleUseDefaultToggle(next);
+                    }}
+                    isDetectingStudyType={isDetectingStudyType}
+                    onContentChange={handleTemplateChange}
+                    onContentBlur={undefined}
+                    showSaveButton={Boolean(onTemplateSave && hasTemplateBeenEdited && effectiveStudyType)}
+                    onSaveClick={onTemplateSave ? handleManualTemplateSave : undefined}
+                    onCustomStateReset={handleCustomStateReset}
+                    onRunAutoDetect={onRunAutoDetect}
+                    hasTranscriptionText={hasTranscriptionText}
+                    availableStudyTypes={availableStudyTypes}
+                    selectedStudyType={selectedStudyType || detectedStudyType || ''}
+                    onStudyTypeChange={(studyType) => {
+                      onStudyTypeChange?.(studyType, undefined);
+                    }}
+                    isMobileFullscreen={true}
+                    onMobileFullscreenToggle={() => {}}
+                    isActive={isActive}
+                    disabled={disabled || isManualTemplateSaving}
+                  />
+                </div>
+              </CarouselItem>
+
+              {/* Slide 3: Report */}
+              <CarouselItem className="h-full">
+                <div className="flex flex-col h-full min-h-0">
+                  <div className="rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1 h-full">
+                    <div className="px-3 py-4 border-b border-border shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 ml-auto">
+                          {currentReportId && reportChatSessionId && onOpenReportChat && (
+                            <Button
+                              type="button"
+                              className="h-10 w-10 shrink-0"
+                              onClick={() => onOpenReportChat(currentReportId, reportChatSessionId)}
+                              aria-label="Open report chat"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {hasAvailableStudyTypes && (
+                            <Button
+                              type="button"
+                              className="gap-2 text-base h-10 px-3 sm:px-6 shrink-0"
+                              onClick={handleGenerateReport}
+                              disabled={disabled || isActive || isDetectingStudyType || (!effectiveStudyType && !isTemplateCustom)}
+                            >
+                              <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" aria-hidden="true" />
+                              <span className="hidden sm:inline">{uploadLabel}</span>
+                              <span className="sm:hidden">
+                                {uploadLabel === t("recording.regenerate")
+                                  ? t("recording.regenerateMobile")
+                                  : language === "es" ? "Generar" : "Generate"}
+                              </span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+                      {generatedReport && currentReportId && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 z-10 h-8 w-8 shrink-0"
+                          onClick={handleCopyReport}
+                          aria-label={t("report.copy")}
+                        >
+                          {isCopied ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      <Textarea
+                        ref={reportTextareaRef}
+                        value={onUpdateReport ? reportAutoSave.value : (generatedReport || '')}
+                        onChange={onUpdateReport ? (e) => {
+                          reportAutoSave.onChange(e);
+                          onReportChange?.(e.target.value); // Also update immediately for UI
+                          onContentChange?.(true); // Notificar que el usuario está escribiendo
+                        } : (event) => {
+                          onReportChange?.(event.target.value);
+                          onContentChange?.(true); // Notificar que el usuario está escribiendo
+                        }}
+                        onBlur={onUpdateReport ? reportAutoSave.onBlur : undefined}
+                        placeholder={isGenerating ? t("app.generateBusy") : t("report.empty")}
+                        className={`flex-1 text-base leading-relaxed resize-none transition-all duration-300 scrollbar-transparent ${
+                          isGenerating 
+                            ? 'opacity-70 pointer-events-none' 
+                            : 'opacity-100'
+                        }`}
+                        readOnly={(!onReportChange && !onUpdateReport) || isGenerating}
+                      />
+                      {isGenerating && (
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-md">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+            </CarouselContent>
+            <CarouselPrevious className="left-2" />
+            <CarouselNext className="right-2" />
+          </Carousel>
+        </div>
+
+        {/* Desktop layout - only visible on desktop */}
+        <div className="hidden lg:flex lg:flex-row gap-2 lg:gap-1.5 flex-1 h-full min-h-0 lg:overflow-hidden">
         <InputPanelCollapseToggle
           collapsed={isInputPanelCollapsed}
           onToggle={handleToggleInputPanel}
@@ -821,40 +1021,18 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
           disabled={!hasGeneratedReport}
         />
         {/* Left column: Stacked Transcription and Template */}
-        {/* Mobile: Use auto height to stack naturally. Desktop: Use flex-1 for equal sizing */}
+        {/* Desktop: Use flex-1 for equal sizing */}
         <div className={cn(
           "flex flex-col gap-4 lg:min-h-0 lg:overflow-hidden",
-          mobileFullscreen === 'transcription' && "flex-1 h-full",
-          mobileFullscreen === 'template' && "flex-1 h-full",
           isInputPanelCollapsed ? inputPanelCollapsedClasses : inputPanelExpandedClasses,
           INPUT_PANEL_ANIMATION_CLASSES
         )}>
           {/* Transcription panel */}
-          {/* Mobile: Use min-height. Desktop: Use flex-1 */}
-          <div className={cn(
-            "flex flex-col min-h-[200px] lg:flex-1 lg:min-h-0 min-w-0",
-            mobileFullscreen && mobileFullscreen !== 'transcription' && "hidden lg:flex",
-            mobileFullscreen === 'transcription' && "lg:flex flex-1 h-full"
-          )}>
-            <div className={cn(
-              "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
-              mobileFullscreen === 'transcription' ? "h-full" : "min-h-[200px] lg:min-h-0 lg:h-full"
-            )}>
+          {/* Desktop: Use flex-1 */}
+          <div className="flex flex-col min-h-[200px] lg:flex-1 lg:min-h-0 min-w-0">
+            <div className="rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1 min-h-[200px] lg:min-h-0 lg:h-full">
               <div className="px-3 py-4 border-b border-border shrink-0">
                 <div className="flex items-center gap-3">
-                  {/* Mobile fullscreen button */}
-                  <button
-                    type="button"
-                    onClick={() => setMobileFullscreen(mobileFullscreen === 'transcription' ? null : 'transcription')}
-                    className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
-                    aria-label={mobileFullscreen === 'transcription' ? 'Exit fullscreen' : 'Enter fullscreen'}
-                  >
-                    {mobileFullscreen === 'transcription' ? (
-                      <Minimize2 className="w-4 h-4" />
-                    ) : (
-                      <Maximize2 className="w-4 h-4" />
-                    )}
-                  </button>
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-semibold text-foreground">{t("input.title")}</h3>
                   </div>
@@ -912,12 +1090,8 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
           </div>
 
           {/* Template Preview panel */}
-          {/* Mobile: Use min-height. Desktop: Use flex-1 */}
-          <div className={cn(
-            "flex flex-col min-h-[200px] lg:flex-1 lg:min-h-0 shrink-0",
-            mobileFullscreen && mobileFullscreen !== 'template' && "hidden lg:flex",
-            mobileFullscreen === 'template' && "lg:flex flex-1 h-full"
-          )}>
+          {/* Desktop: Use flex-1 */}
+          <div className="flex flex-col min-h-[200px] lg:flex-1 lg:min-h-0 shrink-0">
             <TemplatePreview
               content={editedTemplateContent}
               isLoading={isTemplateLoading}
@@ -941,8 +1115,8 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
               onStudyTypeChange={(studyType) => {
                 onStudyTypeChange?.(studyType, undefined);
               }}
-              isMobileFullscreen={mobileFullscreen === 'template'}
-              onMobileFullscreenToggle={() => setMobileFullscreen(mobileFullscreen === 'template' ? null : 'template')}
+              isMobileFullscreen={false}
+              onMobileFullscreenToggle={() => {}}
               isActive={isActive}
               disabled={disabled || isManualTemplateSaving}
             />
@@ -950,33 +1124,15 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
         </div>
 
         {/* Right column: Generated Report */}
-        {/* Mobile: Use min-height. Desktop: Use flex-1 for equal sizing */}
+        {/* Desktop: Use flex-1 for equal sizing */}
         <div className={cn(
           "flex flex-col min-h-[200px] lg:min-h-0 shrink-0",
-          mobileFullscreen && mobileFullscreen !== 'report' && "hidden lg:flex",
-          mobileFullscreen === 'report' && "lg:flex flex-1 h-full",
           isInputPanelCollapsed ? reportPanelFullWidthClasses : reportPanelExpandedClasses,
           REPORT_PANEL_ANIMATION_CLASSES
         )}>
-          <div className={cn(
-            "rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1",
-            mobileFullscreen === 'report' ? "h-full" : "min-h-[200px] lg:min-h-0 lg:h-full"
-          )}>
+          <div className="rounded-xl border-0 shadow-none bg-muted/30 flex flex-col flex-1 min-h-[200px] lg:min-h-0 lg:h-full">
             <div className="px-3 py-4 border-b border-border shrink-0">
               <div className="flex items-center gap-3">
-                {/* Mobile fullscreen button */}
-                <button
-                  type="button"
-                  onClick={() => setMobileFullscreen(mobileFullscreen === 'report' ? null : 'report')}
-                  className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
-                  aria-label={mobileFullscreen === 'report' ? 'Exit fullscreen' : 'Enter fullscreen'}
-                >
-                  {mobileFullscreen === 'report' ? (
-                    <Minimize2 className="w-4 h-4" />
-                  ) : (
-                    <Maximize2 className="w-4 h-4" />
-                  )}
-                </button>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-semibold text-foreground">{t("report.title")}</h3>
                 </div>
@@ -1055,6 +1211,7 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
