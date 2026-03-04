@@ -5,7 +5,7 @@ import { Sparkles, Mic, Square, Copy, Check, Maximize2, Minimize2, MessageCircle
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselDots } from "@/components/ui/carousel";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { cn } from "@/lib/utils";
 import { InputPanelCollapseToggle } from "@/components/InputPanelCollapseToggle";
@@ -124,12 +124,18 @@ export function RecordingInterface({
   const { t } = useLanguage();
   const [isCopied, setIsCopied] = useState(false);
   const [isInputPanelCollapsed, setIsInputPanelCollapsed] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
   
-  // Mobile carousel for the three sections
+  // Mobile carousel for three sections
   const mobileCarousel = useCarousel({ 
     loop: false,
     align: 'start',
-    skipSnaps: false
+    skipSnaps: true,
+    containScroll: 'trimSnaps',
+    dragFree: false,
+    watchDrag: true,
+    watchResize: true,
+    watchFocus: true
   });
   
   const reportTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -138,6 +144,65 @@ export function RecordingInterface({
   const mobileContainerRef = useAutoHideScrollbar();
   const prevHasGeneratedReportRef = useRef(false);
   const userToggledInputPanelRef = useRef(false);
+
+  // Sync current slide with carousel API
+  useEffect(() => {
+    if (!mobileCarousel.api) return;
+    
+    const onSelect = () => {
+      const selectedIndex = mobileCarousel.api?.selectedScrollSnap() || 0;
+      setCurrentSlide(selectedIndex);
+    };
+    
+    onSelect();
+    mobileCarousel.api.on('select', onSelect);
+    
+    return () => {
+      mobileCarousel.api?.off('select', onSelect);
+    };
+  }, [mobileCarousel.api]);
+
+  // Handle touch events for swipe over text areas
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const startX = touch.clientX;
+    
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      const touch = moveEvent.touches[0];
+      const currentX = touch.clientX;
+      const diffX = startX - currentX;
+      
+      // If horizontal swipe is detected, prevent text selection
+      if (Math.abs(diffX) > 10) {
+        moveEvent.preventDefault();
+      }
+    };
+    
+    const handleTouchEnd = (endEvent: TouchEvent) => {
+      const touch = endEvent.changedTouches[0];
+      const endX = touch.clientX;
+      const diffX = startX - endX;
+      
+      // Determine swipe direction and navigate
+      if (Math.abs(diffX) > 50) {
+        if (diffX > 0) {
+          // Swipe left - go to next
+          mobileCarousel.scrollNext();
+        } else {
+          // Swipe right - go to previous
+          mobileCarousel.scrollPrev();
+        }
+      }
+      
+      // Clean up event listeners
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+    
+    // Add event listeners
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+  }, [mobileCarousel]);
 
   const hasGeneratedReport = Boolean(generatedReport && generatedReport.trim().length > 0);
 
@@ -821,7 +886,7 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
       <div className="flex flex-col lg:flex-row gap-2 lg:gap-1.5 flex-1 h-full min-h-0 lg:min-h-0 lg:overflow-hidden">
         {/* Mobile carousel - only visible on mobile */}
         <div className="lg:hidden flex flex-col flex-1 h-full min-h-0">
-          <Carousel className="flex-1 h-full" ref={mobileCarousel.carouselRef}>
+          <Carousel className="flex-1 h-full" ref={mobileCarousel.carouselRef} onTouchStart={handleTouchStart}>
             <CarouselContent className="h-full">
               {/* Slide 1: Transcription */}
               <CarouselItem className="h-full">
@@ -1006,8 +1071,23 @@ const { content, templateId, isSystem, hasCustomTemplate, isLoading: isTemplateL
                 </div>
               </CarouselItem>
             </CarouselContent>
-            <CarouselPrevious className="left-2" />
-            <CarouselNext className="right-2" />
+            <CarouselPrevious 
+              className="left-2" 
+              onClick={mobileCarousel.scrollPrev}
+              disabled={!mobileCarousel.canScrollPrev}
+            />
+            <CarouselNext 
+              className="right-2" 
+              onClick={mobileCarousel.scrollNext}
+              disabled={!mobileCarousel.canScrollNext}
+            />
+            <CarouselDots 
+              count={3} 
+              activeIndex={currentSlide}
+              onDotClick={(index) => {
+                mobileCarousel.api?.scrollTo(index);
+              }}
+            />
           </Carousel>
         </div>
 
